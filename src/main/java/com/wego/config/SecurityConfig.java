@@ -8,15 +8,18 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 /**
  * Spring Security Configuration.
  *
- * Configures OAuth2 login with Google and session management.
+ * Configures OAuth2 login with Google, session management, CSRF protection,
+ * and security headers.
  *
  * @contract
  *   - pre: Spring Security dependencies are available
- *   - post: SecurityFilterChain is configured with OAuth2 and session settings
+ *   - post: SecurityFilterChain is configured with OAuth2, CSRF, headers, and session settings
  *   - calledBy: Spring Security auto-configuration
  */
 @Configuration
@@ -32,12 +35,46 @@ public class SecurityConfig {
      *
      * @contract
      *   - pre: HttpSecurity is injected by Spring
-     *   - post: OAuth2 login enabled, public endpoints accessible, session configured
+     *   - post: OAuth2 login enabled, public endpoints accessible
+     *   - post: CSRF protection enabled with cookie-based token repository
+     *   - post: Security headers configured (CSP, X-Frame-Options, etc.)
      *   - calls: HttpSecurity methods, CustomOAuth2UserService
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            // CSRF Protection - use cookie-based token for Thymeleaf integration
+            .csrf(csrf -> csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                // Disable CSRF for health check endpoint only
+                .ignoringRequestMatchers("/api/health")
+            )
+            // Security Headers
+            .headers(headers -> headers
+                // Prevent clickjacking
+                .frameOptions(frame -> frame.deny())
+                // Content Security Policy
+                .contentSecurityPolicy(csp -> csp
+                    .policyDirectives(
+                        "default-src 'self'; " +
+                        "script-src 'self' https://unpkg.com; " +
+                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                        "font-src 'self' https://fonts.gstatic.com; " +
+                        "img-src 'self' https: data:; " +
+                        "connect-src 'self'; " +
+                        "frame-ancestors 'none'"
+                    )
+                )
+                // Referrer Policy
+                .referrerPolicy(referrer -> referrer
+                    .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                )
+                // Permissions Policy (restrict browser features)
+                .permissionsPolicy(permissions -> permissions
+                    .policy("geolocation=(self), camera=(), microphone=()")
+                )
+            )
+            // Authorization rules
             .authorizeHttpRequests(authorize -> authorize
                 // Public endpoints
                 .requestMatchers(
@@ -53,6 +90,7 @@ public class SecurityConfig {
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )
+            // OAuth2 Login
             .oauth2Login(oauth2 -> oauth2
                 .loginPage("/login")
                 .defaultSuccessUrl("/dashboard", true)
@@ -61,12 +99,14 @@ public class SecurityConfig {
                     .userService(customOAuth2UserService)
                 )
             )
+            // Logout
             .logout(logout -> logout
                 .logoutUrl("/logout")
                 .logoutSuccessUrl("/")
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
             )
+            // Session management
             .sessionManagement(session -> session
                 .maximumSessions(1)
                 .expiredUrl("/login?expired=true")

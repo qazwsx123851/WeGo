@@ -64,6 +64,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Rate Limiting -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.7.0</version>
+        </dependency>
+
         <!-- Development Tools -->
         <dependency>
             <groupId>me.paulschwarz</groupId>
