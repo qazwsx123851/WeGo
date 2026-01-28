@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Google Fonts Import */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+/* CSS Variables for Glassmorphism */
+:root {
+  --glass-bg-light: rgba(255, 255, 255, 0.7);
+  --glass-bg-dark: rgba(15, 23, 42, 0.7);
+  --glass-blur: 12px;
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Base Layer Styles */
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply font-sans text-gray-800 bg-gray-50 antialiased;
+  }
+
+  /* Dark Mode */
+  .dark body {
+    @apply text-gray-100 bg-gray-900;
+  }
+
+  /* Focus Styles for Accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+
+  .dark *:focus-visible {
+    @apply ring-primary-400;
+  }
+}
+
+/* Component Layer - Reusable UI Components */
+@layer components {
+  /* Glass Card */
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-glass border border-white/20 rounded-2xl shadow-glass;
+  }
+
+  .dark .glass-card {
+    @apply bg-gray-900/70 border-gray-700/30;
+  }
+
+  /* Soft UI Card */
+  .soft-card {
+    @apply bg-gray-100 rounded-2xl shadow-soft;
+  }
+
+  .dark .soft-card {
+    @apply bg-gray-800;
+  }
+
+  /* Primary Button */
+  .btn-primary {
+    @apply px-6 py-3 min-h-[44px] bg-primary-500 text-white font-semibold rounded-xl
+           hover:bg-primary-600 active:bg-primary-700
+           focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
+           transition-all duration-200 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* CTA Button (Adventure Orange) */
+  .btn-cta {
+    @apply px-6 py-3 min-h-[44px] bg-adventure-500 text-white font-semibold rounded-xl
+           hover:bg-adventure-600 active:bg-adventure-700
+           focus-visible:ring-2 focus-visible:ring-adventure-500 focus-visible:ring-offset-2
+           transition-all duration-200 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Secondary Button */
+  .btn-secondary {
+    @apply px-6 py-3 min-h-[44px] bg-gray-100 text-gray-700 font-semibold rounded-xl
+           border border-gray-200
+           hover:bg-gray-200 active:bg-gray-300
+           focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2
+           transition-all duration-200 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .dark .btn-secondary {
+    @apply bg-gray-800 text-gray-200 border-gray-700
+           hover:bg-gray-700 active:bg-gray-600;
+  }
+
+  /* Text Button */
+  .btn-text {
+    @apply px-4 py-2 min-h-[44px] text-primary-600 font-medium rounded-lg
+           hover:bg-primary-50 active:bg-primary-100
+           focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
+           transition-all duration-200 cursor-pointer;
+  }
+
+  .dark .btn-text {
+    @apply text-primary-400 hover:bg-primary-900/30 active:bg-primary-900/50;
+  }
+
+  /* Danger Button */
+  .btn-danger {
+    @apply px-6 py-3 min-h-[44px] bg-error text-white font-semibold rounded-xl
+           hover:bg-error-dark active:opacity-90
+           focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2
+           transition-all duration-200 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Form Input */
+  .form-input {
+    @apply w-full px-4 py-3 min-h-[44px] bg-white border border-gray-200 rounded-xl
+           text-gray-800 placeholder-gray-400
+           focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20
+           transition-all duration-200;
+  }
+
+  .dark .form-input {
+    @apply bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500
+           focus:border-primary-400 focus:ring-primary-400/20;
+  }
+
+  /* Form Label */
+  .form-label {
+    @apply block mb-2 text-sm font-medium text-gray-700;
+  }
+
+  .dark .form-label {
+    @apply text-gray-300;
+  }
+
+  /* Bottom Navigation */
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-glass
+           border-t border-gray-200 pb-safe-bottom z-50;
+  }
+
+  .dark .bottom-nav {
+    @apply bg-gray-900/90 border-gray-700;
+  }
+
+  .bottom-nav-item {
+    @apply flex flex-col items-center justify-center py-2 min-h-[56px]
+           text-gray-500 hover:text-primary-500
+           transition-colors duration-200 cursor-pointer;
+  }
+
+  .bottom-nav-item.active {
+    @apply text-primary-500;
+  }
+
+  .dark .bottom-nav-item {
+    @apply text-gray-400 hover:text-primary-400;
+  }
+
+  .dark .bottom-nav-item.active {
+    @apply text-primary-400;
+  }
+
+  /* Toast Notification */
+  .toast {
+    @apply fixed bottom-20 left-1/2 -translate-x-1/2 px-6 py-3
+           bg-gray-800 text-white rounded-xl shadow-lg
+           animate-slide-up z-50;
+  }
+
+  .toast-success {
+    @apply bg-success-dark;
+  }
+
+  .toast-error {
+    @apply bg-error-dark;
+  }
+
+  .toast-warning {
+    @apply bg-warning-dark text-gray-900;
+  }
+
+  /* Google Login Button (Brand Guidelines Compliant) */
+  .btn-google {
+    @apply w-full flex items-center justify-center gap-3
+           bg-white border border-gray-300 rounded-xl
+           px-4 py-3 min-h-[44px]
+           text-gray-700 font-medium
+           hover:bg-gray-50 hover:shadow-md hover:border-gray-400
+           focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
+           transition-all duration-200
+           cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:shadow-none;
+  }
+
+  .dark .btn-google {
+    @apply bg-white text-gray-700 border-gray-300
+           hover:bg-gray-100 hover:border-gray-400;
+  }
+}
+
+/* Utility Layer - Custom Utilities */
+@layer utilities {
+  /* Safe Area Padding */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Scrollbar Styling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Touch Target Size (Accessibility) */
+  .touch-target {
+    @apply min-w-[44px] min-h-[44px];
+  }
+
+  /* Truncate with Ellipsis (Multi-line) */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
