@@ -46,8 +46,8 @@ public class SecurityConfig {
             // CSRF Protection - use cookie-based token for Thymeleaf integration
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                // Disable CSRF for health check endpoint only
-                .ignoringRequestMatchers("/api/health")
+                // Disable CSRF for public API endpoints
+                .ignoringRequestMatchers("/api/health", "/api/weather/**")
             )
             // Security Headers
             .headers(headers -> headers
@@ -85,7 +85,8 @@ public class SecurityConfig {
                     "/js/**",
                     "/images/**",
                     "/favicon.ico",
-                    "/api/health"
+                    "/api/health",
+                    "/api/weather/**"
                 ).permitAll()
                 // All other requests require authentication
                 .anyRequest().authenticated()

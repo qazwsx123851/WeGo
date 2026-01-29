@@ -38,11 +38,13 @@ public class TestSecurityConfig {
         http
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/api/weather/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
             .csrf(csrf -> csrf
                 .ignoringRequestMatchers("/api/health")
+                .ignoringRequestMatchers("/api/weather/**")
             );
 
         return http.build();

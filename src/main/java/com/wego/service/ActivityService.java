@@ -1,10 +1,13 @@
 package com.wego.service;
 
 import com.wego.domain.permission.PermissionChecker;
+import com.wego.domain.route.OptimizationResult;
+import com.wego.domain.route.RouteOptimizer;
 import com.wego.dto.request.CreateActivityRequest;
 import com.wego.dto.request.ReorderActivitiesRequest;
 import com.wego.dto.request.UpdateActivityRequest;
 import com.wego.dto.response.ActivityResponse;
+import com.wego.dto.response.RouteOptimizationResponse;
 import com.wego.entity.Activity;
 import com.wego.entity.Place;
 import com.wego.exception.BusinessException;
@@ -42,6 +45,7 @@ public class ActivityService {
     private final ActivityRepository activityRepository;
     private final PlaceRepository placeRepository;
     private final PermissionChecker permissionChecker;
+    private final RouteOptimizer routeOptimizer;
 
     /**
      * Creates a new activity in the specified trip.
@@ -314,6 +318,163 @@ public class ActivityService {
         log.info("Reordered {} activities for trip {} day {}", saved.size(), tripId, request.getDay());
 
         return mapActivitiesToResponses(saved);
+    }
+
+    /**
+     * Gets optimized route suggestion for a specific day.
+     *
+     * Uses the Greedy Nearest Neighbor algorithm to find a more efficient
+     * route through the day's activities. Does NOT modify the database.
+     *
+     * @contract
+     *   - pre: tripId != null, day >= 1, userId != null
+     *   - pre: user has view permission on the trip
+     *   - post: returns optimization result (does NOT modify database)
+     *   - calls: PermissionChecker#canView, RouteOptimizer#optimize
+     *   - calledBy: ActivityApiController#getOptimizedRoute
+     *
+     * @param tripId The trip ID
+     * @param day The day number to optimize
+     * @param userId The user ID performing the operation
+     * @return RouteOptimizationResponse with comparison data
+     * @throws ForbiddenException if user lacks view permission
+     */
+    @Transactional(readOnly = true)
+    public RouteOptimizationResponse getOptimizedRoute(UUID tripId, int day, UUID userId) {
+        log.debug("Getting optimized route for trip {} day {} by user {}", tripId, day, userId);
+
+        // Check permission
+        if (!permissionChecker.canView(tripId, userId)) {
+            throw new ForbiddenException("activity", "view");
+        }
+
+        // Get activities for the day
+        List<Activity> activities = activityRepository.findByTripIdAndDayOrderBySortOrderAsc(tripId, day);
+
+        if (activities.isEmpty()) {
+            return RouteOptimizationResponse.builder()
+                    .tripId(tripId)
+                    .day(day)
+                    .originalOrder(List.of())
+                    .optimizedOrder(List.of())
+                    .originalDistanceMeters(0)
+                    .optimizedDistanceMeters(0)
+                    .distanceSavedMeters(0)
+                    .savingsPercentage(0)
+                    .originalDistanceFormatted("0 m")
+                    .optimizedDistanceFormatted("0 m")
+                    .distanceSavedFormatted("0 m")
+                    .optimizationApplied(false)
+                    .activityCount(0)
+                    .build();
+        }
+
+        // Build place lookup map
+        Map<UUID, Place> placeLookup = buildPlaceLookup(activities);
+
+        // Run optimization
+        OptimizationResult result = routeOptimizer.optimize(activities, placeLookup);
+
+        log.info("Route optimization for trip {} day {}: {} -> {} meters (saved {})",
+                tripId, day,
+                String.format("%.0f", result.getOriginalDistanceMeters()),
+                String.format("%.0f", result.getOptimizedDistanceMeters()),
+                String.format("%.0f", result.getDistanceSavedMeters()));
+
+        return RouteOptimizationResponse.fromResult(result, tripId, day);
+    }
+
+    /**
+     * Applies the optimized route order.
+     *
+     * Reorders activities according to the provided optimized order.
+     * This modifies the database.
+     *
+     * @contract
+     *   - pre: tripId != null, day >= 1, userId != null
+     *   - pre: user has edit permission on the trip
+     *   - pre: optimizedOrder contains all activity IDs for the day
+     *   - post: activities reordered according to optimizedOrder
+     *   - calls: PermissionChecker#canEdit, ActivityRepository#saveAll
+     *   - calledBy: ActivityApiController#applyOptimizedRoute
+     *
+     * @param tripId The trip ID
+     * @param day The day number
+     * @param optimizedOrder The optimized order of activity IDs
+     * @param userId The user ID performing the operation
+     * @return List of reordered activity responses
+     * @throws ForbiddenException if user lacks edit permission
+     * @throws BusinessException if activity count mismatch
+     */
+    @Transactional
+    public List<ActivityResponse> applyOptimizedRoute(UUID tripId, int day, List<UUID> optimizedOrder, UUID userId) {
+        log.debug("Applying optimized route for trip {} day {} by user {}", tripId, day, userId);
+
+        // Check permission
+        if (!permissionChecker.canEdit(tripId, userId)) {
+            throw new ForbiddenException("activity", "reorder");
+        }
+
+        // Get existing activities for the day
+        List<Activity> existingActivities = activityRepository
+                .findByTripIdAndDayOrderBySortOrderAsc(tripId, day);
+
+        // Validate activity count matches
+        if (existingActivities.size() != optimizedOrder.size()) {
+            throw new BusinessException("OPTIMIZATION_MISMATCH",
+                    "Activity count mismatch: expected " + existingActivities.size() +
+                    ", got " + optimizedOrder.size());
+        }
+
+        // Build lookup map
+        Map<UUID, Activity> activityMap = new HashMap<>();
+        for (Activity activity : existingActivities) {
+            activityMap.put(activity.getId(), activity);
+        }
+
+        // Validate all IDs exist
+        for (UUID activityId : optimizedOrder) {
+            if (!activityMap.containsKey(activityId)) {
+                throw new BusinessException("ACTIVITY_NOT_FOUND",
+                        "Activity " + activityId + " not found in day " + day);
+            }
+        }
+
+        // Update sortOrder based on optimized order
+        for (int i = 0; i < optimizedOrder.size(); i++) {
+            Activity activity = activityMap.get(optimizedOrder.get(i));
+            activity.setSortOrder(i);
+            activity.setUpdatedAt(Instant.now());
+        }
+
+        // Save all
+        List<Activity> saved = activityRepository.saveAll(existingActivities);
+        log.info("Applied optimized route for trip {} day {}, reordered {} activities",
+                tripId, day, saved.size());
+
+        // Return in new order
+        List<Activity> orderedSaved = optimizedOrder.stream()
+                .map(activityMap::get)
+                .toList();
+
+        return mapActivitiesToResponses(orderedSaved);
+    }
+
+    /**
+     * Builds a place lookup map for the given activities.
+     *
+     * @param activities The activities to look up places for
+     * @return Map of placeId to Place entity
+     */
+    private Map<UUID, Place> buildPlaceLookup(List<Activity> activities) {
+        Map<UUID, Place> placeLookup = new HashMap<>();
+        for (Activity activity : activities) {
+            if (activity.getPlaceId() != null) {
+                placeRepository.findById(activity.getPlaceId())
+                        .ifPresent(place -> placeLookup.put(activity.getPlaceId(), place));
+            }
+        }
+        return placeLookup;
     }
 
     /**

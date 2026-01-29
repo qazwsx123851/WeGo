@@ -1,10 +1,12 @@
 package com.wego.controller.api;
 
 import com.wego.dto.ApiResponse;
+import com.wego.dto.request.ApplyOptimizationRequest;
 import com.wego.dto.request.CreateActivityRequest;
 import com.wego.dto.request.ReorderActivitiesRequest;
 import com.wego.dto.request.UpdateActivityRequest;
 import com.wego.dto.response.ActivityResponse;
+import com.wego.dto.response.RouteOptimizationResponse;
 import com.wego.security.CurrentUser;
 import com.wego.security.UserPrincipal;
 import com.wego.service.ActivityService;
@@ -189,6 +191,76 @@ public class ActivityApiController {
         List<ActivityResponse> responses = activityService.reorderActivities(tripId, request, userId);
 
         return ResponseEntity.ok(ApiResponse.success(responses, "Activities reordered successfully"));
+    }
+
+    /**
+     * Gets an optimized route suggestion for activities on a specific day.
+     *
+     * Uses Greedy Nearest Neighbor algorithm to suggest an optimized route.
+     * This does NOT modify the database - it only returns a suggestion.
+     *
+     * @contract
+     *   - pre: User authenticated, has view permission on trip
+     *   - pre: day parameter required and >= 1
+     *   - post: Returns 200 with optimization result
+     *   - calls: ActivityService#getOptimizedRoute
+     *
+     * @param tripId The trip ID
+     * @param day The day number to optimize
+     * @param principal The current user
+     * @return Response with optimization suggestion
+     */
+    @GetMapping("/trips/{tripId}/activities/optimize")
+    public ResponseEntity<ApiResponse<RouteOptimizationResponse>> getOptimizedRoute(
+            @PathVariable UUID tripId,
+            @RequestParam int day,
+            @CurrentUser UserPrincipal principal) {
+
+        log.debug("GET /api/trips/{}/activities/optimize?day={} - Getting route optimization", tripId, day);
+
+        UUID userId = principal != null ? principal.getId() : getTestUserId();
+        RouteOptimizationResponse response = activityService.getOptimizedRoute(tripId, day, userId);
+
+        String message = response.isOptimizationApplied()
+                ? String.format("Route can be optimized: save %s (%.1f%%)",
+                        response.getDistanceSavedFormatted(),
+                        response.getSavingsPercentage())
+                : "Route is already optimal or cannot be improved";
+
+        return ResponseEntity.ok(ApiResponse.success(response, message));
+    }
+
+    /**
+     * Applies an optimized route order to activities on a specific day.
+     *
+     * Reorders activities according to the provided optimized order.
+     * This DOES modify the database.
+     *
+     * @contract
+     *   - pre: User authenticated, has edit permission on trip
+     *   - pre: Request body validated
+     *   - post: Returns 200 with reordered activities
+     *   - calls: ActivityService#applyOptimizedRoute
+     *
+     * @param tripId The trip ID
+     * @param request The apply optimization request
+     * @param principal The current user
+     * @return Response with reordered activities
+     */
+    @PostMapping("/trips/{tripId}/activities/apply-optimization")
+    public ResponseEntity<ApiResponse<List<ActivityResponse>>> applyOptimizedRoute(
+            @PathVariable UUID tripId,
+            @Valid @RequestBody ApplyOptimizationRequest request,
+            @CurrentUser UserPrincipal principal) {
+
+        log.debug("POST /api/trips/{}/activities/apply-optimization - Applying route optimization for day {}",
+                tripId, request.getDay());
+
+        UUID userId = principal != null ? principal.getId() : getTestUserId();
+        List<ActivityResponse> responses = activityService.applyOptimizedRoute(
+                tripId, request.getDay(), request.getOptimizedOrder(), userId);
+
+        return ResponseEntity.ok(ApiResponse.success(responses, "Route optimization applied successfully"));
     }
 
     /**
