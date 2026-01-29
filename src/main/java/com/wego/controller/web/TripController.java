@@ -107,6 +107,7 @@ public class TripController {
             model.addAttribute("dateError", "結束日期不可早於開始日期");
             model.addAttribute("name", user.getNickname());
             model.addAttribute("picture", user.getAvatarUrl());
+            model.addAttribute("minDate", LocalDate.now());
             model.addAttribute("trip", CreateTripRequest.builder()
                     .title(title)
                     .description(description)
@@ -134,6 +135,13 @@ public class TripController {
             model.addAttribute("error", "建立行程失敗：" + e.getMessage());
             model.addAttribute("name", user.getNickname());
             model.addAttribute("picture", user.getAvatarUrl());
+            model.addAttribute("minDate", LocalDate.now());
+            model.addAttribute("trip", CreateTripRequest.builder()
+                    .title(title)
+                    .description(description)
+                    .startDate(startDate)
+                    .endDate(endDate)
+                    .build());
             return "trip/create";
         }
     }
@@ -275,6 +283,7 @@ public class TripController {
         model.addAttribute("isEdit", true);
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
+        model.addAttribute("minDate", LocalDate.now());
 
         return "trip/create";
     }
