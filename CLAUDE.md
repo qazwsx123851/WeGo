@@ -347,6 +347,23 @@ EXCHANGERATE_API_KEY=
 
 ## AI 開發注意事項
 
+### ⚠️ 首要原則：Agent/Skill 優先
+
+**在執行任何任務之前，必須先檢查是否有適合的 Agent 或 Skill 可用。**
+
+若任務符合以下類型，**必須**調用對應的 Agent 或 Skill：
+
+| 任務類型 | 必須調用 |
+|----------|----------|
+| 寫完程式碼 | `code-reviewer` agent |
+| 涉及安全性 | `security-reviewer` agent |
+| 新功能規劃 | `planner` agent |
+| 寫測試 | `tdd-guide` agent |
+| E2E 測試 | `e2e-runner` agent |
+| 建置失敗 | `build-error-resolver` agent |
+| UI/UX 設計 | `ui-ux-pro-max` skill |
+| 資料庫變更 | `database-reviewer` agent |
+
 ### 修改程式碼前必須
 
 1. 閱讀目標方法的契約註解
@@ -373,6 +390,16 @@ EXCHANGERATE_API_KEY=
 ---
 
 ## AI Agent 與 Skill 使用規範
+
+### ⚠️ 強制規則：優先調用 Agent 或 Skill
+
+**當有適合當前任務的 Agent 或 Skill 時，必須優先調用，不得跳過。**
+
+這是本專案的強制規範：
+1. 在開始任何任務前，先評估是否有匹配的 Agent 或 Skill
+2. 若有匹配，**必須**先調用該 Agent 或 Skill
+3. 只有在沒有適合的 Agent/Skill 時，才直接執行任務
+4. 違反此規則可能導致程式碼品質問題或遺漏重要步驟
 
 ### 自動選擇原則
 

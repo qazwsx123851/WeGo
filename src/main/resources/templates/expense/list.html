@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${trip.title} + ' - 分帳 - WeGo'">分帳 - WeGo</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a th:href="@{/trips/{tripId}(tripId=${trip.id})}"
+                   class="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                   aria-label="返回行程">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">分帳</h1>
+            </div>
+            <a th:href="@{/trips/{tripId}/expenses/create(tripId=${trip.id})}"
+               class="btn-cta flex items-center gap-2"
+               aria-label="新增支出">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span class="hidden sm:inline">新增</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Summary Card -->
+        <section class="glass-card p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">總覽</h2>
+                <a th:href="@{/trips/{tripId}/settlement(tripId=${trip.id})}"
+                   class="btn-text text-sm flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                    結算明細
+                </a>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Total Expense -->
+                <div class="bg-white/50 dark:bg-gray-800/50 rounded-xl p-4">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">總支出</p>
+                    <p class="text-xl font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                       th:text="${#numbers.formatDecimal(totalExpense, 0, 'COMMA', 0, 'POINT')}">0</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500" th:text="${defaultCurrency}">TWD</p>
+                </div>
+
+                <!-- Your Balance -->
+                <div class="bg-white/50 dark:bg-gray-800/50 rounded-xl p-4">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">您的餘額</p>
+                    <p class="text-xl font-semibold font-mono"
+                       th:classappend="${userBalance >= 0 ? 'text-success dark:text-green-400' : 'text-error dark:text-red-400'}"
+                       th:text="${(userBalance >= 0 ? '+' : '') + #numbers.formatDecimal(userBalance, 0, 'COMMA', 0, 'POINT')}">+0</p>
+                    <p class="text-xs"
+                       th:classappend="${userBalance >= 0 ? 'text-success/70 dark:text-green-400/70' : 'text-error/70 dark:text-red-400/70'}"
+                       th:text="${userBalance >= 0 ? '可收回' : '需支付'}">狀態</p>
+                </div>
+            </div>
+
+            <!-- Per Person Average -->
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500 dark:text-gray-400">人均花費</span>
+                    <span class="font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                          th:text="'$' + ${#numbers.formatDecimal(perPersonAverage, 0, 'COMMA', 0, 'POINT')}">$0</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Expense List -->
+        <section>
+            <!-- Empty State -->
+            <div th:if="${#lists.isEmpty(expensesByDate)}" class="glass-card p-8 text-center">
+                <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                    <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-h4 text-gray-700 dark:text-gray-300 mb-2">還沒有任何支出</h3>
+                <p class="text-body-sm text-gray-500 dark:text-gray-400 mb-6">記錄旅途中的支出，輕鬆進行分帳！</p>
+                <a th:href="@{/trips/{tripId}/expenses/create(tripId=${trip.id})}"
+                   class="btn-cta inline-flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    新增第一筆支出
+                </a>
+            </div>
+
+            <!-- Grouped by Date -->
+            <div th:each="dateGroup : ${expensesByDate}" class="mb-6">
+                <!-- Date Header -->
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex flex-col items-center justify-center">
+                        <span class="text-xs text-primary-600 dark:text-primary-400 font-medium"
+                              th:text="${#temporals.format(dateGroup.key, 'EEE')}">Mon</span>
+                        <span class="text-lg font-bold text-primary-700 dark:text-primary-300"
+                              th:text="${#temporals.format(dateGroup.key, 'd')}">1</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                           th:text="${#temporals.format(dateGroup.key, 'MM月dd日')}">01月01日</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            <span th:text="${#lists.size(dateGroup.value)}">0</span> 筆支出
+                        </p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                           th:text="'$' + ${#numbers.formatDecimal(dateGroup.totalAmount, 0, 'COMMA', 0, 'POINT')}">$0</p>
+                    </div>
+                </div>
+
+                <!-- Expense Items -->
+                <div class="space-y-3">
+                    <div th:each="expense : ${dateGroup.value}"
+                         class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer"
+                         th:onclick="'window.location.href=\'' + @{/trips/{tripId}/expenses/{expenseId}(tripId=${trip.id}, expenseId=${expense.id})} + '\''">
+                        <div class="flex items-start gap-3">
+                            <!-- Category Icon -->
+                            <div class="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+                                 th:classappend="${expense.category == 'FOOD' ? 'bg-orange-100 dark:bg-orange-900/30' :
+                                                  expense.category == 'TRANSPORT' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                                                  expense.category == 'ACCOMMODATION' ? 'bg-purple-100 dark:bg-purple-900/30' :
+                                                  expense.category == 'ENTERTAINMENT' ? 'bg-pink-100 dark:bg-pink-900/30' :
+                                                  'bg-gray-100 dark:bg-gray-700'}">
+                                <!-- Food Icon -->
+                                <svg th:if="${expense.category == 'FOOD'}" class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                                <!-- Transport Icon -->
+                                <svg th:if="${expense.category == 'TRANSPORT'}" class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                </svg>
+                                <!-- Accommodation Icon -->
+                                <svg th:if="${expense.category == 'ACCOMMODATION'}" class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                                <!-- Entertainment Icon -->
+                                <svg th:if="${expense.category == 'ENTERTAINMENT'}" class="w-5 h-5 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <!-- Other Icon -->
+                                <svg th:if="${expense.category == 'OTHER' or expense.category == null}" class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                </svg>
+                            </div>
+
+                            <!-- Expense Details -->
+                            <div class="flex-1 min-w-0">
+                                <p class="font-medium text-gray-800 dark:text-gray-100 truncate"
+                                   th:text="${expense.description}">支出描述</p>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <div class="flex items-center gap-1">
+                                        <div class="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                            <span class="text-xs font-medium text-primary-600 dark:text-primary-400"
+                                                  th:text="${#strings.substring(expense.payer.name, 0, 1)}">A</span>
+                                        </div>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400"
+                                              th:text="${expense.payer.name}">付款人</span>
+                                    </div>
+                                    <span class="text-gray-300 dark:text-gray-600">|</span>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400"
+                                          th:text="${expense.splitMethod == 'EQUAL' ? '均分' :
+                                                     expense.splitMethod == 'PERCENTAGE' ? '百分比' :
+                                                     expense.splitMethod == 'CUSTOM' ? '自訂' : '均分'}">均分</span>
+                                </div>
+                            </div>
+
+                            <!-- Amount -->
+                            <div class="text-right flex-shrink-0">
+                                <p class="font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                                   th:text="'$' + ${#numbers.formatDecimal(expense.amount, 0, 'COMMA', 0, 'POINT')}">$0</p>
+                                <p th:if="${expense.currency != defaultCurrency}"
+                                   class="text-xs text-gray-400 dark:text-gray-500"
+                                   th:text="${expense.currency}">USD</p>
+                            </div>
+                        </div>
+
+                        <!-- Participants Count -->
+                        <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                            <div class="flex -space-x-2">
+                                <div th:each="participant, iterStat : ${expense.participants}"
+                                     th:if="${iterStat.index < 4}"
+                                     class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
+                                    <span class="text-xs font-medium text-gray-600 dark:text-gray-300"
+                                          th:text="${#strings.substring(participant.user.name, 0, 1)}">A</span>
+                                </div>
+                                <div th:if="${#lists.size(expense.participants) > 4}"
+                                     class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
+                                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                                          th:text="'+' + (${#lists.size(expense.participants)} - 4)">+2</span>
+                                </div>
+                            </div>
+                            <span class="text-xs text-gray-400 dark:text-gray-500"
+                                  th:text="${#lists.size(expense.participants)} + ' 人分攤'">5 人分攤</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="max-w-4xl mx-auto px-4 flex justify-around">
+            <a th:href="@{/trips/{tripId}(tripId=${trip.id})}" class="bottom-nav-item" aria-label="行程">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span class="text-caption">行程</span>
+            </a>
+            <a th:href="@{/trips/{tripId}/expenses(tripId=${trip.id})}" class="bottom-nav-item active" aria-label="分帳">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span class="text-caption">分帳</span>
+            </a>
+            <a th:href="@{/trips/{tripId}/documents(tripId=${trip.id})}" class="bottom-nav-item" aria-label="檔案">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="text-caption">檔案</span>
+            </a>
+            <a th:href="@{/trips/{tripId}/settings(tripId=${trip.id})}" class="bottom-nav-item" aria-label="設定">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span class="text-caption">設定</span>
+            </a>
+        </div>
+    </nav>
+</body>
+</html>

@@ -1,0 +1,117 @@
+spring:
+  application:
+    name: wego
+
+  # Database Configuration (Supabase PostgreSQL)
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/wego}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+
+  # Thymeleaf Configuration
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+
+  # Security Configuration
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
+
+  # Session Configuration
+  session:
+    timeout: 7d
+    cookie:
+      http-only: true
+      secure: true
+      same-site: lax
+
+  # File Upload Configuration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 100MB
+
+# Server Configuration
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.wego: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Custom Application Properties
+wego:
+  supabase:
+    url: ${SUPABASE_URL:}
+    service-key: ${SUPABASE_SERVICE_KEY:}
+
+  external-api:
+    google-maps:
+      api-key: ${GOOGLE_MAPS_API_KEY:}
+      enabled: ${GOOGLE_MAPS_ENABLED:false}
+    openweathermap:
+      api-key: ${OPENWEATHERMAP_API_KEY:}
+      enabled: ${OPENWEATHERMAP_ENABLED:false}
+    exchangerate:
+      api-key: ${EXCHANGERATE_API_KEY:}
+      enabled: ${EXCHANGERATE_ENABLED:false}
+
+  trip:
+    max-members: 10
+    invite-link-expiry-hours: 72
+
+  document:
+    max-file-size-mb: 10
+    max-total-size-mb: 100
+    allowed-types:
+      - application/pdf
+      - image/jpeg
+      - image/png

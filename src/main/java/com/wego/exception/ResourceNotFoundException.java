@@ -46,4 +46,31 @@ public class ResourceNotFoundException extends BusinessException {
     public ResourceNotFoundException(String resourceType, Long resourceId) {
         this(resourceType, Objects.requireNonNull(resourceId, "resourceId must not be null").toString());
     }
+
+    /**
+     * Creates a new ResourceNotFoundException with custom error code and message.
+     * Use this when you need to specify the exact error code without automatic suffix.
+     *
+     * @contract
+     *   - pre: errorCode != null, message != null
+     *   - post: exception is created with provided errorCode
+     *
+     * @param errorCode The error code to use directly
+     * @param message The error message
+     * @param directErrorCode marker parameter to differentiate from other constructors
+     */
+    private ResourceNotFoundException(String errorCode, String message, boolean directErrorCode) {
+        super(errorCode, message);
+    }
+
+    /**
+     * Factory method to create a ResourceNotFoundException with a direct error code.
+     *
+     * @param errorCode The exact error code to use
+     * @param message The error message
+     * @return A new ResourceNotFoundException
+     */
+    public static ResourceNotFoundException withCode(String errorCode, String message) {
+        return new ResourceNotFoundException(errorCode, message, true);
+    }
 }

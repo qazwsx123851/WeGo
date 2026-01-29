@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>找不到頁面 - WeGo</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100 flex flex-col items-center justify-center p-6">
+    <div class="text-center max-w-md mx-auto animate-fade-in">
+        <!-- Lottie Animation: Lost Traveler -->
+        <div class="w-64 h-64 mx-auto mb-6">
+            <lottie-player
+                src="https://lottie.host/c5d3c8f8-6e1c-4b9c-9c8f-1f8c8f8c8f8c/lost-map.json"
+                background="transparent"
+                speed="1"
+                loop
+                autoplay
+                aria-hidden="true">
+            </lottie-player>
+            <!-- Fallback SVG for when Lottie fails -->
+            <noscript>
+                <svg class="w-48 h-48 mx-auto text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                </svg>
+            </noscript>
+        </div>
+
+        <!-- Error Message -->
+        <div class="glass-card p-8">
+            <h1 class="text-h2 text-gray-800 mb-3 font-heading">
+                找不到這個頁面
+            </h1>
+            <p class="text-body text-gray-500 mb-6">
+                這個行程可能已被刪除，或是連結有誤。<br/>
+                讓我們帶你回到正確的路線上吧！
+            </p>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                <a th:href="@{/dashboard}" class="btn-cta">
+                    <svg class="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    回到我的行程
+                </a>
+                <button onclick="history.back()" class="btn-text">
+                    <svg class="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    返回上一頁
+                </button>
+            </div>
+        </div>
+
+        <!-- Error Code -->
+        <p class="text-caption text-gray-400 mt-6">
+            錯誤代碼：404
+        </p>
+    </div>
+</body>
+</html>

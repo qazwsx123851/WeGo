@@ -1,0 +1,58 @@
+spring:
+  # H2 In-Memory Database for Testing
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  # JPA Configuration for Testing
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # Disable OAuth2 for Testing
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+
+  # Thymeleaf - Disable caching for tests
+  thymeleaf:
+    cache: false
+
+# Test Server Configuration
+server:
+  port: 0
+
+# Logging for Tests
+logging:
+  level:
+    root: WARN
+    com.wego: DEBUG
+    org.springframework.test: INFO
+
+# Test-specific Application Properties
+wego:
+  supabase:
+    url: http://localhost:54321
+    service-key: test-service-key
+
+  external-api:
+    google-maps:
+      api-key: test-api-key
+      enabled: false
+    openweathermap:
+      api-key: test-api-key
+      enabled: false
+    exchangerate:
+      api-key: test-api-key
+      enabled: false

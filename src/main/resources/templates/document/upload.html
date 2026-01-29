@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WeGo - 上傳檔案">
+    <title>上傳檔案 - WeGo</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <!-- Back Button -->
+                <a th:href="@{/trips/{tripId}/documents(tripId=${tripId})}"
+                   class="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                   aria-label="返回檔案列表">
+                    <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">上傳檔案</h1>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Trip Info Banner -->
+        <section class="glass-card p-4 mb-6" th:if="${trip}">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100 truncate" th:text="${trip.title}">行程名稱</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        上傳至此行程
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Upload Form Card -->
+        <section class="glass-card p-6">
+            <form id="upload-form"
+                  th:action="@{/api/documents/upload}"
+                  method="POST"
+                  enctype="multipart/form-data"
+                  class="space-y-6">
+                <input type="hidden" name="tripId" th:value="${tripId}"/>
+                <input type="hidden" name="_csrf" th:value="${_csrf?.token}"/>
+
+                <!-- Drag & Drop Zone -->
+                <div id="drop-zone"
+                     class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl p-8 text-center transition-all duration-200 hover:border-primary-400 dark:hover:border-primary-500 cursor-pointer"
+                     onclick="document.getElementById('file-input').click()">
+                    <div class="w-20 h-20 mx-auto mb-4 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
+                        <svg class="w-10 h-10 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                        </svg>
+                    </div>
+                    <p class="text-lg text-gray-700 dark:text-gray-200 font-medium mb-2">拖放檔案至此處</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">或點擊此區域選擇檔案</p>
+                    <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                        <span class="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">PDF</span>
+                        <span class="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">JPG</span>
+                        <span class="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">PNG</span>
+                        <span class="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">GIF</span>
+                        <span class="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">WebP</span>
+                        <span class="text-gray-400 dark:text-gray-500">最大 10MB</span>
+                    </div>
+                    <input type="file"
+                           id="file-input"
+                           name="file"
+                           class="hidden"
+                           accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+                           onchange="handleFileSelect(this)"
+                           required/>
+                </div>
+
+                <!-- Selected File Preview -->
+                <div id="file-preview" class="hidden">
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                        <div class="flex items-center gap-4">
+                            <!-- Preview Thumbnail -->
+                            <div id="preview-thumbnail" class="w-20 h-20 rounded-xl bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                <!-- Will be populated by JS -->
+                            </div>
+
+                            <!-- File Info -->
+                            <div class="flex-1 min-w-0">
+                                <h3 id="preview-name" class="text-base font-medium text-gray-800 dark:text-gray-100 truncate">filename.pdf</h3>
+                                <p id="preview-size" class="text-sm text-gray-500 dark:text-gray-400 mt-1">1.2 MB</p>
+                                <p id="preview-type" class="text-xs text-gray-400 dark:text-gray-500 mt-1">PDF Document</p>
+                            </div>
+
+                            <!-- Remove Button -->
+                            <button type="button"
+                                    onclick="clearFileSelection()"
+                                    class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer flex-shrink-0"
+                                    aria-label="移除檔案">
+                                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Select -->
+                <div class="space-y-2">
+                    <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        檔案分類
+                    </label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <label class="category-option">
+                            <input type="radio" name="category" value="tickets" class="sr-only peer"/>
+                            <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 cursor-pointer transition-all duration-200 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 hover:border-gray-300 dark:hover:border-gray-600">
+                                <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">票券</span>
+                            </div>
+                        </label>
+
+                        <label class="category-option">
+                            <input type="radio" name="category" value="receipts" class="sr-only peer"/>
+                            <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 cursor-pointer transition-all duration-200 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 hover:border-gray-300 dark:hover:border-gray-600">
+                                <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">收據</span>
+                            </div>
+                        </label>
+
+                        <label class="category-option">
+                            <input type="radio" name="category" value="reservations" class="sr-only peer"/>
+                            <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 cursor-pointer transition-all duration-200 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 hover:border-gray-300 dark:hover:border-gray-600">
+                                <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                    </svg>
+                                </div>
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">訂房</span>
+                            </div>
+                        </label>
+
+                        <label class="category-option">
+                            <input type="radio" name="category" value="other" class="sr-only peer" checked/>
+                            <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 cursor-pointer transition-all duration-200 peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20 hover:border-gray-300 dark:hover:border-gray-600">
+                                <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">其他</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="space-y-1.5">
+                    <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        備註說明
+                        <span class="text-gray-400 dark:text-gray-500 font-normal">(選填)</span>
+                    </label>
+                    <textarea id="description"
+                              name="description"
+                              rows="3"
+                              placeholder="例如：3/15 東京迪士尼門票、JR Pass 兌換券..."
+                              class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 resize-none"></textarea>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">
+                        加入描述可以讓團員更容易找到需要的檔案
+                    </p>
+                </div>
+
+                <!-- Link to Activity (Optional) -->
+                <div class="space-y-1.5" th:if="${activities != null and !activities.isEmpty()}">
+                    <label for="activityId" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        關聯景點
+                        <span class="text-gray-400 dark:text-gray-500 font-normal">(選填)</span>
+                    </label>
+                    <select id="activityId"
+                            name="activityId"
+                            class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 cursor-pointer">
+                        <option value="">不關聯</option>
+                        <option th:each="activity : ${activities}"
+                                th:value="${activity.id}"
+                                th:text="${activity.title}">景點名稱</option>
+                    </select>
+                </div>
+
+                <!-- Upload Progress (Hidden by default) -->
+                <div id="upload-progress" class="hidden">
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">上傳中...</span>
+                            <span id="progress-percent" class="text-sm text-primary-600 dark:text-primary-400">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div id="progress-bar" class="bg-primary-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 pt-4">
+                    <a th:href="@{/trips/{tripId}/documents(tripId=${tripId})}"
+                       class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium text-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer flex items-center justify-center">
+                        取消
+                    </a>
+                    <button type="submit"
+                            id="submit-btn"
+                            class="flex-1 btn-cta flex items-center justify-center gap-2"
+                            disabled>
+                        <svg id="submit-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                        </svg>
+                        <span id="submit-text">上傳檔案</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Tips Section -->
+        <section class="mt-6">
+            <div class="bg-info-light dark:bg-blue-900/20 border border-info/20 rounded-xl p-4">
+                <div class="flex gap-3">
+                    <svg class="w-5 h-5 text-info-dark dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <h4 class="text-sm font-medium text-info-dark dark:text-blue-400 mb-1">上傳提示</h4>
+                        <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                            <li>建議將機票、住宿確認信、行程表等重要文件上傳至此</li>
+                            <li>所有團員都可以查看上傳的檔案</li>
+                            <li>支援 PDF 及常見圖片格式，單檔最大 10MB</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" role="status" aria-live="polite" class="fixed top-4 right-4 z-50 space-y-3"></div>
+
+    <script>
+        const form = document.getElementById('upload-form');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const filePreview = document.getElementById('file-preview');
+        const submitBtn = document.getElementById('submit-btn');
+        const uploadProgress = document.getElementById('upload-progress');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+
+        // File Selection Handler
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            // Validate file size (10MB max)
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('error', '檔案大小超過 10MB 限制');
+                input.value = '';
+                return;
+            }
+
+            // Update preview
+            const thumbnail = document.getElementById('preview-thumbnail');
+            const previewName = document.getElementById('preview-name');
+            const previewSize = document.getElementById('preview-size');
+            const previewType = document.getElementById('preview-type');
+
+            previewName.textContent = file.name;
+            previewSize.textContent = formatFileSize(file.size);
+            previewType.textContent = getFileTypeLabel(file.type);
+
+            // Set thumbnail
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    thumbnail.innerHTML = `<img src="${e.target.result}" alt="預覽" class="w-full h-full object-cover"/>`;
+                };
+                reader.readAsDataURL(file);
+            } else if (file.type === 'application/pdf') {
+                thumbnail.innerHTML = `
+                    <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM8.5 14a.5.5 0 01.5.5v3a.5.5 0 01-1 0v-3a.5.5 0 01.5-.5zm2 0a.5.5 0 01.5.5v3a.5.5 0 01-1 0v-3a.5.5 0 01.5-.5z"/>
+                    </svg>
+                `;
+            } else {
+                thumbnail.innerHTML = `
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                `;
+            }
+
+            // Show preview, hide drop zone
+            dropZone.classList.add('hidden');
+            filePreview.classList.remove('hidden');
+            submitBtn.disabled = false;
+        }
+
+        function clearFileSelection() {
+            fileInput.value = '';
+            filePreview.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            submitBtn.disabled = true;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function getFileTypeLabel(mimeType) {
+            const types = {
+                'application/pdf': 'PDF 文件',
+                'image/jpeg': 'JPEG 圖片',
+                'image/jpg': 'JPG 圖片',
+                'image/png': 'PNG 圖片',
+                'image/gif': 'GIF 圖片',
+                'image/webp': 'WebP 圖片'
+            };
+            return types[mimeType] || '檔案';
+        }
+
+        // Drag and Drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('border-primary-500', 'bg-primary-50', 'dark:bg-primary-900/20');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('border-primary-500', 'bg-primary-50', 'dark:bg-primary-900/20');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect(fileInput);
+            }
+        }, false);
+
+        // Form Submission with Progress
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!fileInput.files[0]) {
+                showToast('error', '請選擇要上傳的檔案');
+                return;
+            }
+
+            // Disable submit button and show progress
+            submitBtn.disabled = true;
+            document.getElementById('submit-text').textContent = '上傳中...';
+            document.getElementById('submit-icon').classList.add('animate-spin');
+            uploadProgress.classList.remove('hidden');
+
+            const formData = new FormData(form);
+
+            try {
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressBar.style.width = percent + '%';
+                        progressPercent.textContent = percent + '%';
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        showToast('success', '檔案上傳成功');
+                        // Redirect after short delay
+                        setTimeout(() => {
+                            window.location.href = form.getAttribute('th:href') || '/documents';
+                        }, 1000);
+                    } else {
+                        const response = JSON.parse(xhr.responseText);
+                        showToast('error', response.message || '上傳失敗，請稍後再試');
+                        resetSubmitButton();
+                    }
+                });
+
+                xhr.addEventListener('error', () => {
+                    showToast('error', '網路錯誤，請檢查連線');
+                    resetSubmitButton();
+                });
+
+                xhr.open('POST', form.action);
+                xhr.send(formData);
+
+            } catch (error) {
+                showToast('error', '上傳失敗，請稍後再試');
+                resetSubmitButton();
+            }
+        });
+
+        function resetSubmitButton() {
+            submitBtn.disabled = false;
+            document.getElementById('submit-text').textContent = '上傳檔案';
+            document.getElementById('submit-icon').classList.remove('animate-spin');
+            uploadProgress.classList.add('hidden');
+            progressBar.style.width = '0%';
+            progressPercent.textContent = '0%';
+        }
+
+        // Toast Notification
+        function showToast(type, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `flex items-center gap-3 bg-white dark:bg-gray-800 rounded-xl shadow-lg border-l-4 px-4 py-3 min-w-[280px] animate-slide-in ${type === 'success' ? 'border-success' : 'border-error'}`;
+
+            const icon = type === 'success'
+                ? '<svg class="w-5 h-5 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+                : '<svg class="w-5 h-5 text-error flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+
+            toast.innerHTML = `
+                ${icon}
+                <p class="flex-1 text-gray-800 dark:text-gray-100">${message}</p>
+                <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('animate-slide-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

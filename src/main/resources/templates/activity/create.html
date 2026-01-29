@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<!--
+    Activity Create/Edit Form
+    Form for creating or editing an activity with place search,
+    time picker, and activity type selection.
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${activity?.id != null} ? '編輯景點 - WeGo' : '新增景點 - WeGo'">新增景點 - WeGo</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Back Button & Title -->
+            <div class="flex items-center gap-3">
+                <a th:href="@{/trips/{tripId}/activities(tripId=${trip.id})}"
+                   class="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800
+                          transition-colors duration-200 cursor-pointer"
+                   aria-label="取消">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </a>
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading"
+                    th:text="${activity?.id != null} ? '編輯景點' : '新增景點'">新增景點</h1>
+            </div>
+
+            <!-- Save Button -->
+            <button type="submit" form="activity-form"
+                    class="btn-primary px-4 py-2 text-sm">
+                儲存
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <form id="activity-form"
+              th:action="${activity?.id != null} ? @{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})} : @{/trips/{tripId}/activities(tripId=${trip.id})}"
+              th:method="${activity?.id != null} ? 'put' : 'post'"
+              th:object="${activity}"
+              class="space-y-6">
+
+            <!-- Activity Type Selection -->
+            <section class="glass-card p-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    景點類型
+                </label>
+                <div class="grid grid-cols-4 gap-2">
+                    <!-- Attraction -->
+                    <label class="activity-type-option cursor-pointer">
+                        <input type="radio" name="type" value="ATTRACTION"
+                               th:checked="${activity?.type == null or activity?.type.name() == 'ATTRACTION'}"
+                               class="sr-only peer">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20
+                                    transition-all duration-200">
+                            <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                        text-primary-600 dark:text-primary-400
+                                        flex items-center justify-center">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">景點</span>
+                        </div>
+                    </label>
+
+                    <!-- Restaurant -->
+                    <label class="activity-type-option cursor-pointer">
+                        <input type="radio" name="type" value="RESTAURANT"
+                               th:checked="${activity?.type?.name() == 'RESTAURANT'}"
+                               class="sr-only peer">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-adventure-500 peer-checked:bg-adventure-50 dark:peer-checked:bg-adventure-900/20
+                                    transition-all duration-200">
+                            <div class="w-10 h-10 rounded-full bg-adventure-100 dark:bg-adventure-900/30
+                                        text-adventure-600 dark:text-adventure-400
+                                        flex items-center justify-center">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">餐廳</span>
+                        </div>
+                    </label>
+
+                    <!-- Transport -->
+                    <label class="activity-type-option cursor-pointer">
+                        <input type="radio" name="type" value="TRANSPORT"
+                               th:checked="${activity?.type?.name() == 'TRANSPORT'}"
+                               class="sr-only peer">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-gray-500 peer-checked:bg-gray-50 dark:peer-checked:bg-gray-700/50
+                                    transition-all duration-200">
+                            <div class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700
+                                        text-gray-600 dark:text-gray-400
+                                        flex items-center justify-center">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">交通</span>
+                        </div>
+                    </label>
+
+                    <!-- Accommodation -->
+                    <label class="activity-type-option cursor-pointer">
+                        <input type="radio" name="type" value="ACCOMMODATION"
+                               th:checked="${activity?.type?.name() == 'ACCOMMODATION'}"
+                               class="sr-only peer">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-success peer-checked:bg-success-light dark:peer-checked:bg-green-900/20
+                                    transition-all duration-200">
+                            <div class="w-10 h-10 rounded-full bg-success-light dark:bg-green-900/30
+                                        text-success-dark dark:text-green-400
+                                        flex items-center justify-center">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">住宿</span>
+                        </div>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Place Search -->
+            <section class="glass-card p-4 space-y-4">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">地點資訊</h2>
+
+                <!-- Place Name Input with Search -->
+                <div class="space-y-1.5">
+                    <label for="placeName" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        地點名稱 <span class="text-error">*</span>
+                    </label>
+                    <div class="relative">
+                        <input type="text"
+                               id="placeName"
+                               name="placeName"
+                               th:value="${activity?.placeName}"
+                               required
+                               autocomplete="off"
+                               placeholder="搜尋或輸入地點名稱"
+                               class="w-full px-4 py-3 pr-10
+                                      bg-white dark:bg-gray-800
+                                      border border-gray-200 dark:border-gray-700
+                                      rounded-xl
+                                      text-gray-800 dark:text-gray-100
+                                      placeholder:text-gray-400 dark:placeholder:text-gray-500
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                      transition-all duration-200">
+                        <button type="button"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 p-1
+                                       text-gray-400 hover:text-primary-500
+                                       transition-colors duration-200 cursor-pointer"
+                                aria-label="搜尋地點">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Search Results Dropdown (hidden by default) -->
+                    <div id="place-search-results"
+                         class="hidden absolute z-10 w-full mt-1 bg-white dark:bg-gray-800
+                                border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg
+                                max-h-60 overflow-y-auto">
+                        <!-- Results populated by JS -->
+                    </div>
+                    <p class="text-xs text-error hidden" role="alert">請輸入地點名稱</p>
+                </div>
+
+                <!-- Address (optional, auto-filled from search) -->
+                <div class="space-y-1.5">
+                    <label for="address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        地址
+                    </label>
+                    <input type="text"
+                           id="address"
+                           name="address"
+                           th:value="${activity?.place?.address}"
+                           placeholder="地址將自動填入或手動輸入"
+                           class="w-full px-4 py-3
+                                  bg-white dark:bg-gray-800
+                                  border border-gray-200 dark:border-gray-700
+                                  rounded-xl
+                                  text-gray-800 dark:text-gray-100
+                                  placeholder:text-gray-400 dark:placeholder:text-gray-500
+                                  focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                  transition-all duration-200">
+                </div>
+
+                <!-- Hidden fields for place coordinates -->
+                <input type="hidden" id="placeId" name="placeId" th:value="${activity?.place?.googlePlaceId}">
+                <input type="hidden" id="latitude" name="latitude" th:value="${activity?.place?.latitude}">
+                <input type="hidden" id="longitude" name="longitude" th:value="${activity?.place?.longitude}">
+            </section>
+
+            <!-- Date & Time -->
+            <section class="glass-card p-4 space-y-4">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">日期與時間</h2>
+
+                <!-- Date Selection -->
+                <div class="space-y-1.5">
+                    <label for="activityDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        日期 <span class="text-error">*</span>
+                    </label>
+                    <select id="activityDate"
+                            name="activityDate"
+                            required
+                            class="w-full px-4 py-3
+                                   bg-white dark:bg-gray-800
+                                   border border-gray-200 dark:border-gray-700
+                                   rounded-xl
+                                   text-gray-800 dark:text-gray-100
+                                   focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                   cursor-pointer">
+                        <option value="" disabled selected>選擇日期</option>
+                        <th:block th:each="date : ${dates}">
+                            <option th:value="${#temporals.format(date, 'yyyy-MM-dd')}"
+                                    th:text="${#temporals.format(date, 'M月d日 (E)')}"
+                                    th:selected="${activity?.activityDate != null and #temporals.format(activity.activityDate, 'yyyy-MM-dd') == #temporals.format(date, 'yyyy-MM-dd')}">
+                                3月15日 (一)
+                            </option>
+                        </th:block>
+                    </select>
+                </div>
+
+                <!-- Time Range -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label for="startTime" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            開始時間
+                        </label>
+                        <input type="time"
+                               id="startTime"
+                               name="startTime"
+                               th:value="${activity?.startTime != null ? #temporals.format(activity.startTime, 'HH:mm') : ''}"
+                               class="w-full px-4 py-3
+                                      bg-white dark:bg-gray-800
+                                      border border-gray-200 dark:border-gray-700
+                                      rounded-xl
+                                      text-gray-800 dark:text-gray-100
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                      transition-all duration-200">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label for="endTime" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            結束時間
+                        </label>
+                        <input type="time"
+                               id="endTime"
+                               name="endTime"
+                               th:value="${activity?.endTime != null ? #temporals.format(activity.endTime, 'HH:mm') : ''}"
+                               class="w-full px-4 py-3
+                                      bg-white dark:bg-gray-800
+                                      border border-gray-200 dark:border-gray-700
+                                      rounded-xl
+                                      text-gray-800 dark:text-gray-100
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                      transition-all duration-200">
+                    </div>
+                </div>
+
+                <!-- Duration (auto-calculated or manual) -->
+                <div class="space-y-1.5">
+                    <label for="durationMinutes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        停留時間 (分鐘)
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <input type="number"
+                               id="durationMinutes"
+                               name="durationMinutes"
+                               th:value="${activity?.durationMinutes}"
+                               min="0"
+                               step="15"
+                               placeholder="例: 90"
+                               class="flex-1 px-4 py-3
+                                      bg-white dark:bg-gray-800
+                                      border border-gray-200 dark:border-gray-700
+                                      rounded-xl
+                                      text-gray-800 dark:text-gray-100
+                                      placeholder:text-gray-400 dark:placeholder:text-gray-500
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                      transition-all duration-200">
+                        <span class="text-sm text-gray-500 dark:text-gray-400" id="duration-display">
+                            <!-- Calculated display, e.g., "1.5 小時" -->
+                        </span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notes -->
+            <section class="glass-card p-4 space-y-4">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">備註</h2>
+
+                <div class="space-y-1.5">
+                    <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        備註說明
+                    </label>
+                    <textarea id="notes"
+                              name="notes"
+                              th:text="${activity?.notes}"
+                              rows="3"
+                              placeholder="記錄任何想法、注意事項或預約資訊..."
+                              class="w-full px-4 py-3
+                                     bg-white dark:bg-gray-800
+                                     border border-gray-200 dark:border-gray-700
+                                     rounded-xl
+                                     text-gray-800 dark:text-gray-100
+                                     placeholder:text-gray-400 dark:placeholder:text-gray-500
+                                     focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                     transition-all duration-200 resize-none"></textarea>
+                </div>
+            </section>
+
+            <!-- Delete Button (Edit mode only) -->
+            <div th:if="${activity?.id != null}" class="pt-4">
+                <button type="button"
+                        id="delete-activity-btn"
+                        class="w-full min-h-[44px] cursor-pointer rounded-xl
+                               bg-error-light dark:bg-red-900/20
+                               border border-error/20
+                               px-4 py-2.5 font-medium text-error-dark dark:text-red-400
+                               hover:bg-error hover:text-white
+                               transition-all duration-200 active:scale-[0.98]
+                               focus:outline-none focus:ring-2 focus:ring-error/50">
+                    刪除此景點
+                </button>
+            </div>
+        </form>
+    </main>
+
+    <!-- Delete Confirmation Dialog (hidden by default) -->
+    <div id="delete-dialog"
+         class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div role="alertdialog"
+             aria-modal="true"
+             aria-labelledby="delete-dialog-title"
+             aria-describedby="delete-dialog-desc"
+             class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="px-6 pt-6 pb-4">
+                <h3 id="delete-dialog-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                    確定要刪除此景點？
+                </h3>
+                <p id="delete-dialog-desc" class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    刪除後將無法復原。
+                </p>
+            </div>
+            <div class="px-6 pb-6 flex gap-3">
+                <button type="button"
+                        id="cancel-delete-btn"
+                        class="flex-1 px-4 py-2.5 rounded-xl
+                               border border-gray-200 dark:border-gray-600
+                               text-gray-700 dark:text-gray-200 font-medium
+                               hover:bg-gray-50 dark:hover:bg-gray-700
+                               transition-colors duration-200 cursor-pointer">
+                    取消
+                </button>
+                <form th:if="${activity?.id != null}"
+                      th:action="@{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})}"
+                      method="post">
+                    <input type="hidden" name="_method" value="delete">
+                    <button type="submit"
+                            class="flex-1 px-4 py-2.5 rounded-xl
+                                   bg-error hover:bg-red-600
+                                   text-white font-medium
+                                   transition-colors duration-200 cursor-pointer">
+                        刪除
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/app.js}" defer></script>
+    <script>
+        // Duration display calculation
+        document.addEventListener('DOMContentLoaded', function() {
+            const durationInput = document.getElementById('durationMinutes');
+            const durationDisplay = document.getElementById('duration-display');
+            const startTimeInput = document.getElementById('startTime');
+            const endTimeInput = document.getElementById('endTime');
+
+            function updateDurationDisplay() {
+                const minutes = parseInt(durationInput.value) || 0;
+                if (minutes > 0) {
+                    const hours = Math.floor(minutes / 60);
+                    const mins = minutes % 60;
+                    if (hours > 0 && mins > 0) {
+                        durationDisplay.textContent = `${hours} 小時 ${mins} 分鐘`;
+                    } else if (hours > 0) {
+                        durationDisplay.textContent = `${hours} 小時`;
+                    } else {
+                        durationDisplay.textContent = `${mins} 分鐘`;
+                    }
+                } else {
+                    durationDisplay.textContent = '';
+                }
+            }
+
+            function calculateDuration() {
+                const start = startTimeInput.value;
+                const end = endTimeInput.value;
+                if (start && end) {
+                    const [startH, startM] = start.split(':').map(Number);
+                    const [endH, endM] = end.split(':').map(Number);
+                    const startMinutes = startH * 60 + startM;
+                    const endMinutes = endH * 60 + endM;
+                    const diff = endMinutes - startMinutes;
+                    if (diff > 0) {
+                        durationInput.value = diff;
+                        updateDurationDisplay();
+                    }
+                }
+            }
+
+            durationInput.addEventListener('input', updateDurationDisplay);
+            startTimeInput.addEventListener('change', calculateDuration);
+            endTimeInput.addEventListener('change', calculateDuration);
+            updateDurationDisplay();
+
+            // Delete dialog handling
+            const deleteBtn = document.getElementById('delete-activity-btn');
+            const deleteDialog = document.getElementById('delete-dialog');
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function() {
+                    deleteDialog.classList.remove('hidden');
+                });
+            }
+
+            if (cancelDeleteBtn) {
+                cancelDeleteBtn.addEventListener('click', function() {
+                    deleteDialog.classList.add('hidden');
+                });
+            }
+
+            // Close dialog on backdrop click
+            if (deleteDialog) {
+                deleteDialog.addEventListener('click', function(e) {
+                    if (e.target === deleteDialog) {
+                        deleteDialog.classList.add('hidden');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

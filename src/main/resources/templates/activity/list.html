@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<!--
+    Activity List - Timeline View
+    Displays activities grouped by date in a timeline format.
+    Supports drag-and-drop reordering (visual handles only, JS in separate file).
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${trip.title} + ' - 行程景點'">行程景點 - WeGo</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Back Button & Title -->
+            <div class="flex items-center gap-3">
+                <a th:href="@{/trips/{tripId}(tripId=${trip.id})}"
+                   class="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800
+                          transition-colors duration-200 cursor-pointer"
+                   aria-label="返回行程">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading" th:text="${trip.title}">東京五日遊</h1>
+                    <p class="text-caption text-gray-500 dark:text-gray-400">
+                        <span th:text="${#temporals.format(trip.startDate, 'MM/dd')}">03/15</span>
+                        -
+                        <span th:text="${#temporals.format(trip.endDate, 'MM/dd')}">03/19</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2">
+                <!-- View Toggle (Map/List) -->
+                <button type="button"
+                        class="p-2.5 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
+                               text-gray-500 hover:text-gray-700 dark:hover:text-gray-200
+                               hover:bg-gray-100 dark:hover:bg-gray-800
+                               transition-colors duration-200"
+                        aria-label="切換地圖檢視">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Date Navigation (horizontal scroll) -->
+        <div class="mb-6 -mx-4 px-4 overflow-x-auto">
+            <div class="flex gap-2 min-w-max pb-2">
+                <th:block th:each="date, dateStat : ${dates}">
+                    <button type="button"
+                            th:classappend="${dateStat.first} ? 'bg-primary-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200'"
+                            th:data-date="${#temporals.format(date, 'yyyy-MM-dd')}"
+                            class="flex-shrink-0 px-4 py-2 rounded-xl font-medium text-sm
+                                   border border-gray-200 dark:border-gray-700
+                                   hover:border-primary-300 dark:hover:border-primary-600
+                                   transition-all duration-200 cursor-pointer min-h-[44px]">
+                        <span class="block text-xs opacity-75" th:text="${#temporals.dayOfWeek(date).toString().substring(0,3)}">MON</span>
+                        <span class="block" th:text="${#temporals.format(date, 'M/d')}">3/15</span>
+                    </button>
+                </th:block>
+            </div>
+        </div>
+
+        <!-- Activities Timeline -->
+        <div class="space-y-6">
+            <!-- Day Group -->
+            <th:block th:each="dayGroup : ${activitiesByDate}">
+                <section th:id="'day-' + ${#temporals.format(dayGroup.key, 'yyyy-MM-dd')}">
+                    <!-- Day Header -->
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30
+                                    flex flex-col items-center justify-center">
+                            <span class="text-xs text-primary-600 dark:text-primary-400 font-medium"
+                                  th:text="${#temporals.dayOfWeek(dayGroup.key).toString().substring(0,3)}">MON</span>
+                            <span class="text-lg font-bold text-primary-700 dark:text-primary-300"
+                                  th:text="${#temporals.day(dayGroup.key)}">15</span>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100"
+                                th:text="${#temporals.format(dayGroup.key, 'M月d日')}">3月15日</h2>
+                            <p class="text-caption text-gray-500 dark:text-gray-400"
+                               th:text="${#lists.size(dayGroup.value)} + ' 個景點'">3 個景點</p>
+                        </div>
+                    </div>
+
+                    <!-- Activity Cards -->
+                    <div class="space-y-0" id="sortable-activities">
+                        <th:block th:each="activity, activityStat : ${dayGroup.value}">
+                            <!-- Activity Card -->
+                            <a th:href="@{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})}"
+                               class="activity-card block bg-white dark:bg-gray-800 rounded-xl
+                                      border border-gray-100 dark:border-gray-700
+                                      p-3 flex gap-3
+                                      hover:bg-gray-50 dark:hover:bg-gray-750
+                                      active:bg-gray-100 dark:active:bg-gray-700
+                                      transition-colors duration-200 cursor-pointer
+                                      touch-action-manipulation">
+                                <div class="flex gap-3 items-start flex-1">
+                                    <!-- Activity Type Icon -->
+                                    <div th:switch="${activity.type}">
+                                        <!-- Attraction -->
+                                        <div th:case="'ATTRACTION'"
+                                             class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                                    text-primary-600 dark:text-primary-400
+                                                    flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            </svg>
+                                        </div>
+                                        <!-- Restaurant -->
+                                        <div th:case="'RESTAURANT'"
+                                             class="w-10 h-10 rounded-full bg-adventure-100 dark:bg-adventure-900/30
+                                                    text-adventure-600 dark:text-adventure-400
+                                                    flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                            </svg>
+                                        </div>
+                                        <!-- Transport -->
+                                        <div th:case="'TRANSPORT'"
+                                             class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700
+                                                    text-gray-600 dark:text-gray-400
+                                                    flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                            </svg>
+                                        </div>
+                                        <!-- Accommodation -->
+                                        <div th:case="'ACCOMMODATION'"
+                                             class="w-10 h-10 rounded-full bg-success-light dark:bg-green-900/30
+                                                    text-success-dark dark:text-green-400
+                                                    flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                            </svg>
+                                        </div>
+                                        <!-- Default -->
+                                        <div th:case="*"
+                                             class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700
+                                                    text-gray-600 dark:text-gray-400
+                                                    flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                    <!-- Content -->
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="font-medium text-gray-800 dark:text-gray-100 truncate"
+                                            th:text="${activity.placeName}">淺草寺</h4>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                            <span th:if="${activity.startTime}"
+                                                  th:text="${#temporals.format(activity.startTime, 'HH:mm')}">10:00</span>
+                                            <span th:if="${activity.startTime and activity.endTime}"> - </span>
+                                            <span th:if="${activity.endTime}"
+                                                  th:text="${#temporals.format(activity.endTime, 'HH:mm')}">12:00</span>
+                                            <span th:if="${activity.durationMinutes}" class="ml-2 text-gray-400">
+                                                <span th:text="${activity.durationMinutes >= 60 ? (activity.durationMinutes / 60) + ' 小時' : activity.durationMinutes + ' 分鐘'}">2 小時</span>
+                                            </span>
+                                        </p>
+                                        <p th:if="${activity.notes}"
+                                           class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate"
+                                           th:text="${activity.notes}">記得買御守</p>
+                                    </div>
+
+                                    <!-- Drag Handle -->
+                                    <div class="drag-handle text-gray-300 dark:text-gray-600
+                                                cursor-grab active:cursor-grabbing self-center"
+                                         aria-label="拖曳排序">
+                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </a>
+
+                            <!-- Transit Time Connector (between activities) -->
+                            <div th:if="${!activityStat.last and activity.transitDurationMinutes != null}"
+                                 class="flex items-center gap-2 py-2 pl-5 ml-5">
+                                <div class="w-0.5 h-6 bg-gray-200 dark:bg-gray-700"></div>
+                                <div class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                    </svg>
+                                    <span th:text="${activity.transitDurationMinutes} + ' 分鐘'">25 分鐘</span>
+                                </div>
+                            </div>
+
+                            <!-- Spacer between activities without transit time -->
+                            <div th:if="${!activityStat.last and activity.transitDurationMinutes == null}"
+                                 class="h-2"></div>
+                        </th:block>
+                    </div>
+                </section>
+            </th:block>
+        </div>
+
+        <!-- Empty State -->
+        <div th:if="${#maps.isEmpty(activitiesByDate)}"
+             class="glass-card p-8 text-center">
+            <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                <svg class="w-12 h-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </div>
+            <h3 class="text-h4 text-gray-700 dark:text-gray-200 mb-2">還沒有任何景點</h3>
+            <p class="text-body-sm text-gray-500 dark:text-gray-400 mb-6">開始新增景點，規劃您的完美行程！</p>
+            <a th:href="@{/trips/{tripId}/activities/new(tripId=${trip.id})}"
+               class="btn-cta inline-flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                新增景點
+            </a>
+        </div>
+    </main>
+
+    <!-- Floating Action Button -->
+    <a th:href="@{/trips/{tripId}/activities/new(tripId=${trip.id})}"
+       th:if="${!#maps.isEmpty(activitiesByDate)}"
+       class="fixed bottom-24 right-4 w-14 h-14
+              bg-adventure-500 hover:bg-adventure-600
+              rounded-full text-white shadow-lg shadow-adventure-500/30
+              flex items-center justify-center
+              transition-all duration-200 active:scale-95 cursor-pointer z-30"
+       aria-label="新增景點">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+    </a>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="max-w-4xl mx-auto px-4 flex justify-around">
+            <a th:href="@{/dashboard}" class="bottom-nav-item" aria-label="行程">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span class="text-caption">行程</span>
+            </a>
+            <a th:href="@{/trips/{tripId}/expenses(tripId=${trip.id})}" class="bottom-nav-item" aria-label="分帳">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span class="text-caption">分帳</span>
+            </a>
+            <a th:href="@{/trips/{tripId}/documents(tripId=${trip.id})}" class="bottom-nav-item" aria-label="檔案">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="text-caption">檔案</span>
+            </a>
+            <a th:href="@{/trips/{tripId}/members(tripId=${trip.id})}" class="bottom-nav-item" aria-label="成員">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <span class="text-caption">成員</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/app.js}" defer></script>
+</body>
+</html>

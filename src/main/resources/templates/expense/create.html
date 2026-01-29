@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${expense?.id != null ? '編輯支出' : '新增支出'} + ' - WeGo'">新增支出 - WeGo</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a th:href="@{/trips/{tripId}/expenses(tripId=${trip.id})}"
+                   class="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                   aria-label="返回分帳列表">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </a>
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading"
+                    th:text="${expense?.id != null ? '編輯支出' : '新增支出'}">新增支出</h1>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <form th:action="${expense?.id != null ? @{/trips/{tripId}/expenses/{expenseId}(tripId=${trip.id}, expenseId=${expense.id})} : @{/trips/{tripId}/expenses(tripId=${trip.id})}}"
+              method="post"
+              id="expense-form"
+              class="space-y-6">
+            <input type="hidden" name="_method" th:value="${expense?.id != null ? 'PUT' : 'POST'}">
+
+            <!-- Amount Section -->
+            <section class="glass-card p-6">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">金額</h2>
+
+                <div class="space-y-4">
+                    <!-- Amount Input -->
+                    <div class="space-y-1.5">
+                        <label for="amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            金額 <span class="text-error">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 font-medium">$</span>
+                            <input type="number"
+                                   id="amount"
+                                   name="amount"
+                                   th:value="${expense?.amount}"
+                                   step="0.01"
+                                   min="0"
+                                   required
+                                   inputmode="decimal"
+                                   placeholder="0.00"
+                                   class="w-full pl-8 pr-20 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 text-lg font-mono">
+                            <select id="currency"
+                                    name="currency"
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg py-1.5 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 cursor-pointer">
+                                <option value="TWD" th:selected="${expense?.currency == 'TWD' or expense?.currency == null}">TWD</option>
+                                <option value="USD" th:selected="${expense?.currency == 'USD'}">USD</option>
+                                <option value="JPY" th:selected="${expense?.currency == 'JPY'}">JPY</option>
+                                <option value="EUR" th:selected="${expense?.currency == 'EUR'}">EUR</option>
+                                <option value="KRW" th:selected="${expense?.currency == 'KRW'}">KRW</option>
+                                <option value="CNY" th:selected="${expense?.currency == 'CNY'}">CNY</option>
+                                <option value="GBP" th:selected="${expense?.currency == 'GBP'}">GBP</option>
+                                <option value="THB" th:selected="${expense?.currency == 'THB'}">THB</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="space-y-1.5">
+                        <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            描述 <span class="text-error">*</span>
+                        </label>
+                        <input type="text"
+                               id="description"
+                               name="description"
+                               th:value="${expense?.description}"
+                               required
+                               maxlength="100"
+                               placeholder="例如：午餐、計程車、門票..."
+                               class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200">
+                    </div>
+
+                    <!-- Category -->
+                    <div class="space-y-1.5">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">類別</label>
+                        <div class="grid grid-cols-5 gap-2">
+                            <!-- Food -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="FOOD" class="peer sr-only"
+                                       th:checked="${expense?.category == 'FOOD' or expense?.category == null}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-orange-500 peer-checked:bg-orange-50 dark:peer-checked:bg-orange-900/20 transition-all duration-200">
+                                    <div class="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">餐飲</span>
+                                </div>
+                            </label>
+
+                            <!-- Transport -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="TRANSPORT" class="peer sr-only"
+                                       th:checked="${expense?.category == 'TRANSPORT'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-900/20 transition-all duration-200">
+                                    <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">交通</span>
+                                </div>
+                            </label>
+
+                            <!-- Accommodation -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="ACCOMMODATION" class="peer sr-only"
+                                       th:checked="${expense?.category == 'ACCOMMODATION'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-purple-500 peer-checked:bg-purple-50 dark:peer-checked:bg-purple-900/20 transition-all duration-200">
+                                    <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">住宿</span>
+                                </div>
+                            </label>
+
+                            <!-- Entertainment -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="ENTERTAINMENT" class="peer sr-only"
+                                       th:checked="${expense?.category == 'ENTERTAINMENT'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-pink-500 peer-checked:bg-pink-50 dark:peer-checked:bg-pink-900/20 transition-all duration-200">
+                                    <div class="w-10 h-10 rounded-xl bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">娛樂</span>
+                                </div>
+                            </label>
+
+                            <!-- Other -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="OTHER" class="peer sr-only"
+                                       th:checked="${expense?.category == 'OTHER'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-gray-500 peer-checked:bg-gray-50 dark:peer-checked:bg-gray-700/50 transition-all duration-200">
+                                    <div class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">其他</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="space-y-1.5">
+                        <label for="expenseDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">日期</label>
+                        <input type="date"
+                               id="expenseDate"
+                               name="expenseDate"
+                               th:value="${expense?.expenseDate != null ? #temporals.format(expense.expenseDate, 'yyyy-MM-dd') : #temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}"
+                               class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 cursor-pointer">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Payer Section -->
+            <section class="glass-card p-6">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">付款人</h2>
+
+                <div class="space-y-1.5">
+                    <label for="payerId" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        誰先付錢？ <span class="text-error">*</span>
+                    </label>
+                    <select id="payerId"
+                            name="payerId"
+                            required
+                            class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 cursor-pointer">
+                        <option value="">請選擇付款人</option>
+                        <option th:each="member : ${members}"
+                                th:value="${member.user.id}"
+                                th:text="${member.user.name}"
+                                th:selected="${expense?.payer?.id == member.user.id or (expense?.payer == null and member.user.id == currentUserId)}">
+                            成員名稱
+                        </option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Split Method Section -->
+            <section class="glass-card p-6">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">分帳方式</h2>
+
+                <!-- Split Method Tabs -->
+                <div class="flex gap-2 mb-4 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+                    <button type="button"
+                            data-split-method="EQUAL"
+                            class="split-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 active"
+                            th:classappend="${expense?.splitMethod == 'EQUAL' or expense?.splitMethod == null ? 'active' : ''}">
+                        均分
+                    </button>
+                    <button type="button"
+                            data-split-method="PERCENTAGE"
+                            class="split-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200"
+                            th:classappend="${expense?.splitMethod == 'PERCENTAGE' ? 'active' : ''}">
+                        百分比
+                    </button>
+                    <button type="button"
+                            data-split-method="CUSTOM"
+                            class="split-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200"
+                            th:classappend="${expense?.splitMethod == 'CUSTOM' ? 'active' : ''}">
+                        自訂金額
+                    </button>
+                </div>
+                <input type="hidden" id="splitMethod" name="splitMethod"
+                       th:value="${expense?.splitMethod != null ? expense.splitMethod : 'EQUAL'}">
+
+                <!-- Participants -->
+                <div class="space-y-3">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">選擇要分攤的成員</p>
+
+                    <!-- Equal Split -->
+                    <div id="split-equal" class="split-content space-y-2">
+                        <div th:each="member : ${members}" class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <label class="flex items-center gap-3 flex-1 cursor-pointer">
+                                <input type="checkbox"
+                                       th:name="'participantIds'"
+                                       th:value="${member.user.id}"
+                                       th:checked="${expense?.participants == null or expense.participants.^[user.id == __${member.user.id}__] != null}"
+                                       class="participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer">
+                                <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                    <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
+                                          th:text="${#strings.substring(member.user.name, 0, 1)}">A</span>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                                      th:text="${member.user.name}">成員名稱</span>
+                            </label>
+                            <span class="text-sm text-gray-500 dark:text-gray-400 font-mono equal-amount">$0</span>
+                        </div>
+                    </div>
+
+                    <!-- Percentage Split -->
+                    <div id="split-percentage" class="split-content space-y-2 hidden">
+                        <div th:each="member : ${members}" class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox"
+                                       th:data-user-id="${member.user.id}"
+                                       class="percentage-participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer"
+                                       checked>
+                                <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                    <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
+                                          th:text="${#strings.substring(member.user.name, 0, 1)}">A</span>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                                      th:text="${member.user.name}">成員名稱</span>
+                            </label>
+                            <div class="flex-1"></div>
+                            <div class="flex items-center gap-2">
+                                <input type="number"
+                                       th:name="'percentages[' + ${member.user.id} + ']'"
+                                       th:id="'percentage-' + ${member.user.id}"
+                                       value="0"
+                                       min="0"
+                                       max="100"
+                                       step="1"
+                                       class="percentage-input w-16 px-2 py-1 text-sm bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-right font-mono focus:outline-none focus:ring-2 focus:ring-primary-500/50">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">%</span>
+                            </div>
+                            <span class="text-sm text-gray-500 dark:text-gray-400 font-mono w-20 text-right percentage-amount">$0</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                            <span class="text-sm font-medium text-gray-600 dark:text-gray-400">總計</span>
+                            <span id="percentage-total" class="text-sm font-semibold font-mono"
+                                  th:classappend="${true ? 'text-success' : 'text-error'}">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- Custom Split -->
+                    <div id="split-custom" class="split-content space-y-2 hidden">
+                        <div th:each="member : ${members}" class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox"
+                                       th:data-user-id="${member.user.id}"
+                                       class="custom-participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer"
+                                       checked>
+                                <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                    <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
+                                          th:text="${#strings.substring(member.user.name, 0, 1)}">A</span>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                                      th:text="${member.user.name}">成員名稱</span>
+                            </label>
+                            <div class="flex-1"></div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">$</span>
+                                <input type="number"
+                                       th:name="'customAmounts[' + ${member.user.id} + ']'"
+                                       th:id="'custom-' + ${member.user.id}"
+                                       value="0"
+                                       min="0"
+                                       step="0.01"
+                                       class="custom-input w-24 px-2 py-1 text-sm bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-right font-mono focus:outline-none focus:ring-2 focus:ring-primary-500/50">
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                            <span class="text-sm font-medium text-gray-600 dark:text-gray-400">總計</span>
+                            <span id="custom-total" class="text-sm font-semibold font-mono text-gray-800 dark:text-gray-100">$0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notes Section -->
+            <section class="glass-card p-6">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">備註</h2>
+                <textarea id="notes"
+                          name="notes"
+                          th:text="${expense?.notes}"
+                          rows="3"
+                          maxlength="500"
+                          placeholder="可選填的備註資訊..."
+                          class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 resize-none"></textarea>
+            </section>
+
+            <!-- Submit Button -->
+            <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800">
+                <div class="max-w-4xl mx-auto flex gap-3">
+                    <a th:href="@{/trips/{tripId}/expenses(tripId=${trip.id})}"
+                       class="flex-1 btn-text text-center py-3 rounded-xl border border-gray-200 dark:border-gray-700">
+                        取消
+                    </a>
+                    <button type="submit" class="flex-1 btn-cta py-3">
+                        <span th:text="${expense?.id != null ? '儲存變更' : '新增支出'}">新增支出</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const amountInput = document.getElementById('amount');
+            const splitMethodInput = document.getElementById('splitMethod');
+            const splitTabs = document.querySelectorAll('.split-tab');
+            const splitContents = document.querySelectorAll('.split-content');
+
+            // Switch split method tabs
+            splitTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const method = this.dataset.splitMethod;
+
+                    // Update active tab
+                    splitTabs.forEach(t => t.classList.remove('active', 'bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-100'));
+                    splitTabs.forEach(t => t.classList.add('text-gray-500', 'dark:text-gray-400'));
+                    this.classList.add('active', 'bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-100');
+                    this.classList.remove('text-gray-500', 'dark:text-gray-400');
+
+                    // Update hidden input
+                    splitMethodInput.value = method;
+
+                    // Show corresponding content
+                    splitContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    document.getElementById('split-' + method.toLowerCase()).classList.remove('hidden');
+
+                    // Recalculate amounts
+                    calculateSplitAmounts();
+                });
+            });
+
+            // Initialize active tab styling
+            const activeTab = document.querySelector('.split-tab.active');
+            if (activeTab) {
+                activeTab.classList.add('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-100');
+                activeTab.classList.remove('text-gray-500', 'dark:text-gray-400');
+            }
+
+            // Calculate split amounts
+            function calculateSplitAmounts() {
+                const amount = parseFloat(amountInput.value) || 0;
+                const method = splitMethodInput.value;
+
+                if (method === 'EQUAL') {
+                    const checkboxes = document.querySelectorAll('.participant-checkbox:checked');
+                    const count = checkboxes.length;
+                    const perPerson = count > 0 ? (amount / count).toFixed(2) : 0;
+
+                    document.querySelectorAll('.equal-amount').forEach(el => {
+                        const checkbox = el.closest('.flex').querySelector('.participant-checkbox');
+                        el.textContent = checkbox.checked ? '$' + formatNumber(perPerson) : '$0';
+                    });
+                } else if (method === 'PERCENTAGE') {
+                    let total = 0;
+                    document.querySelectorAll('.percentage-input').forEach(input => {
+                        const value = parseFloat(input.value) || 0;
+                        total += value;
+                        const calcAmount = (amount * value / 100).toFixed(2);
+                        input.closest('.flex').querySelector('.percentage-amount').textContent = '$' + formatNumber(calcAmount);
+                    });
+                    const totalEl = document.getElementById('percentage-total');
+                    totalEl.textContent = total + '%';
+                    totalEl.classList.remove('text-success', 'text-error');
+                    totalEl.classList.add(total === 100 ? 'text-success' : 'text-error');
+                } else if (method === 'CUSTOM') {
+                    let total = 0;
+                    document.querySelectorAll('.custom-input').forEach(input => {
+                        total += parseFloat(input.value) || 0;
+                    });
+                    const totalEl = document.getElementById('custom-total');
+                    totalEl.textContent = '$' + formatNumber(total.toFixed(2));
+                    totalEl.classList.remove('text-success', 'text-error', 'text-gray-800', 'dark:text-gray-100');
+                    totalEl.classList.add(Math.abs(total - amount) < 0.01 ? 'text-success' : 'text-error');
+                }
+            }
+
+            function formatNumber(num) {
+                return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            }
+
+            // Event listeners for recalculation
+            amountInput.addEventListener('input', calculateSplitAmounts);
+            document.querySelectorAll('.participant-checkbox').forEach(cb => {
+                cb.addEventListener('change', calculateSplitAmounts);
+            });
+            document.querySelectorAll('.percentage-input').forEach(input => {
+                input.addEventListener('input', calculateSplitAmounts);
+            });
+            document.querySelectorAll('.custom-input').forEach(input => {
+                input.addEventListener('input', calculateSplitAmounts);
+            });
+
+            // Initial calculation
+            calculateSplitAmounts();
+        });
+    </script>
+
+    <style>
+        .split-tab {
+            color: rgb(107 114 128);
+        }
+        .split-tab.active {
+            background-color: white;
+            color: rgb(31 41 55);
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        .dark .split-tab.active {
+            background-color: rgb(55 65 81);
+            color: rgb(243 244 246);
+        }
+    </style>
+</body>
+</html>

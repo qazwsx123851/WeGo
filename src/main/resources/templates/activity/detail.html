@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<!--
+    Activity Detail View
+    Displays full activity information including map preview,
+    activity details, notes, and related actions.
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${activity.placeName} + ' - WeGo'">景點詳情 - WeGo</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Back Button & Title -->
+            <div class="flex items-center gap-3">
+                <a th:href="@{/trips/{tripId}/activities(tripId=${trip.id})}"
+                   class="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800
+                          transition-colors duration-200 cursor-pointer"
+                   aria-label="返回景點列表">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading truncate max-w-[200px] sm:max-w-none"
+                    th:text="${activity.placeName}">淺草寺</h1>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2">
+                <!-- Edit Button -->
+                <a th:href="@{/trips/{tripId}/activities/{activityId}/edit(tripId=${trip.id}, activityId=${activity.id})}"
+                   class="p-2.5 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
+                          text-gray-500 hover:text-gray-700 dark:hover:text-gray-200
+                          hover:bg-gray-100 dark:hover:bg-gray-800
+                          transition-colors duration-200"
+                   aria-label="編輯景點">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                </a>
+
+                <!-- More Options -->
+                <button type="button"
+                        id="more-options-btn"
+                        class="p-2.5 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
+                               text-gray-500 hover:text-gray-700 dark:hover:text-gray-200
+                               hover:bg-gray-100 dark:hover:bg-gray-800
+                               transition-colors duration-200"
+                        aria-label="更多選項">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto">
+        <!-- Map Preview -->
+        <section class="relative">
+            <div id="map-preview"
+                 class="w-full h-48 sm:h-64 bg-gray-200 dark:bg-gray-700
+                        flex items-center justify-center">
+                <!-- Map will be rendered here by Google Maps JS -->
+                <div th:if="${activity.place?.latitude == null}" class="text-center">
+                    <svg class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                    </svg>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">尚無地圖資訊</p>
+                </div>
+                <!-- Static Map Image (placeholder until JS loads) -->
+                <img th:if="${activity.place?.latitude != null}"
+                     th:src="'https://maps.googleapis.com/maps/api/staticmap?center=' + ${activity.place.latitude} + ',' + ${activity.place.longitude} + '&zoom=15&size=600x300&markers=color:red%7C' + ${activity.place.latitude} + ',' + ${activity.place.longitude} + '&key=' + ${googleMapsApiKey}"
+                     alt="地點地圖"
+                     class="w-full h-full object-cover"
+                     loading="lazy"
+                     onerror="this.parentElement.innerHTML='<div class=\'text-center p-4\'><p class=\'text-sm text-gray-500\'>地圖載入失敗</p></div>'">
+            </div>
+
+            <!-- Open in Maps Button -->
+            <a th:if="${activity.place?.latitude != null}"
+               th:href="'https://www.google.com/maps/search/?api=1&query=' + ${activity.place.latitude} + ',' + ${activity.place.longitude}"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="absolute bottom-4 right-4 px-3 py-2
+                      bg-white/90 dark:bg-gray-800/90
+                      backdrop-blur-sm rounded-lg shadow-lg
+                      text-sm font-medium text-gray-700 dark:text-gray-200
+                      hover:bg-white dark:hover:bg-gray-800
+                      transition-colors duration-200 cursor-pointer
+                      flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+                在地圖中開啟
+            </a>
+        </section>
+
+        <div class="px-4 py-6 space-y-6">
+            <!-- Activity Info Card -->
+            <section class="glass-card p-4 space-y-4">
+                <!-- Activity Type Badge & Date -->
+                <div class="flex items-center justify-between">
+                    <!-- Type Badge -->
+                    <div th:switch="${activity.type}">
+                        <span th:case="'ATTRACTION'"
+                              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+                                     bg-primary-100 dark:bg-primary-900/30
+                                     text-primary-700 dark:text-primary-300 text-sm font-medium">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            </svg>
+                            景點
+                        </span>
+                        <span th:case="'RESTAURANT'"
+                              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+                                     bg-adventure-100 dark:bg-adventure-900/30
+                                     text-adventure-700 dark:text-adventure-300 text-sm font-medium">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                            </svg>
+                            餐廳
+                        </span>
+                        <span th:case="'TRANSPORT'"
+                              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+                                     bg-gray-100 dark:bg-gray-700
+                                     text-gray-700 dark:text-gray-300 text-sm font-medium">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                            交通
+                        </span>
+                        <span th:case="'ACCOMMODATION'"
+                              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+                                     bg-success-light dark:bg-green-900/30
+                                     text-success-dark dark:text-green-300 text-sm font-medium">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                            住宿
+                        </span>
+                        <span th:case="*"
+                              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+                                     bg-gray-100 dark:bg-gray-700
+                                     text-gray-700 dark:text-gray-300 text-sm font-medium">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                            </svg>
+                            其他
+                        </span>
+                    </div>
+
+                    <!-- Date -->
+                    <span class="text-sm text-gray-500 dark:text-gray-400"
+                          th:text="${#temporals.format(activity.activityDate, 'M月d日 (E)')}">3月15日 (一)</span>
+                </div>
+
+                <!-- Place Name -->
+                <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100"
+                    th:text="${activity.placeName}">淺草寺</h2>
+
+                <!-- Time & Duration -->
+                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                    <!-- Time -->
+                    <div th:if="${activity.startTime}" class="flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>
+                            <span th:text="${#temporals.format(activity.startTime, 'HH:mm')}">10:00</span>
+                            <span th:if="${activity.endTime}"> - </span>
+                            <span th:if="${activity.endTime}" th:text="${#temporals.format(activity.endTime, 'HH:mm')}">12:00</span>
+                        </span>
+                    </div>
+
+                    <!-- Duration -->
+                    <div th:if="${activity.durationMinutes}" class="flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span th:text="${activity.durationMinutes >= 60 ? (activity.durationMinutes / 60) + ' 小時' + (activity.durationMinutes % 60 > 0 ? ' ' + (activity.durationMinutes % 60) + ' 分鐘' : '') : activity.durationMinutes + ' 分鐘'}">
+                            2 小時
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Address -->
+                <div th:if="${activity.place?.address}" class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    <span th:text="${activity.place.address}">東京都台東區淺草2-3-1</span>
+                </div>
+            </section>
+
+            <!-- Notes Section -->
+            <section th:if="${activity.notes}" class="glass-card p-4">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">備註</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap"
+                   th:text="${activity.notes}">記得買御守給家人，雷門前拍照打卡</p>
+            </section>
+
+            <!-- Transit Info (to next activity) -->
+            <section th:if="${activity.transitDurationMinutes}" class="glass-card p-4">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">前往下一個景點</h3>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700
+                                    text-gray-600 dark:text-gray-400
+                                    flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                               th:text="${activity.transitDurationMinutes} + ' 分鐘'">25 分鐘</p>
+                            <p th:if="${activity.transitMode}"
+                               class="text-xs text-gray-500 dark:text-gray-400"
+                               th:text="${activity.transitMode}">大眾運輸</p>
+                        </div>
+                    </div>
+                    <a th:if="${activity.place?.latitude != null and nextActivity?.place?.latitude != null}"
+                       th:href="'https://www.google.com/maps/dir/?api=1&origin=' + ${activity.place.latitude} + ',' + ${activity.place.longitude} + '&destination=' + ${nextActivity.place.latitude} + ',' + ${nextActivity.place.longitude}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="text-sm text-primary-600 dark:text-primary-400 font-medium
+                              hover:text-primary-700 dark:hover:text-primary-300
+                              transition-colors duration-200 cursor-pointer">
+                        查看路線
+                    </a>
+                </div>
+            </section>
+
+            <!-- Related Expenses -->
+            <section th:if="${not #lists.isEmpty(relatedExpenses)}" class="glass-card p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">相關支出</h3>
+                    <a th:href="@{/trips/{tripId}/expenses/new(tripId=${trip.id}, activityId=${activity.id})}"
+                       class="text-sm text-primary-600 dark:text-primary-400 font-medium
+                              hover:text-primary-700 dark:hover:text-primary-300
+                              transition-colors duration-200 cursor-pointer">
+                        新增支出
+                    </a>
+                </div>
+                <div class="space-y-2">
+                    <th:block th:each="expense : ${relatedExpenses}">
+                        <a th:href="@{/trips/{tripId}/expenses/{expenseId}(tripId=${trip.id}, expenseId=${expense.id})}"
+                           class="flex items-center justify-between p-2 -mx-2 rounded-lg
+                                  hover:bg-gray-50 dark:hover:bg-gray-700/50
+                                  transition-colors duration-200 cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700
+                                            text-gray-600 dark:text-gray-400
+                                            flex items-center justify-center text-sm">
+                                    <span th:text="${expense.category?.icon}">$</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                                       th:text="${expense.description}">門票</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400"
+                                       th:text="${expense.paidBy?.displayName}">小明</p>
+                                </div>
+                            </div>
+                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-100"
+                                  th:text="'$' + ${#numbers.formatDecimal(expense.amount, 0, 'COMMA', 0, 'POINT')}">$500</span>
+                        </a>
+                    </th:block>
+                </div>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="grid grid-cols-2 gap-3">
+                <a th:href="@{/trips/{tripId}/expenses/new(tripId=${trip.id}, activityId=${activity.id})}"
+                   class="glass-card p-4 flex items-center gap-3
+                          hover:bg-white/80 dark:hover:bg-gray-800/80
+                          transition-colors duration-200 cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-adventure-100 dark:bg-adventure-900/30
+                                text-adventure-600 dark:text-adventure-400
+                                flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200">記帳</span>
+                </a>
+
+                <a th:href="@{/trips/{tripId}/documents/new(tripId=${trip.id}, activityId=${activity.id})}"
+                   class="glass-card p-4 flex items-center gap-3
+                          hover:bg-white/80 dark:hover:bg-gray-800/80
+                          transition-colors duration-200 cursor-pointer">
+                    <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                text-primary-600 dark:text-primary-400
+                                flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200">上傳檔案</span>
+                </a>
+            </section>
+
+            <!-- Activity Info (metadata) -->
+            <section class="text-xs text-gray-400 dark:text-gray-500 text-center space-y-1">
+                <p th:if="${activity.createdAt}">
+                    建立於 <span th:text="${#temporals.format(activity.createdAt, 'yyyy/MM/dd HH:mm')}">2024/03/10 14:30</span>
+                </p>
+                <p th:if="${activity.updatedAt and activity.updatedAt != activity.createdAt}">
+                    最後更新 <span th:text="${#temporals.format(activity.updatedAt, 'yyyy/MM/dd HH:mm')}">2024/03/11 09:15</span>
+                </p>
+            </section>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="max-w-4xl mx-auto px-4 flex justify-around">
+            <a th:href="@{/dashboard}" class="bottom-nav-item" aria-label="行程">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span class="text-caption">行程</span>
+            </a>
+            <a th:href="@{/trips/{tripId}/expenses(tripId=${trip.id})}" class="bottom-nav-item" aria-label="分帳">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span class="text-caption">分帳</span>
+            </a>
+            <a th:href="@{/trips/{tripId}/documents(tripId=${trip.id})}" class="bottom-nav-item" aria-label="檔案">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="text-caption">檔案</span>
+            </a>
+            <a th:href="@{/trips/{tripId}/members(tripId=${trip.id})}" class="bottom-nav-item" aria-label="成員">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <span class="text-caption">成員</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- More Options Dropdown (hidden by default) -->
+    <div id="more-options-menu"
+         class="hidden fixed right-4 top-16 z-50
+                bg-white dark:bg-gray-800
+                border border-gray-200 dark:border-gray-700
+                rounded-xl shadow-lg
+                py-2 min-w-[160px]">
+        <a th:href="@{/trips/{tripId}/activities/{activityId}/edit(tripId=${trip.id}, activityId=${activity.id})}"
+           class="flex items-center gap-3 px-4 py-2.5
+                  text-gray-700 dark:text-gray-200
+                  hover:bg-gray-50 dark:hover:bg-gray-700
+                  transition-colors duration-200 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            編輯
+        </a>
+        <a th:href="@{/trips/{tripId}/activities/{activityId}/duplicate(tripId=${trip.id}, activityId=${activity.id})}"
+           class="flex items-center gap-3 px-4 py-2.5
+                  text-gray-700 dark:text-gray-200
+                  hover:bg-gray-50 dark:hover:bg-gray-700
+                  transition-colors duration-200 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            複製
+        </a>
+        <div class="border-t border-gray-100 dark:border-gray-700 my-2"></div>
+        <button type="button"
+                id="delete-from-menu-btn"
+                class="w-full flex items-center gap-3 px-4 py-2.5
+                       text-error hover:bg-error-light dark:hover:bg-red-900/20
+                       transition-colors duration-200 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            刪除
+        </button>
+    </div>
+
+    <!-- Delete Confirmation Dialog (hidden by default) -->
+    <div id="delete-dialog"
+         class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div role="alertdialog"
+             aria-modal="true"
+             aria-labelledby="delete-dialog-title"
+             aria-describedby="delete-dialog-desc"
+             class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="px-6 pt-6 pb-4">
+                <h3 id="delete-dialog-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                    確定要刪除此景點？
+                </h3>
+                <p id="delete-dialog-desc" class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    刪除後將無法復原。相關的支出和檔案關聯也會一併移除。
+                </p>
+            </div>
+            <div class="px-6 pb-6 flex gap-3">
+                <button type="button"
+                        id="cancel-delete-btn"
+                        class="flex-1 px-4 py-2.5 rounded-xl
+                               border border-gray-200 dark:border-gray-600
+                               text-gray-700 dark:text-gray-200 font-medium
+                               hover:bg-gray-50 dark:hover:bg-gray-700
+                               transition-colors duration-200 cursor-pointer">
+                    取消
+                </button>
+                <form th:action="@{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})}"
+                      method="post">
+                    <input type="hidden" name="_method" value="delete">
+                    <button type="submit"
+                            class="flex-1 px-4 py-2.5 rounded-xl
+                                   bg-error hover:bg-red-600
+                                   text-white font-medium
+                                   transition-colors duration-200 cursor-pointer">
+                        刪除
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/app.js}" defer></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const moreOptionsBtn = document.getElementById('more-options-btn');
+            const moreOptionsMenu = document.getElementById('more-options-menu');
+            const deleteFromMenuBtn = document.getElementById('delete-from-menu-btn');
+            const deleteDialog = document.getElementById('delete-dialog');
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+
+            // Toggle more options menu
+            if (moreOptionsBtn) {
+                moreOptionsBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    moreOptionsMenu.classList.toggle('hidden');
+                });
+            }
+
+            // Close menu when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!moreOptionsMenu.contains(e.target) && e.target !== moreOptionsBtn) {
+                    moreOptionsMenu.classList.add('hidden');
+                }
+            });
+
+            // Show delete dialog
+            if (deleteFromMenuBtn) {
+                deleteFromMenuBtn.addEventListener('click', function() {
+                    moreOptionsMenu.classList.add('hidden');
+                    deleteDialog.classList.remove('hidden');
+                });
+            }
+
+            // Cancel delete
+            if (cancelDeleteBtn) {
+                cancelDeleteBtn.addEventListener('click', function() {
+                    deleteDialog.classList.add('hidden');
+                });
+            }
+
+            // Close dialog on backdrop click
+            if (deleteDialog) {
+                deleteDialog.addEventListener('click', function(e) {
+                    if (e.target === deleteDialog) {
+                        deleteDialog.classList.add('hidden');
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

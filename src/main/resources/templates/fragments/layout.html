@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<!--
+    WeGo Layout Templates
+    Common page layouts for consistent structure across the application.
+
+    Usage:
+    <html th:replace="~{fragments/layout :: page-layout(title='Dashboard')}">
+-->
+
+<!-- Base HTML Head -->
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WeGo - 協作旅遊規劃平台">
+    <meta name="theme-color" content="#0EA5E9">
+
+    <title th:text="${title} + ' - WeGo'">WeGo</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+
+    <!-- Styles -->
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Lottie for animations -->
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js" defer></script>
+</head>
+
+<!-- Main App Layout (with bottom navigation) -->
+<th:block th:fragment="app-layout(title)">
+<!DOCTYPE html>
+<html lang="zh-TW" class="scroll-smooth">
+<head th:replace="~{fragments/layout :: head(title=${title})}"></head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div th:replace="~{fragments/components :: toast-container}"></div>
+
+    <!-- Header -->
+    <header th:replace="~{fragments/components :: header(title=${title})}"></header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Content slot - use th:insert to add content -->
+        <div id="main-content">
+            <!-- Page content here -->
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav th:replace="~{fragments/components :: bottom-nav}"></nav>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/app.js}" defer></script>
+</body>
+</html>
+</th:block>
+
+<!-- Simple Page Layout (no bottom navigation) -->
+<th:block th:fragment="simple-layout(title)">
+<!DOCTYPE html>
+<html lang="zh-TW" class="scroll-smooth">
+<head th:replace="~{fragments/layout :: head(title=${title})}"></head>
+<body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100">
+    <!-- Main Content -->
+    <main class="flex items-center justify-center min-h-screen p-6">
+        <!-- Content slot -->
+        <div id="main-content">
+            <!-- Page content here -->
+        </div>
+    </main>
+</body>
+</html>
+</th:block>
+
+<!-- Dashboard Layout (specialized for dashboard) -->
+<th:block th:fragment="dashboard-layout">
+<!DOCTYPE html>
+<html lang="zh-TW" class="scroll-smooth">
+<head th:replace="~{fragments/layout :: head(title='我的行程')}"></head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div th:replace="~{fragments/components :: toast-container}"></div>
+
+    <!-- Header with logo -->
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl
+                   border-b border-gray-100 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <a th:href="@{/dashboard}" class="flex items-center gap-2">
+                    <span class="text-h4 text-primary-600 dark:text-primary-400 font-heading font-bold">WeGo</span>
+                </a>
+
+                <!-- User Avatar/Menu -->
+                <div class="flex items-center gap-3">
+                    <button aria-label="通知"
+                            class="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200
+                                   hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full
+                                   transition-colors duration-200 cursor-pointer">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                    </button>
+                    <a th:href="@{/profile}"
+                       class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30
+                              flex items-center justify-center
+                              text-primary-600 dark:text-primary-400 font-medium
+                              hover:ring-2 hover:ring-primary-500/50
+                              transition-all duration-200 cursor-pointer">
+                        <span th:if="${#authentication != null and #authentication.principal != null}"
+                              th:text="${#strings.substring(#authentication.principal.name, 0, 1)}">U</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div id="main-content">
+            <!-- Dashboard content here -->
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav th:replace="~{fragments/components :: bottom-nav}"></nav>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/app.js}" defer></script>
+</body>
+</html>
+</th:block>
+
+</html>

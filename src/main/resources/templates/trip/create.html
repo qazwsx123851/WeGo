@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<!--
+    Create Trip Page
+    Form for creating a new trip with title, description, dates, and cover image.
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WeGo - 協作旅遊規劃平台">
+    <meta name="theme-color" content="#0EA5E9">
+    <title>建立新行程 - WeGo</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js" defer></script>
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Header with Back Button -->
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl
+                   border-b border-gray-100 dark:border-gray-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Back Button -->
+                <a th:href="@{/dashboard}"
+                   class="flex items-center gap-2 text-gray-600 dark:text-gray-300
+                          hover:text-gray-800 dark:hover:text-gray-100
+                          transition-colors duration-200 cursor-pointer min-w-[44px] min-h-[44px]"
+                   aria-label="返回">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    <span class="hidden sm:inline">返回</span>
+                </a>
+
+                <!-- Title -->
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">建立新行程</h1>
+
+                <!-- Spacer for alignment -->
+                <div class="w-[44px]"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Form Card -->
+        <div class="glass-card p-6 sm:p-8">
+            <form th:action="@{/trips/create}" method="post" class="space-y-6">
+                <!-- CSRF Token -->
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                <!-- Cover Image Upload -->
+                <div class="space-y-3">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        封面圖片
+                    </label>
+                    <div class="relative">
+                        <!-- Preview Area -->
+                        <div id="cover-preview"
+                             class="aspect-[16/9] w-full rounded-xl border-2 border-dashed
+                                    border-gray-200 dark:border-gray-700
+                                    bg-gray-50 dark:bg-gray-800
+                                    flex flex-col items-center justify-center
+                                    cursor-pointer hover:border-primary-400 dark:hover:border-primary-500
+                                    transition-colors duration-200 overflow-hidden">
+                            <img id="preview-image"
+                                 class="hidden w-full h-full object-cover"
+                                 alt="封面預覽"/>
+                            <div id="upload-placeholder" class="text-center p-6">
+                                <svg class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-3"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                    點擊上傳封面圖片
+                                </p>
+                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                    建議尺寸 1920x1080，支援 JPG、PNG
+                                </p>
+                            </div>
+                        </div>
+                        <input type="file"
+                               id="coverImage"
+                               name="coverImage"
+                               accept="image/jpeg,image/png,image/webp"
+                               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
+                    </div>
+                </div>
+
+                <!-- Trip Title -->
+                <div class="space-y-1.5">
+                    <label for="title"
+                           class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        行程名稱 <span class="text-error">*</span>
+                    </label>
+                    <input type="text"
+                           id="title"
+                           name="title"
+                           required
+                           maxlength="100"
+                           placeholder="例如：東京五日遊"
+                           th:value="${trip?.title}"
+                           class="w-full px-4 py-3
+                                  bg-white dark:bg-gray-800
+                                  border border-gray-200 dark:border-gray-700
+                                  rounded-xl
+                                  text-gray-800 dark:text-gray-100
+                                  placeholder:text-gray-400 dark:placeholder:text-gray-500
+                                  focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                  transition-all duration-200"/>
+                    <!-- Field errors shown via controller model attribute -->
+                    <p th:if="${titleError}"
+                       th:text="${titleError}"
+                       class="text-xs text-error"
+                       role="alert"></p>
+                </div>
+
+                <!-- Trip Description -->
+                <div class="space-y-1.5">
+                    <label for="description"
+                           class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        行程簡介
+                    </label>
+                    <textarea id="description"
+                              name="description"
+                              rows="3"
+                              maxlength="500"
+                              placeholder="描述這趟旅程的亮點..."
+                              th:text="${trip?.description}"
+                              class="w-full px-4 py-3
+                                     bg-white dark:bg-gray-800
+                                     border border-gray-200 dark:border-gray-700
+                                     rounded-xl
+                                     text-gray-800 dark:text-gray-100
+                                     placeholder:text-gray-400 dark:placeholder:text-gray-500
+                                     focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                     transition-all duration-200 resize-none"></textarea>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 text-right">
+                        <span id="desc-count">0</span>/500
+                    </p>
+                </div>
+
+                <!-- Date Range -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Start Date -->
+                    <div class="space-y-1.5">
+                        <label for="startDate"
+                               class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            開始日期 <span class="text-error">*</span>
+                        </label>
+                        <input type="date"
+                               id="startDate"
+                               name="startDate"
+                               required
+                               th:value="${trip?.startDate}"
+                               class="w-full px-4 py-3
+                                      bg-white dark:bg-gray-800
+                                      border border-gray-200 dark:border-gray-700
+                                      rounded-xl
+                                      text-gray-800 dark:text-gray-100
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                      transition-all duration-200"/>
+                        <p th:if="${startDateError}"
+                           th:text="${startDateError}"
+                           class="text-xs text-error"
+                           role="alert"></p>
+                    </div>
+
+                    <!-- End Date -->
+                    <div class="space-y-1.5">
+                        <label for="endDate"
+                               class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            結束日期 <span class="text-error">*</span>
+                        </label>
+                        <input type="date"
+                               id="endDate"
+                               name="endDate"
+                               required
+                               th:value="${trip?.endDate}"
+                               class="w-full px-4 py-3
+                                      bg-white dark:bg-gray-800
+                                      border border-gray-200 dark:border-gray-700
+                                      rounded-xl
+                                      text-gray-800 dark:text-gray-100
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                      transition-all duration-200"/>
+                        <p th:if="${endDateError}"
+                           th:text="${endDateError}"
+                           class="text-xs text-error"
+                           role="alert"></p>
+                    </div>
+                </div>
+
+                <!-- Date Validation Error -->
+                <div th:if="${dateError}"
+                     class="flex items-center gap-2 p-3 bg-error-light dark:bg-error/10
+                            border border-error/20 rounded-xl">
+                    <svg class="w-5 h-5 text-error flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="text-sm text-error-dark" th:text="${dateError}">結束日期必須在開始日期之後</span>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex flex-col sm:flex-row gap-3 pt-4">
+                    <a th:href="@{/dashboard}"
+                       class="min-h-[44px] cursor-pointer rounded-xl border border-gray-200 dark:border-gray-600
+                              bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700
+                              px-6 py-3 font-medium text-gray-700 dark:text-gray-200
+                              transition-all duration-200 active:scale-[0.98]
+                              focus:outline-none focus:ring-2 focus:ring-primary-500/50
+                              text-center">
+                        取消
+                    </a>
+                    <button type="submit"
+                            class="btn-cta flex-1 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>建立行程</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="flex justify-around max-w-md mx-auto">
+            <!-- Dashboard -->
+            <a th:href="@{/dashboard}" class="bottom-nav-item">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                </svg>
+                <span class="text-xs mt-1">行程</span>
+            </a>
+
+            <!-- Expenses -->
+            <a th:href="@{/expenses}" class="bottom-nav-item">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span class="text-xs mt-1">分帳</span>
+            </a>
+
+            <!-- Add Button -->
+            <button aria-label="新增"
+                    class="-mt-5 w-14 h-14 bg-adventure-500 hover:bg-adventure-600
+                           rounded-full text-white shadow-lg shadow-adventure-500/30
+                           flex items-center justify-center
+                           transition-all duration-200 active:scale-95 cursor-pointer">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+            </button>
+
+            <!-- Documents -->
+            <a th:href="@{/documents}" class="bottom-nav-item">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="text-xs mt-1">檔案</span>
+            </a>
+
+            <!-- Profile -->
+            <a th:href="@{/profile}" class="bottom-nav-item">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span class="text-xs mt-1">我的</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/app.js}" defer></script>
+    <script>
+        // Cover image preview
+        document.getElementById('coverImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const previewImage = document.getElementById('preview-image');
+                    const placeholder = document.getElementById('upload-placeholder');
+                    previewImage.src = e.target.result;
+                    previewImage.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Description character count
+        const descTextarea = document.getElementById('description');
+        const descCount = document.getElementById('desc-count');
+        descTextarea.addEventListener('input', function() {
+            descCount.textContent = this.value.length;
+        });
+
+        // Date validation
+        const startDate = document.getElementById('startDate');
+        const endDate = document.getElementById('endDate');
+
+        startDate.addEventListener('change', function() {
+            endDate.min = this.value;
+            if (endDate.value && endDate.value < this.value) {
+                endDate.value = this.value;
+            }
+        });
+
+        // Set min date to today
+        const today = new Date().toISOString().split('T')[0];
+        startDate.min = today;
+    </script>
+</body>
+</html>

@@ -4,15 +4,16 @@
 
 ```
 Phase 0: ████████████████████ 100% ✅ 完成 (2026-01-28)
-Phase 1: ██████████████████░░  90% 🚧 進行中 (後端完成，前端頁面完成，資料庫已部署)
+Phase 1: ████████████████████  98% 🚧 進行中 (後端 + E2E 測試完成，待 Railway 部署)
 Phase 2: ░░░░░░░░░░░░░░░░░░░░   0% ⏳ 待開始
 Phase 3: ░░░░░░░░░░░░░░░░░░░░   0% ⏳ 待開始
 Phase 4: ░░░░░░░░░░░░░░░░░░░░   0% ⏳ 待開始
 ```
 
-**測試狀態**: 349 tests, 0 failures
+**測試狀態**: 396 tests, 0 failures
 **資料庫狀態**: 9 tables deployed to Supabase ✅
-**下一步**: DocumentService 實作、Google Maps 整合、E2E 測試
+**Storage 狀態**: documents bucket created ✅
+**下一步**: E2E 測試、Railway 部署驗證
 
 ---
 
@@ -106,6 +107,63 @@ expenses ─< expense_splits (expense_id)
 ```
 
 **注意**: RLS (Row Level Security) 目前未啟用，因為 WeGo 使用 Spring Boot JPA 存取資料庫，而非直接透過 Supabase PostgREST API。
+
+### 2.4 Supabase Storage ✅ (2026-01-29 完成)
+
+已建立 `documents` storage bucket：
+
+| 屬性 | 值 |
+|------|-----|
+| Bucket Name | `documents` |
+| Public | `false` (私有) |
+| File Size Limit | 10 MB |
+| Allowed MIME Types | PDF, JPEG, PNG, HEIC |
+
+**存取方式**: 後端使用 `service_role` key 存取，透過 signed URL 提供檔案下載。
+
+**Storage RLS 政策** (選用，可透過 Supabase Dashboard 設定):
+```sql
+-- 允許有編輯權限的成員上傳
+CREATE POLICY "Trip members with edit can upload"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+  bucket_id = 'documents'
+  AND EXISTS (
+    SELECT 1 FROM public.trip_members tm
+    WHERE tm.trip_id = (storage.foldername(name))[1]::uuid
+    AND tm.user_id = auth.uid()
+    AND tm.role IN ('OWNER', 'EDITOR')
+  )
+);
+
+-- 允許成員讀取
+CREATE POLICY "Trip members can read"
+ON storage.objects FOR SELECT TO authenticated
+USING (
+  bucket_id = 'documents'
+  AND EXISTS (
+    SELECT 1 FROM public.trip_members tm
+    WHERE tm.trip_id = (storage.foldername(name))[1]::uuid
+    AND tm.user_id = auth.uid()
+  )
+);
+
+-- 允許上傳者或擁有者刪除
+CREATE POLICY "Uploaders and owners can delete"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'documents'
+  AND (
+    owner = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM public.trip_members tm
+      WHERE tm.trip_id = (storage.foldername(name))[1]::uuid
+      AND tm.user_id = auth.uid()
+      AND tm.role = 'OWNER'
+    )
+  )
+);
+```
 
 ---
 
@@ -278,12 +336,23 @@ expenses ─< expense_splits (expense_id)
 - [x] **P1-F-002**: 建立 DocumentRepository ✅ (2026-01-28)
   - 位置: `src/main/java/com/wego/repository/DocumentRepository.java`
 
-#### 3.5.2 服務層
-- [ ] **P1-F-003**: 實作 DocumentService (待實作)
-  - Supabase Storage 整合待實作
+#### 3.5.2 服務層 ✅
+- [x] **P1-F-003**: 實作 DocumentService ✅ (2026-01-29)
+  - 位置: `src/main/java/com/wego/service/DocumentService.java`
+  - 方法: uploadDocument, getDocumentsByTrip, getDocument, getDownloadUrl, deleteDocument, getTripStorageUsage, getDocumentsByActivity
+  - 安全功能: MIME type 驗證 (magic bytes), tripId 所有權驗證
+  - 測試: DocumentServiceTest.java (27 tests)
 
-#### 3.5.3 控制器層
-- [ ] **P1-F-004**: 實作 DocumentApiController (待實作)
+- [x] **P1-F-007**: 實作 Storage 基礎設施 ✅ (2026-01-29)
+  - 位置: `src/main/java/com/wego/service/external/StorageClient.java` (介面)
+  - 位置: `src/main/java/com/wego/service/external/SupabaseStorageClient.java` (實作)
+  - 位置: `src/main/java/com/wego/service/external/MockStorageClient.java` (Mock)
+  - 位置: `src/main/java/com/wego/config/SupabaseProperties.java` (設定)
+
+#### 3.5.3 控制器層 ✅
+- [x] **P1-F-004**: 實作 DocumentApiController ✅ (2026-01-29)
+  - 位置: `src/main/java/com/wego/controller/api/DocumentApiController.java`
+  - 測試: DocumentApiControllerTest.java (20 tests)
 
 #### 3.5.4 前端頁面 ✅
 - [x] **P1-F-005**: 建立檔案列表頁面 ✅ (2026-01-28)
@@ -328,12 +397,12 @@ expenses ─< expense_splits (expense_id)
 - [ ] 用戶可看到景點間的交通時間 (待 Google Maps 整合)
 - [x] 用戶可新增支出並均分 ✅ (API + UI)
 - [x] 用戶可查看結算結果 ✅ (API + UI)
-- [ ] 用戶可上傳憑證檔案 (待 Supabase Storage 整合)
+- [x] 用戶可上傳憑證檔案 ✅ (API + UI，Supabase Storage 整合完成)
 
 #### 測試覆蓋率
-- [x] Unit Tests: 349 tests passing ✅
+- [x] Unit Tests: 396 tests passing ✅
 - [ ] Integration Tests: 待補強
-- [ ] E2E Tests: 待實作
+- [x] E2E Tests: 76 tests passing (156 skipped - 需認證) ✅
 
 #### 效能指標
 - [ ] 首頁載入時間 (LCP): < 2.5 秒 (待驗證)
@@ -397,16 +466,17 @@ expenses ─< expense_splits (expense_id)
 
 ## 7. 測試策略
 
-### 7.1 當前測試狀態 (2026-01-28 更新)
+### 7.1 當前測試狀態 (2026-01-29 更新)
 
 ```
-總測試數: 349
-通過: 349 (100%)
+總測試數: 396
+通過: 396 (100%)
 失敗: 0
 跳過: 0
 ```
 
 **資料庫連線**: Supabase PostgreSQL ✅ (9 tables deployed)
+**Supabase Storage**: documents bucket ✅
 
 ### 7.2 測試分布
 
@@ -417,8 +487,9 @@ expenses ─< expense_splits (expense_id)
 | Activity Module | 40+ | ✅ |
 | Expense Module | 60+ | ✅ |
 | Settlement Module | 30+ | ✅ |
+| Document Module | 47 | ✅ |
 | Exception Handling | 13 | ✅ |
-| Controllers | 80+ | ✅ |
+| Controllers | 100+ | ✅ |
 
 ---
 
@@ -439,18 +510,18 @@ expenses ─< expense_splits (expense_id)
 | W3-4 | 行程模組 | P1-T-001 ~ P1-T-012 | ✅ 完成 |
 | W5-6 | 景點模組 | P1-A-001 ~ P1-A-010 | ✅ 完成 |
 | W7 | 分帳基礎 | P1-E-001 ~ P1-E-010 | ✅ 完成 |
-| W8 | 檔案上傳 | P1-F-001 ~ P1-F-006 | 🚧 80% |
+| W8 | 檔案上傳 | P1-F-001 ~ P1-F-007 | ✅ 完成 |
 | W8 | 資料庫部署 | Supabase Migration (9 tables) | ✅ 完成 |
-| W9 | 整合測試 | E2E 測試, Bug fixes | ⏳ |
+| W9 | 整合測試 | E2E 測試, Bug fixes | ✅ 完成 |
 | W10 | MVP 發布 | 部署, 驗收 | ⏳ |
 
 ### 9.2 下一步優先事項
 
-1. **P1-F-003**: 實作 DocumentService (Supabase Storage 整合)
-2. **P1-A-005**: 實作 GoogleMapsService (或 Mock)
-3. **E2E 測試**: 關鍵流程測試 (Playwright)
-4. **部署驗證**: Railway 部署測試
-5. **RLS 策略**: 視需求啟用 Supabase Row Level Security
+1. ~~**P1-F-003**: 實作 DocumentService (Supabase Storage 整合)~~ ✅ 完成
+2. ~~**E2E 測試**: 關鍵流程測試 (Playwright)~~ ✅ 完成 (76 tests)
+3. **部署驗證**: Railway 部署測試
+4. **P1-A-005**: 實作 GoogleMapsService (或 Mock，可延後)
+5. **Storage RLS**: 透過 Supabase Dashboard 設定 storage.objects RLS 政策 (選用)
 
 ---
 
@@ -495,6 +566,13 @@ expenses ─< expense_splits (expense_id)
 - `src/main/java/com/wego/service/ActivityService.java` ✅
 - `src/main/java/com/wego/service/ExpenseService.java` ✅
 - `src/main/java/com/wego/service/SettlementService.java` ✅
+- `src/main/java/com/wego/service/DocumentService.java` ✅
+
+#### External Service 層
+- `src/main/java/com/wego/service/external/StorageClient.java` ✅
+- `src/main/java/com/wego/service/external/SupabaseStorageClient.java` ✅
+- `src/main/java/com/wego/service/external/MockStorageClient.java` ✅
+- `src/main/java/com/wego/service/external/StorageException.java` ✅
 
 #### Domain 層
 - `src/main/java/com/wego/domain/settlement/DebtSimplifier.java` ✅
@@ -508,6 +586,7 @@ expenses ─< expense_splits (expense_id)
 - `src/main/java/com/wego/controller/api/TripApiController.java` ✅
 - `src/main/java/com/wego/controller/api/ActivityApiController.java` ✅
 - `src/main/java/com/wego/controller/api/ExpenseApiController.java` ✅
+- `src/main/java/com/wego/controller/api/DocumentApiController.java` ✅
 
 #### Frontend Templates
 - `src/main/resources/templates/index.html` ✅
