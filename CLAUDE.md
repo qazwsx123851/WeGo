@@ -590,6 +590,111 @@ if (btn) {
 }
 ```
 
+### 🔴 Critical: Supabase Service Key 錯誤
+
+**症狀**: 檔案上傳失敗，Storage 操作無效
+
+**原因**: 使用了 `anon/publishable key` 而非 `service_role key`
+
+**錯誤**:
+```bash
+# .env - 錯誤！這是 publishable key
+SUPABASE_SERVICE_KEY=sb_publishable_xxx
+```
+
+**正確**:
+```bash
+# .env - 正確！這是 service_role key (JWT 格式)
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxx
+```
+
+**如何取得正確的 Key**:
+1. Supabase Dashboard → Settings → API
+2. 找到 **Project API keys** 區塊
+3. 複製 **service_role** (secret) 金鑰，不是 anon key
+
+### 🔴 Critical: CSP 阻擋資源載入
+
+**症狀**: Console 顯示 `violates the following Content Security Policy directive`
+
+**原因**: `SecurityConfig.java` 的 CSP 設定未包含所需來源
+
+**常見情境**:
+
+| 錯誤訊息 | 解決方法 |
+|----------|----------|
+| `script-src` 違規 | 將 inline script 移至外部 .js 檔案 |
+| `img-src` 違規 (blob:) | 添加 `blob:` 到 img-src |
+| `style-src` 違規 | 添加 `'unsafe-inline'` 或使用外部 CSS |
+
+**修改位置**: `src/main/java/com/wego/config/SecurityConfig.java`
+
+```java
+.contentSecurityPolicy(csp -> csp
+    .policyDirectives(
+        "default-src 'self'; " +
+        "script-src 'self' https://unpkg.com; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "img-src 'self' https: data: blob:; " +  // 注意 blob:
+        // ...
+    )
+)
+```
+
+### 🟡 Medium: Thymeleaf #request 物件無法使用
+
+**症狀**: `Exception evaluating SpringEL expression: "#httpServletRequest.requestURI"`
+
+**原因**: Spring Boot 3.x 預設不暴露 HttpServletRequest 給 Thymeleaf
+
+**錯誤**:
+```html
+<!-- 直接使用 #request 或 #httpServletRequest -->
+<a th:classappend="${#strings.startsWith(#httpServletRequest.requestURI, '/dashboard') ? 'active' : ''}">
+```
+
+**正確做法**: 使用 ControllerAdvice 注入變數
+
+```java
+// GlobalModelAttributes.java
+@ControllerAdvice
+public class GlobalModelAttributes {
+    @ModelAttribute("currentPath")
+    public String currentPath(HttpServletRequest request) {
+        return request.getRequestURI();
+    }
+}
+```
+
+```html
+<!-- 模板中使用 -->
+<a th:classappend="${#strings.startsWith(currentPath, '/dashboard') ? 'active' : ''}">
+```
+
+### 🟡 Medium: 圖片上傳預覽無法顯示
+
+**症狀**: 選擇檔案後預覽區域沒有反應
+
+**可能原因**:
+1. CSP 阻擋 `blob:` URL (見上方 CSP 問題)
+2. JavaScript 未正確綁定 change 事件
+3. 元素的 `hidden` class 未正確移除
+
+**檢查清單**:
+```javascript
+// 確認元素存在
+console.log('Elements:', { coverInput, previewImage, placeholder });
+
+// 確認檔案被選擇
+coverInput.addEventListener('change', (e) => {
+    console.log('File selected:', e.target.files[0]);
+});
+
+// 確認 URL 創建成功
+const objectUrl = URL.createObjectURL(file);
+console.log('Object URL:', objectUrl);
+```
+
 ### 開發前檢查清單
 
 每次修改程式碼前，確認以下事項：
@@ -600,3 +705,6 @@ if (btn) {
 - [ ] DTO 欄位名稱正確
 - [ ] 時間轉換使用正確方法
 - [ ] 需要 JS 操作的元素有唯一 ID
+- [ ] CSP 設定允許所需資源 (特別是 blob:, inline scripts)
+- [ ] Supabase 使用 service_role key (不是 publishable key)
+- [ ] Thymeleaf 不直接使用 #request (改用 ControllerAdvice 注入)

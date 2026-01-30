@@ -4,16 +4,16 @@
 
 ```
 Phase 0: ████████████████████ 100% ✅ 完成 (2026-01-28)
-Phase 1: ████████████████████  98% 🚧 進行中 (後端 + E2E 測試完成，待 Railway 部署)
-Phase 2: ░░░░░░░░░░░░░░░░░░░░   0% ⏳ 待開始
+Phase 1: ████████████████████ 100% ✅ 完成 (2026-01-30)
+Phase 2: ████████████████░░░░  80% 🚧 進行中 (Todo、RouteOptimizer、WeatherService、UI 完成)
 Phase 3: ░░░░░░░░░░░░░░░░░░░░   0% ⏳ 待開始
 Phase 4: ░░░░░░░░░░░░░░░░░░░░   0% ⏳ 待開始
 ```
 
 **測試狀態**: 396 tests, 0 failures
-**資料庫狀態**: 9 tables deployed to Supabase ✅
-**Storage 狀態**: documents bucket created ✅
-**下一步**: E2E 測試、Railway 部署驗證
+**資料庫狀態**: 10 tables deployed to Supabase ✅ (新增 todos)
+**Storage 狀態**: documents + trip-covers buckets ✅
+**下一步**: Phase 2 剩餘功能、Railway 部署驗證
 
 ---
 
