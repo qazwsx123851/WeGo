@@ -60,7 +60,7 @@ public class SecurityConfig {
                         "script-src 'self' https://unpkg.com; " +
                         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                         "font-src 'self' https://fonts.gstatic.com; " +
-                        "img-src 'self' https: data:; " +
+                        "img-src 'self' https: data: blob:; " +
                         "connect-src 'self'; " +
                         "frame-ancestors 'none'"
                     )
@@ -85,6 +85,8 @@ public class SecurityConfig {
                     "/js/**",
                     "/images/**",
                     "/favicon.ico",
+                    "/favicon.svg",
+                    "/.well-known/**",
                     "/api/health",
                     "/api/weather/**"
                 ).permitAll()

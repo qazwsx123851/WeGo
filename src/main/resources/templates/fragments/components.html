@@ -326,7 +326,7 @@
     <div class="flex justify-around max-w-md mx-auto">
         <!-- Dashboard -->
         <a th:href="@{/dashboard}"
-           th:classappend="${#strings.startsWith(#httpServletRequest.requestURI, '/dashboard') ? 'active' : ''}"
+           th:classappend="${#strings.startsWith(currentPath, '/dashboard') ? 'active' : ''}"
            class="bottom-nav-item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -337,7 +337,7 @@
 
         <!-- Expenses -->
         <a th:href="@{/expenses}"
-           th:classappend="${#strings.startsWith(#httpServletRequest.requestURI, '/expenses') ? 'active' : ''}"
+           th:classappend="${#strings.startsWith(currentPath, '/expenses') ? 'active' : ''}"
            class="bottom-nav-item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -359,7 +359,7 @@
 
         <!-- Documents -->
         <a th:href="@{/documents}"
-           th:classappend="${#strings.startsWith(#httpServletRequest.requestURI, '/documents') ? 'active' : ''}"
+           th:classappend="${#strings.startsWith(currentPath, '/documents') ? 'active' : ''}"
            class="bottom-nav-item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -370,7 +370,7 @@
 
         <!-- Profile -->
         <a th:href="@{/profile}"
-           th:classappend="${#strings.startsWith(#httpServletRequest.requestURI, '/profile') ? 'active' : ''}"
+           th:classappend="${#strings.startsWith(currentPath, '/profile') ? 'active' : ''}"
            class="bottom-nav-item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

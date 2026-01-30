@@ -42,7 +42,7 @@ cp .env.example .env
 | `DATABASE_USERNAME` | ✅ | 資料庫使用者 | `postgres` |
 | `DATABASE_PASSWORD` | ✅ | 資料庫密碼 | |
 | `SUPABASE_URL` | ✅ | Supabase 專案 URL | `https://xxx.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | ✅ | Supabase Service Key | `eyJ...` 或 `sb_publishable_...` |
+| `SUPABASE_SERVICE_KEY` | ✅ | Supabase **Service Role** Key (⚠️ 不是 anon/publishable key) | `eyJhbGciOiJIUzI1NiIs...` |
 | `GOOGLE_CLIENT_ID` | ✅ | Google OAuth Client ID | `xxx.apps.googleusercontent.com` |
 | `GOOGLE_CLIENT_SECRET` | ✅ | Google OAuth Secret | `GOCSPX-xxx` |
 | `GOOGLE_MAPS_API_KEY` | ❌ | Google Maps API (可選) | |

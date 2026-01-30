@@ -43,11 +43,34 @@ public class SupabaseStorageClient implements StorageClient {
     private final SupabaseProperties properties;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final boolean enabled;
 
     public SupabaseStorageClient(SupabaseProperties properties) {
         this.properties = properties;
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
+
+        // Check if Supabase is properly configured
+        this.enabled = properties.getUrl() != null &&
+                       !properties.getUrl().isBlank() &&
+                       properties.getServiceKey() != null &&
+                       !properties.getServiceKey().isBlank();
+
+        if (!enabled) {
+            log.warn("Supabase Storage is NOT properly configured. " +
+                     "URL: {}, ServiceKey: {}",
+                     properties.getUrl() != null ? "set" : "missing",
+                     properties.getServiceKey() != null ? "set" : "missing");
+        } else {
+            log.info("Supabase Storage initialized with URL: {}", properties.getUrl());
+        }
+    }
+
+    /**
+     * Checks if Supabase storage is properly configured.
+     */
+    public boolean isEnabled() {
+        return enabled;
     }
 
     /**
@@ -60,6 +83,12 @@ public class SupabaseStorageClient implements StorageClient {
      */
     @Override
     public String uploadFile(String bucket, String path, byte[] content, String mimeType) {
+        if (!enabled) {
+            log.error("Cannot upload file: Supabase Storage is not configured. " +
+                      "Please set SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables.");
+            throw StorageException.uploadFailed("Supabase Storage is not configured");
+        }
+
         log.debug("Uploading file to {}/{}", bucket, path);
 
         String url = buildStorageUrl(bucket, path);
