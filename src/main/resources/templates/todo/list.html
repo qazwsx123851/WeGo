@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<!--
+    Todo List Page
+    Displays all todos for a trip with filtering, CRUD operations, and status management.
+-->
+<head th:replace="~{fragments/head :: head(title='待辦事項')}"></head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div th:replace="~{fragments/components :: toast-container}"></div>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl
+                   border-b border-gray-100 dark:border-gray-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Back Button and Title -->
+                <div class="flex items-center gap-3">
+                    <a th:href="@{/trips/{id}(id=${trip.id})}"
+                       class="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full
+                              hover:bg-gray-100 dark:hover:bg-gray-800
+                              text-gray-600 dark:text-gray-300
+                              transition-colors duration-200 cursor-pointer"
+                       aria-label="返回行程">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    <div>
+                        <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">待辦事項</h1>
+                        <p class="text-xs text-gray-500 dark:text-gray-400" th:text="${trip.title}">行程名稱</p>
+                    </div>
+                </div>
+
+                <!-- Stats Badge + Add Button -->
+                <div class="flex items-center gap-3">
+                    <!-- Stats Badge -->
+                    <span class="px-3 py-1 rounded-full text-xs font-medium
+                                bg-primary-100 dark:bg-primary-900/30
+                                text-primary-600 dark:text-primary-400"
+                          th:text="${completedTodos} + '/' + ${totalTodos}">3/10</span>
+
+                    <!-- Add Button (Editor/Owner only) -->
+                    <button th:if="${canEdit}"
+                            type="button"
+                            onclick="TodoUI.showCreateModal()"
+                            class="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full
+                                   bg-adventure-500 hover:bg-adventure-600
+                                   text-white shadow-md
+                                   transition-all duration-200 cursor-pointer"
+                            aria-label="新增待辦">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Filter Tabs -->
+        <div class="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4" id="filter-tabs">
+            <button type="button"
+                    data-filter="all"
+                    class="filter-tab active px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
+                           min-h-[44px] cursor-pointer transition-all duration-200"
+                    onclick="TodoUI.filterTodos('all')">
+                全部
+                <span class="ml-1 text-xs opacity-70" th:text="'(' + ${totalTodos} + ')'"></span>
+            </button>
+            <button type="button"
+                    data-filter="PENDING"
+                    class="filter-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
+                           min-h-[44px] cursor-pointer transition-all duration-200"
+                    onclick="TodoUI.filterTodos('PENDING')">
+                待處理
+                <span class="ml-1 text-xs opacity-70" th:text="'(' + ${pendingTodos} + ')'"></span>
+            </button>
+            <button type="button"
+                    data-filter="IN_PROGRESS"
+                    class="filter-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
+                           min-h-[44px] cursor-pointer transition-all duration-200"
+                    onclick="TodoUI.filterTodos('IN_PROGRESS')">
+                進行中
+                <span class="ml-1 text-xs opacity-70" th:text="'(' + ${inProgressTodos} + ')'"></span>
+            </button>
+            <button type="button"
+                    data-filter="COMPLETED"
+                    class="filter-tab px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
+                           min-h-[44px] cursor-pointer transition-all duration-200"
+                    onclick="TodoUI.filterTodos('COMPLETED')">
+                已完成
+                <span class="ml-1 text-xs opacity-70" th:text="'(' + ${completedTodos} + ')'"></span>
+            </button>
+        </div>
+
+        <!-- Todo List -->
+        <div id="todo-list" class="space-y-3">
+            <th:block th:each="todo : ${todos}">
+                <div th:data-todo-id="${todo.id}"
+                     th:data-status="${todo.status}"
+                     class="todo-item glass-card p-4 flex items-start gap-4
+                            hover:shadow-md transition-all duration-200">
+                    <!-- Checkbox / Status Toggle -->
+                    <button th:if="${canEdit}"
+                            type="button"
+                            th:onclick="'TodoUI.toggleStatus(\'' + ${todo.id} + '\', \'' + ${todo.status} + '\')'"
+                            th:class="'flex-shrink-0 w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all duration-200 ' +
+                                      (${todo.status.name() == 'COMPLETED'} ? 'bg-success border-success text-white' :
+                                       ${todo.status.name() == 'IN_PROGRESS'} ? 'bg-primary-500 border-primary-500 text-white' :
+                                       'border-gray-300 dark:border-gray-600 hover:border-primary-500')"
+                            th:aria-label="'切換狀態: ' + ${todo.title}">
+                        <svg th:if="${todo.status.name() == 'COMPLETED'}" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <div th:if="${todo.status.name() == 'IN_PROGRESS'}" class="w-2 h-2 bg-white rounded-full"></div>
+                    </button>
+                    <div th:unless="${canEdit}"
+                         th:class="'flex-shrink-0 w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center ' +
+                                   (${todo.status.name() == 'COMPLETED'} ? 'bg-success border-success text-white' :
+                                    ${todo.status.name() == 'IN_PROGRESS'} ? 'bg-primary-500 border-primary-500 text-white' :
+                                    'border-gray-300 dark:border-gray-600')">
+                        <svg th:if="${todo.status.name() == 'COMPLETED'}" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <div th:if="${todo.status.name() == 'IN_PROGRESS'}" class="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0 cursor-pointer"
+                         th:if="${canEdit}"
+                         th:onclick="'TodoUI.showEditModal(' + ${todo.id} + ')'">
+                        <h3 th:class="'font-medium truncate ' + (${todo.status.name() == 'COMPLETED'} ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')"
+                            th:text="${todo.title}">待辦事項標題</h3>
+                        <p th:if="${todo.description}"
+                           class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2"
+                           th:text="${todo.description}">描述內容</p>
+
+                        <!-- Meta Info -->
+                        <div class="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            <!-- Assignee -->
+                            <div th:if="${todo.assigneeName}" class="flex items-center gap-1">
+                                <img th:if="${todo.assigneeAvatarUrl}"
+                                     th:src="${todo.assigneeAvatarUrl}"
+                                     th:alt="${todo.assigneeName}"
+                                     class="w-5 h-5 rounded-full object-cover"/>
+                                <span th:unless="${todo.assigneeAvatarUrl}"
+                                      class="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                             flex items-center justify-center text-[10px] font-medium
+                                             text-primary-600 dark:text-primary-400"
+                                      th:text="${#strings.substring(todo.assigneeName, 0, 1)}">M</span>
+                                <span th:text="${todo.assigneeName}">指派人</span>
+                            </div>
+
+                            <!-- Due Date -->
+                            <div th:if="${todo.dueDate}" class="flex items-center gap-1"
+                                 th:classappend="${todo.overdue} ? 'text-error' : ''">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <span th:text="${#temporals.format(todo.dueDate, 'MM/dd')}">01/15</span>
+                                <span th:if="${todo.overdue}" class="text-error font-medium">逾期</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0" th:unless="${canEdit}">
+                        <h3 th:class="'font-medium truncate ' + (${todo.status.name() == 'COMPLETED'} ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')"
+                            th:text="${todo.title}">待辦事項標題</h3>
+                        <p th:if="${todo.description}"
+                           class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2"
+                           th:text="${todo.description}">描述內容</p>
+
+                        <!-- Meta Info -->
+                        <div class="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            <!-- Assignee -->
+                            <div th:if="${todo.assigneeName}" class="flex items-center gap-1">
+                                <img th:if="${todo.assigneeAvatarUrl}"
+                                     th:src="${todo.assigneeAvatarUrl}"
+                                     th:alt="${todo.assigneeName}"
+                                     class="w-5 h-5 rounded-full object-cover"/>
+                                <span th:unless="${todo.assigneeAvatarUrl}"
+                                      class="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                             flex items-center justify-center text-[10px] font-medium
+                                             text-primary-600 dark:text-primary-400"
+                                      th:text="${#strings.substring(todo.assigneeName, 0, 1)}">M</span>
+                                <span th:text="${todo.assigneeName}">指派人</span>
+                            </div>
+
+                            <!-- Due Date -->
+                            <div th:if="${todo.dueDate}" class="flex items-center gap-1"
+                                 th:classappend="${todo.overdue} ? 'text-error' : ''">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <span th:text="${#temporals.format(todo.dueDate, 'MM/dd')}">01/15</span>
+                                <span th:if="${todo.overdue}" class="text-error font-medium">逾期</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Badge -->
+                    <span th:switch="${todo.status.name()}"
+                          class="flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium">
+                        <span th:case="'PENDING'" class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">待處理</span>
+                        <span th:case="'IN_PROGRESS'" class="bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">進行中</span>
+                        <span th:case="'COMPLETED'" class="bg-success-light text-success-dark">已完成</span>
+                    </span>
+                </div>
+            </th:block>
+        </div>
+
+        <!-- Empty State -->
+        <div th:if="${#lists.isEmpty(todos)}"
+             id="empty-state"
+             class="text-center py-12">
+            <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-100 dark:bg-gray-800
+                        flex items-center justify-center">
+                <svg class="w-12 h-12 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                還沒有待辦事項
+            </h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                建立待辦事項來追蹤行程準備工作
+            </p>
+            <button th:if="${canEdit}"
+                    type="button"
+                    onclick="TodoUI.showCreateModal()"
+                    class="btn-primary inline-flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                新增待辦事項
+            </button>
+        </div>
+
+        <!-- No Results State (for filtering) -->
+        <div id="no-results-state" class="hidden text-center py-12">
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800
+                        flex items-center justify-center">
+                <svg class="w-10 h-10 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </div>
+            <h3 class="text-base font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                沒有符合的待辦事項
+            </h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                試著切換其他篩選條件
+            </p>
+        </div>
+    </main>
+
+    <!-- Create/Edit Modal -->
+    <div id="todo-modal"
+         data-modal
+         class="hidden fixed inset-0 z-50 items-center justify-center p-4"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="modal-title">
+        <!-- Backdrop -->
+        <div data-modal-backdrop
+             class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+        <!-- Modal Content -->
+        <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl
+                    w-full max-w-md overflow-hidden">
+            <!-- Header -->
+            <div class="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+                <h2 id="modal-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                    新增待辦事項
+                </h2>
+            </div>
+
+            <!-- Form -->
+            <form id="todo-form" onsubmit="TodoUI.handleSubmit(event)" class="px-6 py-4 space-y-4">
+                <input type="hidden" id="todo-id" name="id" value="">
+
+                <!-- Title -->
+                <div class="space-y-1.5">
+                    <label for="todo-title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        標題 <span class="text-error">*</span>
+                    </label>
+                    <input id="todo-title"
+                           name="title"
+                           type="text"
+                           required
+                           maxlength="200"
+                           class="w-full px-4 py-3
+                                  bg-white dark:bg-gray-800
+                                  border border-gray-200 dark:border-gray-700
+                                  rounded-xl
+                                  text-gray-800 dark:text-gray-100
+                                  placeholder:text-gray-400 dark:placeholder:text-gray-500
+                                  focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                  transition-all duration-200"
+                           placeholder="輸入待辦事項標題"/>
+                </div>
+
+                <!-- Description -->
+                <div class="space-y-1.5">
+                    <label for="todo-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        描述
+                    </label>
+                    <textarea id="todo-description"
+                              name="description"
+                              rows="3"
+                              maxlength="1000"
+                              class="w-full px-4 py-3
+                                     bg-white dark:bg-gray-800
+                                     border border-gray-200 dark:border-gray-700
+                                     rounded-xl
+                                     text-gray-800 dark:text-gray-100
+                                     placeholder:text-gray-400 dark:placeholder:text-gray-500
+                                     focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                     transition-all duration-200 resize-none"
+                              placeholder="輸入詳細描述（選填）"></textarea>
+                </div>
+
+                <!-- Assignee -->
+                <div class="space-y-1.5">
+                    <label for="todo-assignee" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        指派給
+                    </label>
+                    <select id="todo-assignee"
+                            name="assigneeId"
+                            class="w-full px-4 py-3
+                                   bg-white dark:bg-gray-800
+                                   border border-gray-200 dark:border-gray-700
+                                   rounded-xl
+                                   text-gray-800 dark:text-gray-100
+                                   focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                   cursor-pointer">
+                        <option value="">不指派</option>
+                        <th:block th:each="member : ${members}">
+                            <option th:value="${member.userId}" th:text="${member.nickname}">成員名稱</option>
+                        </th:block>
+                    </select>
+                </div>
+
+                <!-- Due Date -->
+                <div class="space-y-1.5">
+                    <label for="todo-due-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        截止日期
+                    </label>
+                    <input id="todo-due-date"
+                           name="dueDate"
+                           type="date"
+                           class="w-full px-4 py-3
+                                  bg-white dark:bg-gray-800
+                                  border border-gray-200 dark:border-gray-700
+                                  rounded-xl
+                                  text-gray-800 dark:text-gray-100
+                                  focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                  cursor-pointer"/>
+                </div>
+
+                <!-- Status (only for edit) -->
+                <div id="status-field" class="space-y-1.5 hidden">
+                    <label for="todo-status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        狀態
+                    </label>
+                    <select id="todo-status"
+                            name="status"
+                            class="w-full px-4 py-3
+                                   bg-white dark:bg-gray-800
+                                   border border-gray-200 dark:border-gray-700
+                                   rounded-xl
+                                   text-gray-800 dark:text-gray-100
+                                   focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                   cursor-pointer">
+                        <option value="PENDING">待處理</option>
+                        <option value="IN_PROGRESS">進行中</option>
+                        <option value="COMPLETED">已完成</option>
+                    </select>
+                </div>
+            </form>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex gap-3">
+                <!-- Delete Button (only for edit) -->
+                <button id="delete-btn"
+                        type="button"
+                        onclick="TodoUI.deleteTodo()"
+                        class="hidden min-h-[44px] cursor-pointer rounded-xl
+                               bg-error hover:bg-red-600 active:bg-red-700
+                               px-4 py-2.5 font-medium text-white
+                               transition-all duration-200 active:scale-[0.98]">
+                    刪除
+                </button>
+
+                <div class="flex-1"></div>
+
+                <button type="button"
+                        data-modal-close
+                        onclick="Modal.close('todo-modal')"
+                        class="min-h-[44px] cursor-pointer rounded-xl border border-gray-200 dark:border-gray-600
+                               bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700
+                               px-4 py-2.5 font-medium text-gray-700 dark:text-gray-200
+                               transition-all duration-200 active:scale-[0.98]">
+                    取消
+                </button>
+                <button type="submit"
+                        form="todo-form"
+                        id="submit-btn"
+                        class="btn-primary min-h-[44px]">
+                    儲存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav th:replace="~{fragments/components :: bottom-nav}"></nav>
+
+    <!-- Pass trip ID to JavaScript -->
+    <script th:inline="javascript">
+        window.TRIP_ID = /*[[${trip.id}]]*/ '';
+        window.CAN_EDIT = /*[[${canEdit}]]*/ false;
+    </script>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/app.js}" defer></script>
+    <script th:src="@{/js/todo.js}" defer></script>
+
+    <!-- Filter Tab Styles -->
+    <style>
+        .filter-tab {
+            @apply bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400;
+        }
+        .filter-tab:hover {
+            @apply bg-gray-200 dark:bg-gray-700;
+        }
+        .filter-tab.active {
+            @apply bg-primary-500 text-white;
+        }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
+</body>
+</html>

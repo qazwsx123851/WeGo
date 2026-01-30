@@ -2,6 +2,13 @@ spring:
   application:
     name: wego
 
+  # Web Configuration - ignore missing static resources
+  web:
+    resources:
+      add-mappings: true
+  mvc:
+    throw-exception-if-no-handler-found: false
+
   # Database Configuration (Supabase PostgreSQL)
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/wego}

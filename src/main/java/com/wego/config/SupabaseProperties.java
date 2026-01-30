@@ -29,9 +29,14 @@ public class SupabaseProperties {
     private String serviceKey;
 
     /**
-     * Storage bucket name for documents.
+     * Storage bucket name for documents (private).
      */
     private String storageBucket = "documents";
+
+    /**
+     * Storage bucket name for trip cover images (public).
+     */
+    private String coverImageBucket = "trip-covers";
 
     /**
      * Signed URL expiry time in seconds (default: 1 hour).

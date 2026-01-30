@@ -12,6 +12,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -172,6 +173,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity
             .status(status)
             .body(ApiResponse.error(errorCode, ex.getMessage()));
+    }
+
+    /**
+     * Handles static resource not found exceptions.
+     * Silently returns 404 for browser-initiated requests (e.g., Chrome DevTools).
+     *
+     * @contract
+     *   - post: Returns 404 NOT_FOUND without logging as error
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoResourceFound(NoResourceFoundException ex) {
+        // Silently return 404 for missing static resources (e.g., .well-known/*)
+        log.debug("Static resource not found: {}", ex.getResourcePath());
+        return ResponseEntity.notFound().build();
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.wego.service;
 
+import com.wego.config.SupabaseProperties;
 import com.wego.domain.permission.PermissionChecker;
 import com.wego.dto.request.CreateTripRequest;
 import com.wego.dto.request.UpdateTripRequest;
@@ -14,16 +15,22 @@ import com.wego.exception.ValidationException;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
+import com.wego.service.external.StorageClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -45,11 +52,33 @@ import java.util.stream.Collectors;
 public class TripService {
 
     private static final int MAX_MEMBERS_PER_TRIP = 10;
+    private static final long MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+    );
+    private static final Map<String, byte[][]> IMAGE_MAGIC_BYTES = Map.of(
+            "image/jpeg", new byte[][] {
+                    {(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE0},
+                    {(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE1},
+                    {(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE8}
+            },
+            "image/png", new byte[][] {
+                    {(byte)0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+            },
+            "image/webp", new byte[][] {
+                    {0x52, 0x49, 0x46, 0x46} // RIFF header (first 4 bytes)
+            }
+    );
 
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
     private final UserRepository userRepository;
     private final PermissionChecker permissionChecker;
+    private final StorageClient storageClient;
+    private final SupabaseProperties supabaseProperties;
 
     /**
      * Creates a new trip and sets the creator as owner.
@@ -146,7 +175,9 @@ public class TripService {
         return tripRepository.findTripsByMemberId(userId, pageable)
                 .map(trip -> {
                     TripResponse response = TripResponse.fromEntity(trip);
-                    response.setMemberCount((int) tripMemberRepository.countByTripId(trip.getId()));
+                    List<TripResponse.MemberSummary> members = getMemberSummaries(trip.getId());
+                    response.setMembers(members);
+                    response.setMemberCount(members.size());
                     response.setCurrentUserRole(permissionChecker.getRole(trip.getId(), userId).orElse(null));
                     return response;
                 });
@@ -412,5 +443,195 @@ public class TripService {
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    // ===== Cover Image Upload Methods =====
+
+    /**
+     * Uploads a cover image for a trip.
+     *
+     * @contract
+     *   - pre: file != null, file.size <= 5MB
+     *   - pre: file type is JPEG, PNG, or WebP
+     *   - pre: file content matches declared MIME type (magic bytes validated)
+     *   - pre: tripId != null (trip must exist first to prevent orphaned files)
+     *   - pre: user has OWNER or EDITOR permission on the trip
+     *   - post: Image uploaded to storage at covers/{tripId}/{uuid}.{ext}
+     *   - post: Returns public URL of uploaded image
+     *   - calledBy: TripController#createTrip, TripController#updateTrip
+     *
+     * @param tripId The trip ID (required - trip must exist first)
+     * @param userId The user performing the upload
+     * @param file The cover image file
+     * @return The public URL of the uploaded image
+     * @throws ValidationException if file validation fails
+     * @throws ForbiddenException if user lacks permission
+     * @throws IllegalArgumentException if tripId is null
+     */
+    @Transactional
+    public String uploadCoverImage(UUID tripId, UUID userId, MultipartFile file) {
+        // tripId is required to prevent orphaned files
+        if (tripId == null) {
+            throw new IllegalArgumentException("tripId is required - create trip first before uploading cover image");
+        }
+        if (userId == null) {
+            throw new IllegalArgumentException("userId is required for cover image upload");
+        }
+
+        log.debug("Uploading cover image for trip {} by user {}", tripId, userId);
+
+        // Validate file
+        validateCoverImage(file);
+
+        // Permission check
+        if (!permissionChecker.canEdit(tripId, userId)) {
+            throw new ForbiddenException("您沒有權限修改此行程");
+        }
+
+        // Generate storage path: covers/{tripId}/{uuid}.{ext}
+        String fileExtension = getFileExtension(file.getOriginalFilename());
+        String storedFileName = UUID.randomUUID() + (fileExtension.isEmpty() ? ".jpg" : "." + fileExtension);
+        String storagePath = "covers/" + tripId + "/" + storedFileName;
+
+        try {
+            byte[] content = file.getBytes();
+            String fileUrl = storageClient.uploadFile(
+                    supabaseProperties.getCoverImageBucket(),
+                    storagePath,
+                    content,
+                    file.getContentType()
+            );
+
+            log.info("Uploaded cover image to {}", storagePath);
+            return fileUrl;
+        } catch (IOException e) {
+            log.error("Failed to read cover image content", e);
+            throw new ValidationException("FILE_READ_ERROR", "無法讀取圖片內容");
+        }
+    }
+
+    /**
+     * Deletes a cover image from storage.
+     *
+     * @contract
+     *   - pre: coverImageUrl != null
+     *   - post: File deleted from storage (silently ignores if not found)
+     *   - calledBy: TripController#updateTrip (when replacing cover)
+     *
+     * @param coverImageUrl The URL of the cover image to delete
+     */
+    public void deleteCoverImage(String coverImageUrl) {
+        if (coverImageUrl == null || coverImageUrl.isEmpty()) {
+            return;
+        }
+
+        try {
+            // Extract path from URL
+            String path = extractStoragePath(coverImageUrl);
+            if (path != null) {
+                storageClient.deleteFile(supabaseProperties.getCoverImageBucket(), path);
+                log.info("Deleted old cover image: {}", path);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to delete old cover image: {}", coverImageUrl, e);
+            // Don't throw - old image cleanup failure shouldn't block operation
+        }
+    }
+
+    private void validateCoverImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ValidationException("EMPTY_FILE", "請選擇要上傳的封面圖片");
+        }
+
+        if (file.getSize() > MAX_COVER_IMAGE_SIZE) {
+            throw new ValidationException("FILE_TOO_LARGE",
+                    "封面圖片大小超過限制 (最大 5 MB)");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType)) {
+            throw new ValidationException("UNSUPPORTED_FORMAT",
+                    "不支援的圖片格式。支援格式：JPEG, PNG, WebP");
+        }
+
+        if (!validateImageMagicBytes(file, contentType)) {
+            log.warn("Image content does not match declared MIME type: {}", contentType);
+            throw new ValidationException("INVALID_FILE_CONTENT",
+                    "圖片內容與宣告的格式不符");
+        }
+    }
+
+    private boolean validateImageMagicBytes(MultipartFile file, String declaredType) {
+        byte[][] expectedSignatures = IMAGE_MAGIC_BYTES.get(declaredType);
+        if (expectedSignatures == null) {
+            return true; // No validation defined
+        }
+
+        try (InputStream is = file.getInputStream()) {
+            byte[] header = new byte[12]; // WebP needs 12 bytes for full validation
+            int bytesRead = is.read(header);
+
+            if (bytesRead < 4) {
+                return false;
+            }
+
+            for (byte[] signature : expectedSignatures) {
+                if (bytesRead >= signature.length) {
+                    boolean matches = true;
+                    for (int i = 0; i < signature.length; i++) {
+                        if (header[i] != signature[i]) {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    if (matches) {
+                        // Additional WebP validation: check WEBP signature at offset 8
+                        if ("image/webp".equals(declaredType)) {
+                            return bytesRead >= 12 &&
+                                    header[8] == 'W' && header[9] == 'E' &&
+                                    header[10] == 'B' && header[11] == 'P';
+                        }
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch (IOException e) {
+            log.error("Failed to read file for magic bytes validation", e);
+            return false;
+        }
+    }
+
+    private String extractStoragePath(String url) {
+        // Extract path after /public/bucket/
+        String marker = "/public/" + supabaseProperties.getStorageBucket() + "/";
+        int index = url.indexOf(marker);
+        if (index >= 0) {
+            String path = url.substring(index + marker.length());
+
+            // SECURITY: Prevent path traversal attacks
+            if (path.contains("..") || path.contains("//") || path.startsWith("/")) {
+                log.warn("Potential path traversal detected in URL: {}", url);
+                return null;
+            }
+
+            // Validate path starts with expected prefix (covers/)
+            if (!path.startsWith("covers/")) {
+                log.warn("Path does not start with expected prefix: {}", path);
+                return null;
+            }
+
+            return path;
+        }
+        return null;
+    }
+
+    private String getFileExtension(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            return "";
+        }
+        String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+        // Only allow known safe extensions to prevent executable file uploads
+        return ALLOWED_EXTENSIONS.contains(extension) ? extension : "";
     }
 }

@@ -4,7 +4,7 @@
     Trip Detail View Page
     Displays trip information, quick actions, and navigation to activities/expenses/members.
 -->
-<head th:replace="~{fragments/layout :: head(title=${trip.title})}"></head>
+<head th:replace="~{fragments/head :: head(title=${trip.title})}"></head>
 <body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
     <!-- Toast Container -->
     <div th:replace="~{fragments/components :: toast-container}"></div>
@@ -57,7 +57,7 @@
 
                     <!-- Edit Button (Owner/Editor only) -->
                     <a th:if="${canEdit}"
-                       th:href="@{/trip/{id}/edit(id=${trip.id})}"
+                       th:href="@{/trips/{id}/edit(id=${trip.id})}"
                        aria-label="編輯行程"
                        class="flex items-center justify-center w-10 h-10 rounded-full
                               bg-white/20 backdrop-blur-sm hover:bg-white/30
@@ -124,7 +124,7 @@
                 </div>
 
                 <!-- Member Count -->
-                <a th:href="@{/trip/{id}/members(id=${trip.id})}"
+                <a th:href="@{/trips/{id}/members(id=${trip.id})}"
                    class="flex items-center gap-2 hover:text-primary-600 dark:hover:text-primary-400
                           transition-colors duration-200 cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -141,14 +141,14 @@
                     <th:block th:each="member, iterStat : ${members}" th:if="${iterStat.index < 5}">
                         <img th:if="${member.avatarUrl}"
                              th:src="${member.avatarUrl}"
-                             th:alt="${member.displayName}"
+                             th:alt="${member.nickname}"
                              class="w-8 h-8 rounded-full ring-2 ring-white dark:ring-gray-800 object-cover"/>
                         <span th:unless="${member.avatarUrl}"
                               class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30
                                      flex items-center justify-center text-xs font-medium
                                      text-primary-600 dark:text-primary-400
                                      ring-2 ring-white dark:ring-gray-800"
-                              th:text="${#strings.substring(member.displayName, 0, 1)}">M</span>
+                              th:text="${member.nickname != null ? #strings.substring(member.nickname, 0, 1) : 'U'}">M</span>
                     </th:block>
                     <span th:if="${memberCount > 5}"
                           class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700
@@ -157,7 +157,7 @@
                                  ring-2 ring-white dark:ring-gray-800"
                           th:text="'+' + (${memberCount} - 5)">+2</span>
                 </div>
-                <a th:href="@{/trip/{id}/members(id=${trip.id})}"
+                <a th:href="@{/trips/{id}/members(id=${trip.id})}"
                    class="ml-3 text-sm text-primary-600 dark:text-primary-400
                           hover:text-primary-700 dark:hover:text-primary-300
                           font-medium transition-colors duration-200 cursor-pointer">
@@ -166,10 +166,68 @@
             </div>
         </div>
 
+        <!-- Weather Forecast Section -->
+        <section th:if="${weatherLat != null and weatherLng != null}"
+                 id="weather-section"
+                 class="mb-6"
+                 th:data-lat="${weatherLat}"
+                 th:data-lng="${weatherLng}">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
+                    </svg>
+                    天氣預報
+                </h2>
+            </div>
+
+            <!-- Weather Loading Skeleton -->
+            <div id="weather-loading" class="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory">
+                <div th:each="i : ${#numbers.sequence(1, 5)}"
+                     class="flex-shrink-0 w-20 glass-card p-3 animate-pulse">
+                    <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-12"></div>
+                    <div class="h-12 w-12 mx-auto bg-gray-200 dark:bg-gray-700 rounded-full mb-2"></div>
+                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-14 mx-auto"></div>
+                </div>
+            </div>
+
+            <!-- Weather Content Container -->
+            <div id="weather-content" class="hidden">
+                <!-- Forecast cards will be inserted here by JavaScript -->
+            </div>
+
+            <!-- Weather Error State -->
+            <div id="weather-error" class="hidden glass-card p-6 text-center">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <p id="weather-error-message" class="text-sm text-gray-500 dark:text-gray-400">
+                    天氣資訊暫時無法取得
+                </p>
+            </div>
+
+            <!-- Weather Unavailable State (dates > 5 days) -->
+            <div id="weather-unavailable" class="hidden glass-card p-6 text-center">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-primary-500 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    天氣預報僅提供未來 5 天內的資訊
+                </p>
+            </div>
+        </section>
+
         <!-- Quick Actions Grid -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             <!-- Activities -->
-            <a th:href="@{/trip/{id}/activities(id=${trip.id})}"
+            <a th:href="@{/trips/{id}/activities(id=${trip.id})}"
                class="glass-card p-4 text-center group hover:shadow-lg transition-all duration-200 cursor-pointer">
                 <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary-100 dark:bg-primary-900/30
                             flex items-center justify-center
@@ -187,7 +245,7 @@
             </a>
 
             <!-- Expenses -->
-            <a th:href="@{/trip/{id}/expenses(id=${trip.id})}"
+            <a th:href="@{/trips/{id}/expenses(id=${trip.id})}"
                class="glass-card p-4 text-center group hover:shadow-lg transition-all duration-200 cursor-pointer">
                 <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-adventure-100 dark:bg-adventure-900/30
                             flex items-center justify-center
@@ -203,7 +261,7 @@
             </a>
 
             <!-- Documents -->
-            <a th:href="@{/trip/{id}/documents(id=${trip.id})}"
+            <a th:href="@{/trips/{id}/documents(id=${trip.id})}"
                class="glass-card p-4 text-center group hover:shadow-lg transition-all duration-200 cursor-pointer">
                 <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-success-light dark:bg-success/10
                             flex items-center justify-center
@@ -219,7 +277,7 @@
             </a>
 
             <!-- Todos -->
-            <a th:href="@{/trip/{id}/todos(id=${trip.id})}"
+            <a th:href="@{/trips/{id}/todos(id=${trip.id})}"
                class="glass-card p-4 text-center group hover:shadow-lg transition-all duration-200 cursor-pointer">
                 <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-warning-light dark:bg-warning/10
                             flex items-center justify-center
@@ -239,7 +297,7 @@
         <section class="mb-6">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">行程概覽</h2>
-                <a th:href="@{/trip/{id}/activities(id=${trip.id})}"
+                <a th:href="@{/trips/{id}/activities(id=${trip.id})}"
                    class="text-sm text-primary-600 dark:text-primary-400
                           hover:text-primary-700 dark:hover:text-primary-300
                           font-medium transition-colors duration-200 cursor-pointer">
@@ -266,7 +324,7 @@
                     開始新增想去的景點吧！
                 </p>
                 <a th:if="${canEdit}"
-                   th:href="@{/trip/{id}/activities/add(id=${trip.id})}"
+                   th:href="@{/trips/{id}/activities/new(id=${trip.id})}"
                    class="btn-primary inline-flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -277,7 +335,7 @@
 
             <!-- Activity List -->
             <div th:unless="${#lists.isEmpty(upcomingActivities)}" class="space-y-3">
-                <div th:each="activity : ${upcomingActivities}"
+                <div th:each="activity, iterStat : ${upcomingActivities}"
                      class="glass-card p-4 flex items-center gap-4 group
                             hover:shadow-md transition-all duration-200 cursor-pointer">
                     <!-- Activity Order -->
@@ -285,14 +343,14 @@
                                 bg-primary-100 dark:bg-primary-900/30
                                 flex items-center justify-center
                                 text-primary-600 dark:text-primary-400 font-semibold text-sm"
-                         th:text="${activity.orderIndex}">1</div>
+                         th:text="${iterStat.count}">1</div>
 
                     <!-- Activity Info -->
                     <div class="flex-1 min-w-0">
                         <h4 class="font-medium text-gray-800 dark:text-gray-100 truncate"
-                            th:text="${activity.placeName}">淺草寺</h4>
+                            th:text="${activity.place != null ? activity.place.name : '未命名景點'}">淺草寺</h4>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"
-                           th:text="${activity.formattedTime}">10:00 - 12:00</p>
+                           th:text="${activity.startTime != null ? (#temporals.format(activity.startTime, 'HH:mm') + (activity.endTime != null ? ' - ' + #temporals.format(activity.endTime, 'HH:mm') : '')) : '時間未定'}">10:00 - 12:00</p>
                     </div>
 
                     <!-- Arrow -->
@@ -306,11 +364,134 @@
             </div>
         </section>
 
+        <!-- Todo Preview Section -->
+        <section class="mb-6" th:if="${todoCount != null && todoCount > 0}">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading flex items-center gap-2">
+                    <svg class="w-5 h-5 text-warning-dark dark:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                    待辦事項
+                </h2>
+                <a th:href="@{/trips/{id}/todos(id=${trip.id})}"
+                   class="text-sm text-primary-600 dark:text-primary-400
+                          hover:text-primary-700 dark:hover:text-primary-300
+                          font-medium transition-colors duration-200 cursor-pointer">
+                    查看全部
+                </a>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="glass-card p-4 mb-3">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">完成進度</span>
+                    <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                          th:text="${todoCompletedCount} + ' / ' + ${todoCount}">3 / 10</span>
+                </div>
+                <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-success rounded-full transition-all duration-500"
+                         th:style="'width: ' + ${todoCount > 0 ? (todoCompletedCount * 100 / todoCount) : 0} + '%'"></div>
+                </div>
+            </div>
+
+            <!-- Upcoming Todos List -->
+            <div th:if="${upcomingTodos != null and !#lists.isEmpty(upcomingTodos)}" class="space-y-2">
+                <div th:each="todo : ${upcomingTodos}"
+                     class="glass-card p-3 flex items-center gap-3 hover:shadow-md transition-all duration-200">
+                    <!-- Status Indicator -->
+                    <div th:switch="${todo.status.name()}"
+                         class="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center">
+                        <span th:case="'PENDING'" class="w-full h-full rounded-full border-gray-300 dark:border-gray-600"></span>
+                        <span th:case="'IN_PROGRESS'" class="w-full h-full rounded-full bg-primary-500 border-primary-500 flex items-center justify-center">
+                            <span class="w-1.5 h-1.5 bg-white rounded-full"></span>
+                        </span>
+                        <span th:case="'COMPLETED'" class="w-full h-full rounded-full bg-success border-success flex items-center justify-center text-white">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </span>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+                        <h4 th:class="'text-sm font-medium truncate ' + (${todo.status.name() == 'COMPLETED'} ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')"
+                            th:text="${todo.title}">待辦事項標題</h4>
+                    </div>
+
+                    <!-- Assignee Avatar -->
+                    <div th:if="${todo.assigneeName}" class="flex-shrink-0">
+                        <img th:if="${todo.assigneeAvatarUrl}"
+                             th:src="${todo.assigneeAvatarUrl}"
+                             th:alt="${todo.assigneeName}"
+                             class="w-6 h-6 rounded-full object-cover"
+                             th:title="${todo.assigneeName}"/>
+                        <span th:unless="${todo.assigneeAvatarUrl}"
+                              class="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                     flex items-center justify-center text-[10px] font-medium
+                                     text-primary-600 dark:text-primary-400"
+                              th:text="${#strings.substring(todo.assigneeName, 0, 1)}"
+                              th:title="${todo.assigneeName}">M</span>
+                    </div>
+
+                    <!-- Due Date Badge -->
+                    <div th:if="${todo.dueDate}"
+                         th:class="'flex-shrink-0 text-xs px-2 py-0.5 rounded-full ' + (${todo.overdue} ? 'bg-error-light text-error-dark' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300')"
+                         th:text="${#temporals.format(todo.dueDate, 'MM/dd')}">01/15</div>
+                </div>
+            </div>
+
+            <!-- Empty Todos State (has todos but none pending/in-progress) -->
+            <div th:if="${upcomingTodos == null or #lists.isEmpty(upcomingTodos)}"
+                 class="glass-card p-6 text-center">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-success-light flex items-center justify-center">
+                    <svg class="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    所有待辦事項都已完成
+                </p>
+            </div>
+        </section>
+
+        <!-- Empty Todo State (no todos at all) -->
+        <section class="mb-6" th:if="${todoCount == null or todoCount == 0}">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading flex items-center gap-2">
+                    <svg class="w-5 h-5 text-warning-dark dark:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                    待辦事項
+                </h2>
+            </div>
+            <div class="glass-card p-6 text-center">
+                <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                    建立待辦事項追蹤行程準備
+                </p>
+                <a th:if="${canEdit}"
+                   th:href="@{/trips/{id}/todos(id=${trip.id})}"
+                   class="btn-primary inline-flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    新增待辦事項
+                </a>
+            </div>
+        </section>
+
         <!-- Expense Summary -->
         <section class="mb-6" th:if="${totalExpense != null && totalExpense > 0}">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">支出摘要</h2>
-                <a th:href="@{/trip/{id}/expenses(id=${trip.id})}"
+                <a th:href="@{/trips/{id}/expenses(id=${trip.id})}"
                    class="text-sm text-primary-600 dark:text-primary-400
                           hover:text-primary-700 dark:hover:text-primary-300
                           font-medium transition-colors duration-200 cursor-pointer">
@@ -333,20 +514,20 @@
         </section>
     </main>
 
-    <!-- Floating Action Button (Editor/Owner) -->
-    <button th:if="${canEdit}"
-            type="button"
-            aria-label="新增"
-            class="fixed right-6 bottom-24 z-30
-                   w-14 h-14 rounded-full
-                   bg-adventure-500 hover:bg-adventure-600 active:bg-adventure-700
-                   text-white shadow-lg shadow-adventure-500/30
-                   flex items-center justify-center
-                   transition-all duration-200 active:scale-95 cursor-pointer">
+    <!-- Floating Action Button (Editor/Owner) - Link to add activity -->
+    <a th:if="${canEdit}"
+       th:href="@{/trips/{id}/activities/new(id=${trip.id})}"
+       aria-label="新增景點"
+       class="fixed right-6 bottom-24 z-30
+              w-14 h-14 rounded-full
+              bg-adventure-500 hover:bg-adventure-600 active:bg-adventure-700
+              text-white shadow-lg shadow-adventure-500/30
+              flex items-center justify-center
+              transition-all duration-200 active:scale-95 cursor-pointer">
         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
-    </button>
+    </a>
 
     <!-- Bottom Navigation -->
     <nav th:replace="~{fragments/components :: bottom-nav}"></nav>

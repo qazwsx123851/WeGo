@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<!--
+    WeGo Head Fragment
+    Base HTML head element with meta tags, styles, and scripts.
+
+    Usage:
+    <head th:replace="~{fragments/head :: head(title='Page Title')}"></head>
+-->
+
+<!-- Base HTML Head -->
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WeGo - 協作旅遊規劃平台">
+    <meta name="theme-color" content="#0EA5E9">
+
+    <!-- CSRF Token for AJAX requests -->
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <title th:text="${title} + ' - WeGo'">WeGo</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+
+    <!-- Styles -->
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Lottie for animations -->
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js" defer></script>
+</head>
+
+</html>

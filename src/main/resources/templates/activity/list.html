@@ -40,6 +40,23 @@
 
             <!-- Actions -->
             <div class="flex items-center gap-2">
+                <!-- Route Optimization Button - Only show if canEdit AND activityCount >= 2 -->
+                <button type="button"
+                        th:if="${canEdit and totalActivityCount >= 2}"
+                        id="optimize-route-btn"
+                        th:data-trip-id="${trip.id}"
+                        th:data-day="${currentDay != null ? currentDay : 1}"
+                        class="p-2.5 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
+                               text-adventure-500 hover:text-adventure-600 dark:text-adventure-400 dark:hover:text-adventure-300
+                               hover:bg-adventure-50 dark:hover:bg-adventure-900/20
+                               transition-colors duration-200"
+                        aria-label="智慧排序">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </button>
+
                 <!-- View Toggle (Map/List) -->
                 <button type="button"
                         class="p-2.5 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
@@ -111,10 +128,40 @@
                                       transition-colors duration-200 cursor-pointer
                                       touch-action-manipulation">
                                 <div class="flex gap-3 items-start flex-1">
-                                    <!-- Activity Type Icon -->
-                                    <div th:switch="${activity.type}">
-                                        <!-- Attraction -->
-                                        <div th:case="'ATTRACTION'"
+                                    <!-- Activity Type Icon (based on place category) -->
+                                    <div th:switch="${activity.place?.category}">
+                                        <!-- Restaurant/Food -->
+                                        <div th:case="'restaurant'"
+                                             class="w-10 h-10 rounded-full bg-adventure-100 dark:bg-adventure-900/30
+                                                    text-adventure-600 dark:text-adventure-400
+                                                    flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                            </svg>
+                                        </div>
+                                        <!-- Lodging/Accommodation -->
+                                        <div th:case="'lodging'"
+                                             class="w-10 h-10 rounded-full bg-success-light dark:bg-green-900/30
+                                                    text-success-dark dark:text-green-400
+                                                    flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                            </svg>
+                                        </div>
+                                        <!-- Transit -->
+                                        <div th:case="'transit_station'"
+                                             class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700
+                                                    text-gray-600 dark:text-gray-400
+                                                    flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                            </svg>
+                                        </div>
+                                        <!-- Default - Attraction/Place -->
+                                        <div th:case="*"
                                              class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30
                                                     text-primary-600 dark:text-primary-400
                                                     flex items-center justify-center flex-shrink-0">
@@ -125,52 +172,12 @@
                                                       d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                                             </svg>
                                         </div>
-                                        <!-- Restaurant -->
-                                        <div th:case="'RESTAURANT'"
-                                             class="w-10 h-10 rounded-full bg-adventure-100 dark:bg-adventure-900/30
-                                                    text-adventure-600 dark:text-adventure-400
-                                                    flex items-center justify-center flex-shrink-0">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                                            </svg>
-                                        </div>
-                                        <!-- Transport -->
-                                        <div th:case="'TRANSPORT'"
-                                             class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700
-                                                    text-gray-600 dark:text-gray-400
-                                                    flex items-center justify-center flex-shrink-0">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                      d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                                            </svg>
-                                        </div>
-                                        <!-- Accommodation -->
-                                        <div th:case="'ACCOMMODATION'"
-                                             class="w-10 h-10 rounded-full bg-success-light dark:bg-green-900/30
-                                                    text-success-dark dark:text-green-400
-                                                    flex items-center justify-center flex-shrink-0">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                                            </svg>
-                                        </div>
-                                        <!-- Default -->
-                                        <div th:case="*"
-                                             class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700
-                                                    text-gray-600 dark:text-gray-400
-                                                    flex items-center justify-center flex-shrink-0">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-                                            </svg>
-                                        </div>
                                     </div>
 
                                     <!-- Content -->
                                     <div class="flex-1 min-w-0">
                                         <h4 class="font-medium text-gray-800 dark:text-gray-100 truncate"
-                                            th:text="${activity.placeName}">淺草寺</h4>
+                                            th:text="${activity.place?.name ?: '未命名景點'}">淺草寺</h4>
                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                             <span th:if="${activity.startTime}"
                                                   th:text="${#temporals.format(activity.startTime, 'HH:mm')}">10:00</span>
@@ -181,9 +188,9 @@
                                                 <span th:text="${activity.durationMinutes >= 60 ? (activity.durationMinutes / 60) + ' 小時' : activity.durationMinutes + ' 分鐘'}">2 小時</span>
                                             </span>
                                         </p>
-                                        <p th:if="${activity.notes}"
+                                        <p th:if="${activity.note}"
                                            class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate"
-                                           th:text="${activity.notes}">記得買御守</p>
+                                           th:text="${activity.note}">記得買御守</p>
                                     </div>
 
                                     <!-- Drag Handle -->
@@ -290,7 +297,184 @@
         </div>
     </nav>
 
+    <!-- Route Optimization Modal -->
+    <div id="optimization-modal"
+         data-modal
+         class="hidden fixed inset-0 z-50 items-center justify-center p-4"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="optimization-modal-title">
+        <!-- Backdrop -->
+        <div data-modal-backdrop
+             class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+        <!-- Modal Content -->
+        <div class="relative w-full max-w-md bg-white/95 dark:bg-gray-800/95
+                    backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden
+                    transform transition-all duration-300">
+
+            <!-- Modal Header -->
+            <div class="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+                <h3 id="optimization-modal-title"
+                    class="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-adventure-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    智慧排序
+                </h3>
+            </div>
+
+            <!-- Modal Body - Loading State -->
+            <div id="optimization-loading" class="px-6 py-8 text-center">
+                <div class="w-16 h-16 mx-auto mb-4 relative">
+                    <svg class="w-16 h-16 animate-spin text-adventure-500" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <p class="text-gray-600 dark:text-gray-300 font-medium">正在分析最佳路線...</p>
+                <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">這可能需要幾秒鐘</p>
+            </div>
+
+            <!-- Modal Body - Result State -->
+            <div id="optimization-result" class="hidden px-6 py-6">
+                <!-- Distance Saved -->
+                <div class="text-center mb-6">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-success-light dark:bg-green-900/30 rounded-full mb-3">
+                        <svg class="w-5 h-5 text-success-dark dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                        </svg>
+                        <span class="text-success-dark dark:text-green-400 font-semibold">
+                            可節省 <span id="distance-saved">0</span>
+                        </span>
+                    </div>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">
+                        (<span id="savings-percentage">0</span>% 更短的路線)
+                    </p>
+                </div>
+
+                <!-- Suggested Order -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">建議順序</h4>
+                    <ol id="suggested-order-list" class="space-y-2">
+                        <!-- Populated by JS -->
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Modal Body - No Improvement State -->
+            <div id="optimization-no-improvement" class="hidden px-6 py-8 text-center">
+                <div class="w-16 h-16 mx-auto mb-4 bg-success-light dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-success-dark dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+                <p class="text-gray-800 dark:text-gray-100 font-medium">目前路線已是最佳順序！</p>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">無需進行調整</p>
+            </div>
+
+            <!-- Modal Body - Error State -->
+            <div id="optimization-error" class="hidden px-6 py-8 text-center">
+                <div class="w-16 h-16 mx-auto mb-4 bg-error-light dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-error-dark dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <p class="text-gray-800 dark:text-gray-100 font-medium">無法計算路線優化</p>
+                <p id="error-message" class="text-gray-500 dark:text-gray-400 text-sm mt-1">請稍後再試</p>
+            </div>
+
+            <!-- Modal Footer -->
+            <div id="optimization-footer" class="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex gap-3">
+                <!-- Loading Footer -->
+                <div id="footer-loading" class="w-full">
+                    <button type="button"
+                            data-modal-close
+                            class="w-full px-4 py-2.5 min-h-[44px] rounded-xl cursor-pointer
+                                   border border-gray-200 dark:border-gray-600
+                                   text-gray-700 dark:text-gray-200 font-medium
+                                   hover:bg-gray-50 dark:hover:bg-gray-700
+                                   transition-colors duration-200">
+                        取消
+                    </button>
+                </div>
+
+                <!-- Result Footer -->
+                <div id="footer-result" class="hidden w-full flex gap-3">
+                    <button type="button"
+                            data-modal-close
+                            class="flex-1 px-4 py-2.5 min-h-[44px] rounded-xl cursor-pointer
+                                   border border-gray-200 dark:border-gray-600
+                                   text-gray-700 dark:text-gray-200 font-medium
+                                   hover:bg-gray-50 dark:hover:bg-gray-700
+                                   transition-colors duration-200">
+                        取消
+                    </button>
+                    <button type="button"
+                            id="apply-optimization-btn"
+                            class="flex-1 px-4 py-2.5 min-h-[44px] rounded-xl cursor-pointer
+                                   bg-adventure-500 hover:bg-adventure-600
+                                   text-white font-medium
+                                   transition-colors duration-200
+                                   disabled:opacity-50 disabled:cursor-not-allowed
+                                   flex items-center justify-center gap-2">
+                        <span id="apply-btn-text">套用優化</span>
+                        <svg id="apply-btn-spinner" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- No Improvement / Error Footer -->
+                <div id="footer-close" class="hidden w-full">
+                    <button type="button"
+                            data-modal-close
+                            class="w-full px-4 py-2.5 min-h-[44px] rounded-xl cursor-pointer
+                                   bg-primary-500 hover:bg-primary-600
+                                   text-white font-medium
+                                   transition-colors duration-200">
+                        關閉
+                    </button>
+                </div>
+
+                <!-- Error Retry Footer -->
+                <div id="footer-retry" class="hidden w-full flex gap-3">
+                    <button type="button"
+                            data-modal-close
+                            class="flex-1 px-4 py-2.5 min-h-[44px] rounded-xl cursor-pointer
+                                   border border-gray-200 dark:border-gray-600
+                                   text-gray-700 dark:text-gray-200 font-medium
+                                   hover:bg-gray-50 dark:hover:bg-gray-700
+                                   transition-colors duration-200">
+                        取消
+                    </button>
+                    <button type="button"
+                            id="retry-optimization-btn"
+                            class="flex-1 px-4 py-2.5 min-h-[44px] rounded-xl cursor-pointer
+                                   bg-adventure-500 hover:bg-adventure-600
+                                   text-white font-medium
+                                   transition-colors duration-200">
+                        重試
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity data for JS (hidden) -->
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        window.activityData = {
+            tripId: /*[[${trip.id}]]*/ null,
+            activities: /*[[${allActivities}]]*/ []
+        };
+        /*]]>*/
+    </script>
+
     <!-- Scripts -->
     <script th:src="@{/js/app.js}" defer></script>
+    <script th:src="@{/js/route-optimizer.js}" defer></script>
 </body>
 </html>

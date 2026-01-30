@@ -4,39 +4,18 @@
     WeGo Layout Templates
     Common page layouts for consistent structure across the application.
 
+    Note: The head fragment has been moved to fragments/head.html to avoid circular references.
+
     Usage:
-    <html th:replace="~{fragments/layout :: page-layout(title='Dashboard')}">
+    - For head: th:replace="~{fragments/head :: head(title='Page Title')}"
+    - For layouts: th:replace="~{fragments/layout :: app-layout(title='Page Title')}"
 -->
-
-<!-- Base HTML Head -->
-<head th:fragment="head(title)">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="WeGo - 協作旅遊規劃平台">
-    <meta name="theme-color" content="#0EA5E9">
-
-    <title th:text="${title} + ' - WeGo'">WeGo</title>
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
-
-    <!-- Styles -->
-    <link rel="stylesheet" th:href="@{/css/styles.css}">
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Lottie for animations -->
-    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js" defer></script>
-</head>
 
 <!-- Main App Layout (with bottom navigation) -->
 <th:block th:fragment="app-layout(title)">
 <!DOCTYPE html>
 <html lang="zh-TW" class="scroll-smooth">
-<head th:replace="~{fragments/layout :: head(title=${title})}"></head>
+<head th:replace="~{fragments/head :: head(title=${title})}"></head>
 <body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
     <!-- Toast Container -->
     <div th:replace="~{fragments/components :: toast-container}"></div>
@@ -65,7 +44,7 @@
 <th:block th:fragment="simple-layout(title)">
 <!DOCTYPE html>
 <html lang="zh-TW" class="scroll-smooth">
-<head th:replace="~{fragments/layout :: head(title=${title})}"></head>
+<head th:replace="~{fragments/head :: head(title=${title})}"></head>
 <body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100">
     <!-- Main Content -->
     <main class="flex items-center justify-center min-h-screen p-6">
@@ -82,7 +61,7 @@
 <th:block th:fragment="dashboard-layout">
 <!DOCTYPE html>
 <html lang="zh-TW" class="scroll-smooth">
-<head th:replace="~{fragments/layout :: head(title='我的行程')}"></head>
+<head th:replace="~{fragments/head :: head(title='我的行程')}"></head>
 <body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
     <!-- Toast Container -->
     <div th:replace="~{fragments/components :: toast-container}"></div>

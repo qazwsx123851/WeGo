@@ -1,15 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${expense?.id != null ? '編輯支出' : '新增支出'} + ' - WeGo'">新增支出 - WeGo</title>
-    <link rel="stylesheet" th:href="@{/css/styles.css}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
+<head th:replace="~{fragments/head :: head(title=${expense?.id != null ? '編輯支出' : '新增支出'})}"></head>
 <body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
     <!-- Header -->
     <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
@@ -349,103 +341,8 @@
         </form>
     </main>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const amountInput = document.getElementById('amount');
-            const splitMethodInput = document.getElementById('splitMethod');
-            const splitTabs = document.querySelectorAll('.split-tab');
-            const splitContents = document.querySelectorAll('.split-content');
-
-            // Switch split method tabs
-            splitTabs.forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const method = this.dataset.splitMethod;
-
-                    // Update active tab
-                    splitTabs.forEach(t => t.classList.remove('active', 'bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-100'));
-                    splitTabs.forEach(t => t.classList.add('text-gray-500', 'dark:text-gray-400'));
-                    this.classList.add('active', 'bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-100');
-                    this.classList.remove('text-gray-500', 'dark:text-gray-400');
-
-                    // Update hidden input
-                    splitMethodInput.value = method;
-
-                    // Show corresponding content
-                    splitContents.forEach(content => {
-                        content.classList.add('hidden');
-                    });
-                    document.getElementById('split-' + method.toLowerCase()).classList.remove('hidden');
-
-                    // Recalculate amounts
-                    calculateSplitAmounts();
-                });
-            });
-
-            // Initialize active tab styling
-            const activeTab = document.querySelector('.split-tab.active');
-            if (activeTab) {
-                activeTab.classList.add('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-100');
-                activeTab.classList.remove('text-gray-500', 'dark:text-gray-400');
-            }
-
-            // Calculate split amounts
-            function calculateSplitAmounts() {
-                const amount = parseFloat(amountInput.value) || 0;
-                const method = splitMethodInput.value;
-
-                if (method === 'EQUAL') {
-                    const checkboxes = document.querySelectorAll('.participant-checkbox:checked');
-                    const count = checkboxes.length;
-                    const perPerson = count > 0 ? (amount / count).toFixed(2) : 0;
-
-                    document.querySelectorAll('.equal-amount').forEach(el => {
-                        const checkbox = el.closest('.flex').querySelector('.participant-checkbox');
-                        el.textContent = checkbox.checked ? '$' + formatNumber(perPerson) : '$0';
-                    });
-                } else if (method === 'PERCENTAGE') {
-                    let total = 0;
-                    document.querySelectorAll('.percentage-input').forEach(input => {
-                        const value = parseFloat(input.value) || 0;
-                        total += value;
-                        const calcAmount = (amount * value / 100).toFixed(2);
-                        input.closest('.flex').querySelector('.percentage-amount').textContent = '$' + formatNumber(calcAmount);
-                    });
-                    const totalEl = document.getElementById('percentage-total');
-                    totalEl.textContent = total + '%';
-                    totalEl.classList.remove('text-success', 'text-error');
-                    totalEl.classList.add(total === 100 ? 'text-success' : 'text-error');
-                } else if (method === 'CUSTOM') {
-                    let total = 0;
-                    document.querySelectorAll('.custom-input').forEach(input => {
-                        total += parseFloat(input.value) || 0;
-                    });
-                    const totalEl = document.getElementById('custom-total');
-                    totalEl.textContent = '$' + formatNumber(total.toFixed(2));
-                    totalEl.classList.remove('text-success', 'text-error', 'text-gray-800', 'dark:text-gray-100');
-                    totalEl.classList.add(Math.abs(total - amount) < 0.01 ? 'text-success' : 'text-error');
-                }
-            }
-
-            function formatNumber(num) {
-                return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-            }
-
-            // Event listeners for recalculation
-            amountInput.addEventListener('input', calculateSplitAmounts);
-            document.querySelectorAll('.participant-checkbox').forEach(cb => {
-                cb.addEventListener('change', calculateSplitAmounts);
-            });
-            document.querySelectorAll('.percentage-input').forEach(input => {
-                input.addEventListener('input', calculateSplitAmounts);
-            });
-            document.querySelectorAll('.custom-input').forEach(input => {
-                input.addEventListener('input', calculateSplitAmounts);
-            });
-
-            // Initial calculation
-            calculateSplitAmounts();
-        });
-    </script>
+    <!-- Expense form module -->
+    <script th:src="@{/js/expense.js}" defer></script>
 
     <style>
         .split-tab {

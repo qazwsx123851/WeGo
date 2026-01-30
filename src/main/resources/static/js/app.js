@@ -345,6 +345,293 @@ const SmoothScroll = {
     },
 };
 
+// Weather UI Module
+const WeatherUI = {
+    container: null,
+    loadingEl: null,
+    contentEl: null,
+    errorEl: null,
+    unavailableEl: null,
+    lat: null,
+    lng: null,
+
+    /**
+     * Initialize weather UI component.
+     *
+     * @contract
+     *   - pre: weatherSection element exists in DOM
+     *   - post: Weather data is loaded and displayed
+     *   - calls: WeatherUI#loadWeather
+     */
+    init() {
+        const weatherSection = document.getElementById('weather-section');
+        if (!weatherSection) return;
+
+        this.container = weatherSection;
+        this.loadingEl = document.getElementById('weather-loading');
+        this.contentEl = document.getElementById('weather-content');
+        this.errorEl = document.getElementById('weather-error');
+        this.unavailableEl = document.getElementById('weather-unavailable');
+
+        this.lat = weatherSection.dataset.lat;
+        this.lng = weatherSection.dataset.lng;
+
+        if (this.lat && this.lng) {
+            this.loadWeather();
+        }
+    },
+
+    /**
+     * Load weather forecast from API.
+     *
+     * @contract
+     *   - pre: lat and lng are set
+     *   - post: Weather data is fetched and rendered or error is shown
+     *   - calls: /api/weather/forecast
+     */
+    async loadWeather() {
+        try {
+            const response = await fetch(`/api/weather/forecast?lat=${this.lat}&lng=${this.lng}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to load weather');
+            }
+
+            if (data.success && data.data && data.data.forecasts && data.data.forecasts.length > 0) {
+                this.renderForecast(data.data.forecasts);
+            } else if (data.data && !data.data.available) {
+                this.showUnavailable();
+            } else {
+                this.renderError('無法取得天氣資料');
+            }
+        } catch (error) {
+            console.error('Weather load error:', error);
+            this.renderError('天氣資訊暫時無法取得');
+        }
+    },
+
+    /**
+     * Render weather forecast cards.
+     *
+     * @contract
+     *   - pre: forecasts is an array of forecast objects
+     *   - post: Forecast cards are rendered in the content container
+     *
+     * @param {Array} forecasts - Array of forecast objects
+     */
+    renderForecast(forecasts) {
+        this.hideLoading();
+
+        // Build forecast cards HTML
+        const cardsHtml = forecasts.map(forecast => this.buildForecastCard(forecast)).join('');
+
+        this.contentEl.innerHTML = `
+            <div class="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory"
+                 style="-webkit-overflow-scrolling: touch;">
+                ${cardsHtml}
+            </div>
+        `;
+
+        this.contentEl.classList.remove('hidden');
+    },
+
+    /**
+     * Build HTML for a single forecast card.
+     *
+     * @contract
+     *   - pre: forecast object with date, icon, tempHigh, tempLow, rainProbability
+     *   - post: Returns HTML string for the forecast card
+     *
+     * @param {Object} forecast - Single forecast object
+     * @returns {string} HTML string
+     */
+    buildForecastCard(forecast) {
+        const date = new Date(forecast.date);
+        const weekday = this.getWeekdayName(date);
+        const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
+        const iconUrl = this.getWeatherIconUrl(forecast.icon);
+        const tempHigh = Math.round(forecast.tempHigh);
+        const tempLow = Math.round(forecast.tempLow);
+        const rainPercent = Math.round(forecast.rainProbability * 100);
+        const showRain = rainPercent >= 30;
+
+        return `
+            <div class="flex-shrink-0 w-20 snap-start glass-card p-3 text-center
+                        hover:shadow-lg transition-all duration-200">
+                <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">${monthDay}</div>
+                <div class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">${weekday}</div>
+                <img src="${iconUrl}"
+                     alt="${forecast.description || forecast.condition}"
+                     class="w-12 h-12 mx-auto"
+                     loading="lazy"/>
+                <div class="mt-1">
+                    <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">${tempHigh}°</span>
+                    <span class="text-xs text-gray-400 dark:text-gray-500"> / </span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">${tempLow}°</span>
+                </div>
+                ${showRain ? `
+                    <div class="mt-1 flex items-center justify-center gap-0.5 text-xs text-info dark:text-info">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                            <path fill-rule="evenodd"
+                                  d="M5.5 17a4.5 4.5 0 01-1.44-8.765 4.5 4.5 0 018.302-3.046 3.5 3.5 0 014.504 4.272A4 4 0 0115 17H5.5zm3.75-2.75a.75.75 0 001.5 0V9.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0l-3.25 3.5a.75.75 0 101.1 1.02l1.95-2.1v4.59z"
+                                  clip-rule="evenodd"/>
+                        </svg>
+                        <span>${rainPercent}%</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    },
+
+    /**
+     * Get Chinese weekday name from date.
+     *
+     * @param {Date} date - Date object
+     * @returns {string} Chinese weekday name
+     */
+    getWeekdayName(date) {
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        return `週${weekdays[date.getDay()]}`;
+    },
+
+    /**
+     * Get OpenWeatherMap icon URL.
+     *
+     * @param {string} iconCode - Weather icon code (e.g., "01d", "10n")
+     * @returns {string} Full URL to weather icon
+     */
+    getWeatherIconUrl(iconCode) {
+        if (!iconCode) return '/images/weather-unknown.png';
+        return `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+    },
+
+    /**
+     * Hide loading skeleton.
+     */
+    hideLoading() {
+        if (this.loadingEl) {
+            this.loadingEl.classList.add('hidden');
+        }
+    },
+
+    /**
+     * Show error state.
+     *
+     * @param {string} message - Error message to display
+     */
+    renderError(message) {
+        this.hideLoading();
+
+        const errorMessageEl = document.getElementById('weather-error-message');
+        if (errorMessageEl) {
+            errorMessageEl.textContent = message;
+        }
+
+        if (this.errorEl) {
+            this.errorEl.classList.remove('hidden');
+        }
+    },
+
+    /**
+     * Show unavailable state (for dates > 5 days).
+     */
+    showUnavailable() {
+        this.hideLoading();
+
+        if (this.unavailableEl) {
+            this.unavailableEl.classList.remove('hidden');
+        }
+    }
+};
+
+// Cover Image Preview Module
+const CoverImagePreview = {
+    /**
+     * Initialize cover image preview functionality.
+     *
+     * @contract
+     *   - pre: Elements with IDs 'coverImage', 'preview-image', 'upload-placeholder' may exist
+     *   - post: Event listener attached if elements found
+     */
+    init() {
+        const coverInput = document.getElementById('coverImage');
+        const previewImage = document.getElementById('preview-image');
+        const placeholder = document.getElementById('upload-placeholder');
+
+        if (!coverInput || !previewImage || !placeholder) {
+            return; // Not on a page with cover image upload
+        }
+
+        coverInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Validate file size (max 5MB)
+            const maxSize = 5 * 1024 * 1024;
+            if (file.size > maxSize) {
+                Toast.error('封面圖片大小不可超過 5MB');
+                coverInput.value = '';
+                return;
+            }
+
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                Toast.error('僅支援 JPEG、PNG、WebP 格式');
+                coverInput.value = '';
+                return;
+            }
+
+            // Create preview using URL.createObjectURL
+            const objectUrl = URL.createObjectURL(file);
+            previewImage.src = objectUrl;
+            previewImage.style.display = 'block';
+            previewImage.classList.remove('hidden');
+            placeholder.style.display = 'none';
+            placeholder.classList.add('hidden');
+        });
+    }
+};
+
+// Trip Create Form Module
+const TripForm = {
+    /**
+     * Initialize trip create/edit form functionality.
+     *
+     * @contract
+     *   - pre: Form elements may exist on page
+     *   - post: Event listeners attached for form validation
+     */
+    init() {
+        // Description character count
+        const descTextarea = document.getElementById('description');
+        const descCount = document.getElementById('desc-count');
+        if (descTextarea && descCount) {
+            descCount.textContent = descTextarea.value.length;
+            descTextarea.addEventListener('input', () => {
+                descCount.textContent = descTextarea.value.length;
+            });
+        }
+
+        // Date validation
+        const startDate = document.getElementById('startDate');
+        const endDate = document.getElementById('endDate');
+        if (startDate && endDate) {
+            startDate.addEventListener('change', () => {
+                endDate.min = startDate.value;
+                if (endDate.value && endDate.value < startDate.value) {
+                    endDate.value = startDate.value;
+                }
+            });
+
+            // Set min date to today
+            const today = new Date().toISOString().split('T')[0];
+            startDate.min = today;
+        }
+    }
+};
+
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
     Toast.init();
@@ -352,6 +639,9 @@ document.addEventListener('DOMContentLoaded', () => {
     Modal.init();
     Dropdown.init();
     SmoothScroll.init();
+    WeatherUI.init();
+    CoverImagePreview.init();
+    TripForm.init();
 
     // Expose to global scope for inline handlers
     window.Toast = Toast;
@@ -359,6 +649,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.Loading = Loading;
     window.FormValidation = FormValidation;
     window.Modal = Modal;
+    window.WeatherUI = WeatherUI;
+    window.CoverImagePreview = CoverImagePreview;
+    window.TripForm = TripForm;
 });
 
 // Handle page visibility for animations

@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="zh-TW" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${trip.title} + ' - 分帳 - WeGo'">分帳 - WeGo</title>
-    <link rel="stylesheet" th:href="@{/css/styles.css}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
+<head th:replace="~{fragments/head :: head(title=${trip.title} + ' - 分帳')}"></head>
 <body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div th:replace="~{fragments/components :: toast-container}"></div>
+
+    <!-- Hidden data for JavaScript -->
+    <input type="hidden" id="trip-id" th:value="${trip.id}"/>
+
     <!-- Header -->
     <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
         <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -128,8 +126,16 @@
                 <!-- Expense Items -->
                 <div class="space-y-3">
                     <div th:each="expense : ${dateGroup.value}"
-                         class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer"
-                         th:onclick="'window.location.href=\'' + @{/trips/{tripId}/expenses/{expenseId}(tripId=${trip.id}, expenseId=${expense.id})} + '\''">
+                         class="expense-card bg-white dark:bg-gray-800 rounded-xl p-4 shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer"
+                         th:data-expense-id="${expense.id}"
+                         th:data-expense-description="${expense.description}"
+                         th:data-expense-amount="${expense.amount}"
+                         th:data-expense-currency="${expense.currency}"
+                         th:data-expense-category="${expense.category}"
+                         th:data-expense-payer-name="${expense.paidByName}"
+                         th:data-expense-split-type="${expense.splitType}"
+                         th:data-expense-note="${expense.note}"
+                         th:onclick="'openExpenseModal(this)'">
                         <div class="flex items-start gap-3">
                             <!-- Category Icon -->
                             <div class="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
@@ -168,16 +174,17 @@
                                     <div class="flex items-center gap-1">
                                         <div class="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                             <span class="text-xs font-medium text-primary-600 dark:text-primary-400"
-                                                  th:text="${#strings.substring(expense.payer.name, 0, 1)}">A</span>
+                                                  th:text="${expense.paidByName != null ? #strings.substring(expense.paidByName, 0, 1) : '?'}">A</span>
                                         </div>
                                         <span class="text-xs text-gray-500 dark:text-gray-400"
-                                              th:text="${expense.payer.name}">付款人</span>
+                                              th:text="${expense.paidByName != null ? expense.paidByName : '未知'}">付款人</span>
                                     </div>
                                     <span class="text-gray-300 dark:text-gray-600">|</span>
                                     <span class="text-xs text-gray-500 dark:text-gray-400"
-                                          th:text="${expense.splitMethod == 'EQUAL' ? '均分' :
-                                                     expense.splitMethod == 'PERCENTAGE' ? '百分比' :
-                                                     expense.splitMethod == 'CUSTOM' ? '自訂' : '均分'}">均分</span>
+                                          th:text="${expense.splitType?.name() == 'EQUAL' ? '均分' :
+                                                     expense.splitType?.name() == 'PERCENTAGE' ? '百分比' :
+                                                     expense.splitType?.name() == 'CUSTOM' ? '自訂' :
+                                                     expense.splitType?.name() == 'SHARES' ? '比例' : '均分'}">均分</span>
                                 </div>
                             </div>
 
@@ -191,23 +198,23 @@
                             </div>
                         </div>
 
-                        <!-- Participants Count -->
+                        <!-- Participants Count (using splits) -->
                         <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
                             <div class="flex -space-x-2">
-                                <div th:each="participant, iterStat : ${expense.participants}"
+                                <div th:each="split, iterStat : ${expense.splits}"
                                      th:if="${iterStat.index < 4}"
                                      class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
                                     <span class="text-xs font-medium text-gray-600 dark:text-gray-300"
-                                          th:text="${#strings.substring(participant.user.name, 0, 1)}">A</span>
+                                          th:text="${split.userNickname != null ? #strings.substring(split.userNickname, 0, 1) : '?'}">A</span>
                                 </div>
-                                <div th:if="${#lists.size(expense.participants) > 4}"
+                                <div th:if="${expense.splits != null and #lists.size(expense.splits) > 4}"
                                      class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
                                     <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
-                                          th:text="'+' + (${#lists.size(expense.participants)} - 4)">+2</span>
+                                          th:text="'+' + (${#lists.size(expense.splits)} - 4)">+2</span>
                                 </div>
                             </div>
                             <span class="text-xs text-gray-400 dark:text-gray-500"
-                                  th:text="${#lists.size(expense.participants)} + ' 人分攤'">5 人分攤</span>
+                                  th:text="${expense.splits != null ? #lists.size(expense.splits) : 0} + ' 人分攤'">5 人分攤</span>
                         </div>
                     </div>
                 </div>
@@ -215,39 +222,541 @@
         </section>
     </main>
 
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-        <div class="max-w-4xl mx-auto px-4 flex justify-around">
-            <a th:href="@{/trips/{tripId}(tripId=${trip.id})}" class="bottom-nav-item" aria-label="行程">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span class="text-caption">行程</span>
-            </a>
-            <a th:href="@{/trips/{tripId}/expenses(tripId=${trip.id})}" class="bottom-nav-item active" aria-label="分帳">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-                </svg>
-                <span class="text-caption">分帳</span>
-            </a>
-            <a th:href="@{/trips/{tripId}/documents(tripId=${trip.id})}" class="bottom-nav-item" aria-label="檔案">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                <span class="text-caption">檔案</span>
-            </a>
-            <a th:href="@{/trips/{tripId}/settings(tripId=${trip.id})}" class="bottom-nav-item" aria-label="設定">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                <span class="text-caption">設定</span>
-            </a>
+    <!-- Expense Detail Modal -->
+    <div id="expense-detail-modal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog" aria-labelledby="expense-modal-title">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200" onclick="closeExpenseModal()"></div>
+
+        <!-- Modal Content -->
+        <div class="absolute inset-4 md:inset-x-auto md:inset-y-8 md:max-w-lg md:mx-auto
+                    bg-white dark:bg-gray-900 rounded-2xl overflow-hidden flex flex-col shadow-2xl transform transition-all duration-200">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-shrink-0">
+                <h3 id="expense-modal-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100">支出詳情</h3>
+                <button onclick="closeExpenseModal()"
+                        class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                        aria-label="關閉">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Body - scrollable -->
+            <div id="expense-modal-body" class="flex-1 overflow-y-auto p-6">
+                <!-- Loading state -->
+                <div id="expense-modal-loading" class="flex items-center justify-center py-12">
+                    <div class="w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <!-- Content will be dynamically filled -->
+                <div id="expense-modal-content" class="hidden"></div>
+            </div>
+
+            <!-- Footer with actions -->
+            <div class="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3 flex-shrink-0">
+                <button onclick="editExpense()"
+                        class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    編輯
+                </button>
+                <button onclick="confirmDeleteExpense()"
+                        class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-error hover:bg-red-600 text-white font-medium transition-colors cursor-pointer flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    刪除
+                </button>
+            </div>
         </div>
-    </nav>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-expense-modal" class="fixed inset-0 z-[60] hidden" aria-modal="true" role="alertdialog" aria-labelledby="delete-modal-title">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200" onclick="closeDeleteModal()"></div>
+
+        <!-- Modal Content -->
+        <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 max-w-sm mx-auto
+                    bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl transform transition-all duration-200">
+            <!-- Warning Icon -->
+            <div class="w-12 h-12 mx-auto mb-4 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                <svg class="w-6 h-6 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+
+            <h3 id="delete-modal-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100 text-center mb-2">確定要刪除？</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">刪除後無法復原，相關的分帳記錄也會一併刪除。</p>
+
+            <div class="flex gap-3">
+                <button onclick="closeDeleteModal()"
+                        class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                    取消
+                </button>
+                <button onclick="deleteExpense()"
+                        id="confirm-delete-btn"
+                        class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-error hover:bg-red-600 text-white font-medium transition-colors cursor-pointer">
+                    刪除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav th:replace="~{fragments/components :: bottom-nav}"></nav>
+
+    <script th:inline="javascript">
+        // =====================
+        // Configuration
+        // =====================
+        const tripId = document.getElementById('trip-id').value;
+        const csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+
+        // Current expense data
+        let currentExpenseId = null;
+        let currentExpenseData = null;
+
+        // =====================
+        // Expense Detail Modal
+        // =====================
+        function openExpenseModal(cardElement) {
+            // Get expense data from data attributes
+            currentExpenseId = cardElement.dataset.expenseId;
+            currentExpenseData = {
+                id: cardElement.dataset.expenseId,
+                description: cardElement.dataset.expenseDescription,
+                amount: parseFloat(cardElement.dataset.expenseAmount),
+                currency: cardElement.dataset.expenseCurrency || 'TWD',
+                category: cardElement.dataset.expenseCategory,
+                payerName: cardElement.dataset.expensePayerName,
+                splitType: cardElement.dataset.expenseSplitType,
+                note: cardElement.dataset.expenseNote
+            };
+
+            // Show modal
+            const modal = document.getElementById('expense-detail-modal');
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            // Show loading, hide content
+            document.getElementById('expense-modal-loading').classList.remove('hidden');
+            document.getElementById('expense-modal-content').classList.add('hidden');
+
+            // Fetch full expense details from API
+            fetchExpenseDetail(currentExpenseId);
+        }
+
+        async function fetchExpenseDetail(expenseId) {
+            try {
+                // Fetch all expenses and find the one we need (since there's no single expense endpoint)
+                const response = await fetch(`/api/trips/${tripId}/expenses`, {
+                    headers: {
+                        [csrfHeader]: csrfToken
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data) {
+                        const expense = result.data.find(e => e.id === expenseId);
+                        if (expense) {
+                            currentExpenseData = expense;
+                            renderExpenseDetail(expense);
+                        } else {
+                            showToast('error', '找不到支出記錄');
+                            closeExpenseModal();
+                        }
+                    }
+                } else {
+                    // Use cached data from card
+                    renderExpenseDetail(currentExpenseData);
+                }
+            } catch (error) {
+                console.error('Error fetching expense:', error);
+                // Use cached data from card
+                renderExpenseDetail(currentExpenseData);
+            }
+        }
+
+        function renderExpenseDetail(expense) {
+            const content = document.getElementById('expense-modal-content');
+            content.innerHTML = ''; // Clear previous content
+
+            // Amount Section
+            const amountSection = document.createElement('div');
+            amountSection.className = 'text-center mb-6';
+
+            const amountEl = document.createElement('p');
+            amountEl.className = 'text-4xl font-bold text-gray-800 dark:text-gray-100 font-mono';
+            amountEl.textContent = '$' + formatNumber(expense.amount);
+            amountSection.appendChild(amountEl);
+
+            const currencyEl = document.createElement('p');
+            currencyEl.className = 'text-sm text-gray-500 dark:text-gray-400 mt-1';
+            currencyEl.textContent = expense.currency || 'TWD';
+            amountSection.appendChild(currencyEl);
+
+            content.appendChild(amountSection);
+
+            // Description
+            const descSection = document.createElement('div');
+            descSection.className = 'bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-4';
+
+            const descLabel = document.createElement('p');
+            descLabel.className = 'text-xs text-gray-500 dark:text-gray-400 mb-1';
+            descLabel.textContent = '描述';
+            descSection.appendChild(descLabel);
+
+            const descValue = document.createElement('p');
+            descValue.className = 'text-gray-800 dark:text-gray-100 font-medium';
+            descValue.textContent = expense.description || '-';
+            descSection.appendChild(descValue);
+
+            content.appendChild(descSection);
+
+            // Info Grid
+            const infoGrid = document.createElement('div');
+            infoGrid.className = 'grid grid-cols-2 gap-4 mb-4';
+
+            // Payer
+            const payerDiv = createInfoItem('付款人', expense.paidByName || expense.payerName || '-');
+            infoGrid.appendChild(payerDiv);
+
+            // Category
+            const categoryDiv = createInfoItem('類別', getCategoryLabel(expense.category));
+            infoGrid.appendChild(categoryDiv);
+
+            // Split Type
+            const splitDiv = createInfoItem('分攤方式', getSplitTypeLabel(expense.splitType));
+            infoGrid.appendChild(splitDiv);
+
+            // Date
+            const dateDiv = createInfoItem('日期', expense.expenseDate || formatDate(expense.createdAt));
+            infoGrid.appendChild(dateDiv);
+
+            content.appendChild(infoGrid);
+
+            // Note
+            if (expense.note) {
+                const noteSection = document.createElement('div');
+                noteSection.className = 'bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-4';
+
+                const noteLabel = document.createElement('p');
+                noteLabel.className = 'text-xs text-gray-500 dark:text-gray-400 mb-1';
+                noteLabel.textContent = '備註';
+                noteSection.appendChild(noteLabel);
+
+                const noteValue = document.createElement('p');
+                noteValue.className = 'text-gray-800 dark:text-gray-100';
+                noteValue.textContent = expense.note;
+                noteSection.appendChild(noteValue);
+
+                content.appendChild(noteSection);
+            }
+
+            // Splits Section
+            if (expense.splits && expense.splits.length > 0) {
+                const splitsSection = document.createElement('div');
+                splitsSection.className = 'mt-4';
+
+                const splitsLabel = document.createElement('p');
+                splitsLabel.className = 'text-sm font-medium text-gray-700 dark:text-gray-300 mb-3';
+                splitsLabel.textContent = '分攤明細';
+                splitsSection.appendChild(splitsLabel);
+
+                const splitsList = document.createElement('div');
+                splitsList.className = 'space-y-2';
+
+                expense.splits.forEach(split => {
+                    const splitItem = document.createElement('div');
+                    splitItem.className = 'flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2';
+
+                    const userInfo = document.createElement('div');
+                    userInfo.className = 'flex items-center gap-2';
+
+                    const avatar = document.createElement('div');
+                    avatar.className = 'w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center';
+                    const avatarText = document.createElement('span');
+                    avatarText.className = 'text-xs font-medium text-primary-600 dark:text-primary-400';
+                    avatarText.textContent = (split.userNickname || '?').charAt(0);
+                    avatar.appendChild(avatarText);
+                    userInfo.appendChild(avatar);
+
+                    const userName = document.createElement('span');
+                    userName.className = 'text-sm text-gray-700 dark:text-gray-300';
+                    userName.textContent = split.userNickname || '未知使用者';
+                    userInfo.appendChild(userName);
+
+                    splitItem.appendChild(userInfo);
+
+                    const amountInfo = document.createElement('div');
+                    amountInfo.className = 'flex items-center gap-2';
+
+                    const splitAmount = document.createElement('span');
+                    splitAmount.className = 'text-sm font-medium text-gray-800 dark:text-gray-100 font-mono';
+                    splitAmount.textContent = '$' + formatNumber(split.amount);
+                    amountInfo.appendChild(splitAmount);
+
+                    if (split.isSettled) {
+                        const settledBadge = document.createElement('span');
+                        settledBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+                        settledBadge.textContent = '已結清';
+                        amountInfo.appendChild(settledBadge);
+                    }
+
+                    splitItem.appendChild(amountInfo);
+                    splitsList.appendChild(splitItem);
+                });
+
+                splitsSection.appendChild(splitsList);
+                content.appendChild(splitsSection);
+            }
+
+            // Hide loading, show content
+            document.getElementById('expense-modal-loading').classList.add('hidden');
+            content.classList.remove('hidden');
+        }
+
+        function createInfoItem(label, value) {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 dark:bg-gray-800 rounded-xl p-3';
+
+            const labelEl = document.createElement('p');
+            labelEl.className = 'text-xs text-gray-500 dark:text-gray-400 mb-1';
+            labelEl.textContent = label;
+            div.appendChild(labelEl);
+
+            const valueEl = document.createElement('p');
+            valueEl.className = 'text-sm text-gray-800 dark:text-gray-100 font-medium';
+            valueEl.textContent = value;
+            div.appendChild(valueEl);
+
+            return div;
+        }
+
+        function closeExpenseModal() {
+            const modal = document.getElementById('expense-detail-modal');
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+            currentExpenseId = null;
+            currentExpenseData = null;
+        }
+
+        // =====================
+        // Edit Expense
+        // =====================
+        function editExpense() {
+            if (currentExpenseId) {
+                window.location.href = `/trips/${tripId}/expenses/${currentExpenseId}/edit`;
+            }
+        }
+
+        // =====================
+        // Delete Expense
+        // =====================
+        function confirmDeleteExpense() {
+            document.getElementById('delete-expense-modal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('delete-expense-modal').classList.add('hidden');
+        }
+
+        async function deleteExpense() {
+            if (!currentExpenseId) return;
+
+            const deleteBtn = document.getElementById('confirm-delete-btn');
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = '刪除中...';
+
+            try {
+                const response = await fetch(`/api/expenses/${currentExpenseId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        [csrfHeader]: csrfToken
+                    }
+                });
+
+                if (response.ok) {
+                    showToast('success', '支出已刪除');
+                    closeDeleteModal();
+                    closeExpenseModal();
+
+                    // Remove the card from DOM
+                    const card = document.querySelector(`[data-expense-id="${currentExpenseId}"]`);
+                    if (card) {
+                        const parentGroup = card.closest('.mb-6');
+                        card.remove();
+
+                        // Check if the date group is now empty
+                        const remainingCards = parentGroup?.querySelectorAll('.expense-card');
+                        if (remainingCards && remainingCards.length === 0) {
+                            parentGroup.remove();
+                        }
+                    }
+
+                    // Check if all expenses are deleted
+                    const allCards = document.querySelectorAll('.expense-card');
+                    if (allCards.length === 0) {
+                        // Reload to show empty state
+                        setTimeout(() => window.location.reload(), 500);
+                    }
+                } else {
+                    let errorMsg = '刪除失敗';
+                    try {
+                        const error = await response.json();
+                        errorMsg = error.message || errorMsg;
+                    } catch (e) {}
+                    showToast('error', errorMsg);
+                }
+            } catch (error) {
+                console.error('Error deleting expense:', error);
+                showToast('error', '網路錯誤，請稍後再試');
+            } finally {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '刪除';
+            }
+        }
+
+        // =====================
+        // Utility Functions
+        // =====================
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '0';
+            return parseFloat(num).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        function formatDate(isoString) {
+            if (!isoString) return '-';
+            try {
+                const date = new Date(isoString);
+                return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
+            } catch (e) {
+                return '-';
+            }
+        }
+
+        function getCategoryLabel(category) {
+            const labels = {
+                'FOOD': '餐飲',
+                'TRANSPORT': '交通',
+                'ACCOMMODATION': '住宿',
+                'ENTERTAINMENT': '娛樂',
+                'OTHER': '其他'
+            };
+            return labels[category] || '其他';
+        }
+
+        function getSplitTypeLabel(splitType) {
+            const labels = {
+                'EQUAL': '均分',
+                'PERCENTAGE': '百分比',
+                'CUSTOM': '自訂金額',
+                'SHARES': '比例'
+            };
+            return labels[splitType] || '均分';
+        }
+
+        // =====================
+        // Toast Notification
+        // =====================
+        function showToast(type, message) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `flex items-center gap-3 bg-white dark:bg-gray-800 rounded-xl shadow-lg border-l-4 px-4 py-3 min-w-[280px] animate-slide-in ${type === 'success' ? 'border-success' : 'border-error'}`;
+
+            // Icon
+            const iconWrapper = document.createElement('div');
+            iconWrapper.innerHTML = type === 'success'
+                ? '<svg class="w-5 h-5 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+                : '<svg class="w-5 h-5 text-error flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+            toast.appendChild(iconWrapper.firstChild);
+
+            // Message (using textContent to prevent XSS)
+            const messageEl = document.createElement('p');
+            messageEl.className = 'flex-1 text-gray-800 dark:text-gray-100';
+            messageEl.textContent = message;
+            toast.appendChild(messageEl);
+
+            // Close button
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer';
+            closeBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+            closeBtn.onclick = () => toast.remove();
+            toast.appendChild(closeBtn);
+
+            container.appendChild(toast);
+
+            // Auto dismiss
+            setTimeout(() => {
+                toast.classList.add('animate-slide-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // =====================
+        // Keyboard Navigation
+        // =====================
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const deleteModal = document.getElementById('delete-expense-modal');
+                const detailModal = document.getElementById('expense-detail-modal');
+
+                if (!deleteModal.classList.contains('hidden')) {
+                    closeDeleteModal();
+                } else if (!detailModal.classList.contains('hidden')) {
+                    closeExpenseModal();
+                }
+            }
+        });
+    </script>
+
+    <style>
+        /* Animation for spinner */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Border width utility */
+        .border-3 {
+            border-width: 3px;
+        }
+
+        /* Toast animations */
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slide-out {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        .animate-slide-in {
+            animation: slide-in 300ms ease-out;
+        }
+        .animate-slide-out {
+            animation: slide-out 300ms ease-out;
+        }
+    </style>
 </body>
 </html>

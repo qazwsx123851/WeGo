@@ -428,4 +428,49 @@ public class ExpenseService {
         return userRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getId, Function.identity()));
     }
+
+    /**
+     * Gets expense count for a trip.
+     *
+     * @contract
+     *   - pre: tripId != null, userId != null
+     *   - pre: user has view permission on trip
+     *   - post: returns count of expenses in trip
+     *   - calledBy: TripController#showTripDetail
+     *
+     * @param tripId The trip ID
+     * @param userId The ID of the user requesting
+     * @return Number of expenses in trip
+     * @throws ForbiddenException if user has no view permission
+     */
+    @Transactional(readOnly = true)
+    public long getExpenseCount(UUID tripId, UUID userId) {
+        if (!permissionChecker.canView(tripId, userId)) {
+            throw new ForbiddenException("您沒有權限查看此行程");
+        }
+        return expenseRepository.countByTripId(tripId);
+    }
+
+    /**
+     * Gets total expense amount for a trip in a specific currency.
+     *
+     * @contract
+     *   - pre: tripId != null, currency != null, userId != null
+     *   - pre: user has view permission on trip
+     *   - post: returns sum of expenses in specified currency
+     *   - calledBy: TripController#showTripDetail
+     *
+     * @param tripId The trip ID
+     * @param currency The currency code (e.g., "TWD")
+     * @param userId The ID of the user requesting
+     * @return Total expense amount (0 if none)
+     * @throws ForbiddenException if user has no view permission
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalExpense(UUID tripId, String currency, UUID userId) {
+        if (!permissionChecker.canView(tripId, userId)) {
+            throw new ForbiddenException("您沒有權限查看此行程");
+        }
+        return expenseRepository.sumAmountByTripIdAndCurrency(tripId, currency);
+    }
 }

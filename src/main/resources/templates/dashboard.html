@@ -112,7 +112,7 @@
                                       class="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30
                                              flex items-center justify-center text-caption text-primary-600
                                              dark:text-primary-400 border-2 border-white dark:border-gray-800"
-                                      th:text="${#strings.substring(member.displayName, 0, 1)}">M</span>
+                                      th:text="${member.nickname != null ? #strings.substring(member.nickname, 0, 1) : 'U'}">M</span>
                             </div>
                             <span th:if="${#lists.size(trip.members) > 3}"
                                   class="text-caption text-gray-400"

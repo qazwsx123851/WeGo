@@ -5,16 +5,11 @@
     Form for creating or editing an activity with place search,
     time picker, and activity type selection.
 -->
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${activity?.id != null} ? '編輯景點 - WeGo' : '新增景點 - WeGo'">新增景點 - WeGo</title>
-    <link rel="stylesheet" th:href="@{/css/styles.css}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
+<head th:replace="~{fragments/head :: head(title=${activity?.id != null} ? '編輯景點' : '新增景點')}"></head>
 <body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div th:replace="~{fragments/components :: toast-container}"></div>
+
     <!-- Header -->
     <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
         <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -164,6 +159,7 @@
                                       focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
                                       transition-all duration-200">
                         <button type="button"
+                                id="place-search-btn"
                                 class="absolute right-3 top-1/2 -translate-y-1/2 p-1
                                        text-gray-400 hover:text-primary-500
                                        transition-colors duration-200 cursor-pointer"
@@ -173,13 +169,13 @@
                                       d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                             </svg>
                         </button>
-                    </div>
-                    <!-- Search Results Dropdown (hidden by default) -->
-                    <div id="place-search-results"
-                         class="hidden absolute z-10 w-full mt-1 bg-white dark:bg-gray-800
-                                border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg
-                                max-h-60 overflow-y-auto">
-                        <!-- Results populated by JS -->
+                        <!-- Search Results Dropdown (hidden by default) -->
+                        <div id="place-search-results"
+                             class="hidden absolute z-10 w-full mt-1 top-full left-0 bg-white dark:bg-gray-800
+                                    border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg
+                                    max-h-60 overflow-y-auto">
+                            <!-- Results populated by JS -->
+                        </div>
                     </div>
                     <p class="text-xs text-error hidden" role="alert">請輸入地點名稱</p>
                 </div>
@@ -460,6 +456,176 @@
                     }
                 });
             }
+
+            // =====================================================
+            // Place Search Functionality
+            // =====================================================
+            const placeNameInput = document.getElementById('placeName');
+            const searchBtn = document.getElementById('place-search-btn');
+            const searchResults = document.getElementById('place-search-results');
+            const addressInput = document.getElementById('address');
+            const placeIdInput = document.getElementById('placeId');
+            const latitudeInput = document.getElementById('latitude');
+            const longitudeInput = document.getElementById('longitude');
+
+            let searchTimeout = null;
+
+            // Search places via API
+            async function searchPlaces(query) {
+                if (!query || query.trim().length < 2) {
+                    hideSearchResults();
+                    return;
+                }
+
+                try {
+                    showSearchLoading();
+                    const response = await fetch(`/api/places/search?query=${encodeURIComponent(query.trim())}`);
+
+                    if (!response.ok) {
+                        throw new Error('搜尋失敗');
+                    }
+
+                    const data = await response.json();
+                    displaySearchResults(data.data || data);
+                } catch (error) {
+                    console.error('Place search error:', error);
+                    displaySearchError('搜尋時發生錯誤，請稍後再試');
+                }
+            }
+
+            // Show loading state
+            function showSearchLoading() {
+                searchResults.innerHTML = `
+                    <div class="p-4 text-center text-gray-500 dark:text-gray-400">
+                        <svg class="animate-spin h-5 w-5 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        搜尋中...
+                    </div>
+                `;
+                searchResults.classList.remove('hidden');
+            }
+
+            // Display search results
+            function displaySearchResults(places) {
+                if (!places || places.length === 0) {
+                    searchResults.innerHTML = `
+                        <div class="p-4 text-center text-gray-500 dark:text-gray-400">
+                            <p>找不到符合的地點</p>
+                            <p class="text-xs mt-1">請嘗試其他關鍵字</p>
+                        </div>
+                    `;
+                    searchResults.classList.remove('hidden');
+                    return;
+                }
+
+                const html = places.map(place => `
+                    <button type="button"
+                            class="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700
+                                   border-b border-gray-100 dark:border-gray-700 last:border-b-0
+                                   cursor-pointer transition-colors duration-150"
+                            data-name="${escapeHtml(place.name || '')}"
+                            data-address="${escapeHtml(place.address || place.formattedAddress || '')}"
+                            data-place-id="${escapeHtml(place.placeId || place.googlePlaceId || '')}"
+                            data-lat="${place.latitude || place.lat || ''}"
+                            data-lng="${place.longitude || place.lng || ''}">
+                        <div class="font-medium text-gray-800 dark:text-gray-100">${escapeHtml(place.name || '')}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400 truncate">${escapeHtml(place.address || place.formattedAddress || '')}</div>
+                    </button>
+                `).join('');
+
+                searchResults.innerHTML = html;
+                searchResults.classList.remove('hidden');
+
+                // Add click handlers to results
+                searchResults.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        selectPlace(this);
+                    });
+                });
+            }
+
+            // Display error message
+            function displaySearchError(message) {
+                searchResults.innerHTML = `
+                    <div class="p-4 text-center text-error">
+                        <p>${escapeHtml(message)}</p>
+                    </div>
+                `;
+                searchResults.classList.remove('hidden');
+            }
+
+            // Hide search results
+            function hideSearchResults() {
+                searchResults.classList.add('hidden');
+                searchResults.innerHTML = '';
+            }
+
+            // Select a place from results
+            function selectPlace(element) {
+                const name = element.dataset.name;
+                const address = element.dataset.address;
+                const placeId = element.dataset.placeId;
+                const lat = element.dataset.lat;
+                const lng = element.dataset.lng;
+
+                placeNameInput.value = name;
+                addressInput.value = address;
+                placeIdInput.value = placeId;
+                latitudeInput.value = lat;
+                longitudeInput.value = lng;
+
+                hideSearchResults();
+            }
+
+            // Escape HTML to prevent XSS
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // Search button click handler
+            if (searchBtn) {
+                searchBtn.addEventListener('click', function() {
+                    const query = placeNameInput.value;
+                    searchPlaces(query);
+                });
+            }
+
+            // Input handler with debounce (auto-search after typing)
+            if (placeNameInput) {
+                placeNameInput.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        const query = this.value;
+                        if (query.length >= 2) {
+                            searchPlaces(query);
+                        } else {
+                            hideSearchResults();
+                        }
+                    }, 300);
+                });
+
+                // Enter key triggers search
+                placeNameInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        searchPlaces(this.value);
+                    }
+                });
+            }
+
+            // Close search results when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!searchResults.contains(e.target) &&
+                    e.target !== placeNameInput &&
+                    e.target !== searchBtn &&
+                    !searchBtn.contains(e.target)) {
+                    hideSearchResults();
+                }
+            });
         });
     </script>
 </body>

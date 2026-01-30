@@ -34,6 +34,7 @@ public class TripResponse {
     private Role currentUserRole;
     private List<MemberSummary> members;
     private Instant createdAt;
+    private Long daysUntil;
 
     /**
      * Summary of a trip member.

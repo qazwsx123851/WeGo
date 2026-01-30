@@ -456,3 +456,147 @@ python3 .claude/skills/ui-ux-pro-max/scripts/search.py "<關鍵字>" --stack htm
 | 涉及安全性時 | `security-reviewer` |
 | 架構決策時 | `architect` |
 | 資料庫變更時 | `database-reviewer` |
+
+---
+
+## 常見錯誤模式 (Error Patterns)
+
+以下是開發過程中遇到的常見錯誤，**務必避免重複犯錯**。
+
+### 🔴 Critical: Thymeleaf 循環引用
+
+**症狀**: `StackOverflowError`，頁面無法載入
+
+**原因**: Fragment A 引用 Fragment B，Fragment B 又引用 Fragment A
+
+**錯誤範例**:
+```html
+<!-- layout.html -->
+<head th:replace="~{fragments/layout :: head}"></head>  <!-- 自己引用自己！ -->
+```
+
+**正確做法**:
+- 將 `<head>` 獨立為 `fragments/head.html`
+- 確保 Fragment 之間無循環依賴
+- 引用前確認目標 Fragment 不會回頭引用來源
+
+### 🔴 Critical: Web Controller vs API Controller
+
+**症狀**: `POST method not supported` 或 `415 Unsupported Media Type`
+
+**原因**: HTML 表單提交 (`application/x-www-form-urlencoded`) 送到 API Controller (`@RequestBody` 期望 JSON)
+
+| 類型 | 註解 | 資料格式 | 回傳 |
+|------|------|----------|------|
+| Web Controller | `@RequestParam` | Form data | HTML (redirect) |
+| API Controller | `@RequestBody` | JSON | JSON |
+
+**正確做法**:
+```java
+// Web Controller - 處理 HTML Form
+@PostMapping("/{id}/activities")
+public String createActivity(
+    @PathVariable UUID id,
+    @RequestParam String placeName,  // Form data
+    @RequestParam String activityDate,
+    // ...其他欄位
+) {
+    // 處理後 redirect
+    return "redirect:/trips/" + id;
+}
+
+// API Controller - 處理 JSON
+@PostMapping("/{id}/activities")
+public ResponseEntity<ApiResponse<ActivityResponse>> createActivity(
+    @PathVariable UUID id,
+    @RequestBody CreateActivityRequest request  // JSON
+) {
+    // 處理後回傳 JSON
+    return ResponseEntity.ok(response);
+}
+```
+
+### 🟡 Medium: 路由不一致
+
+**症狀**: 404 錯誤，連結失效
+
+**原因**: 混用單數/複數路由 (`/trip/` vs `/trips/`)
+
+**本專案規範**:
+- ✅ 所有行程相關路由使用 **複數**: `/trips/{id}`
+- ❌ 禁止使用單數: `/trip/{id}`
+
+**檢查清單**:
+```html
+<!-- 正確 -->
+<a th:href="@{/trips/{id}(id=${trip.id})}">返回</a>
+
+<!-- 錯誤 -->
+<a th:href="@{/trip/{id}(id=${trip.id})}">返回</a>
+```
+
+### 🟡 Medium: Java 時間類型轉換
+
+**症狀**: `cannot find symbol: method toLocalDate()`
+
+**原因**: `Instant` 沒有 `toLocalDate()` 方法，需先轉換為 `ZonedDateTime`
+
+**錯誤**:
+```java
+LocalDate date = instant.toLocalDate();  // 編譯失敗！
+```
+
+**正確**:
+```java
+import java.time.ZoneId;
+
+LocalDate date = instant.atZone(ZoneId.systemDefault()).toLocalDate();
+```
+
+### 🟡 Medium: DTO 欄位名稱錯誤
+
+**症狀**: Thymeleaf 顯示空白或 null
+
+**原因**: 使用了不存在的 DTO 欄位名稱
+
+**MemberSummary 正確欄位**:
+| 欄位 | 類型 | 說明 |
+|------|------|------|
+| `userId` | UUID | 使用者 ID |
+| `nickname` | String | 暱稱 |
+
+**常見錯誤**:
+- ❌ `displayName` (不存在)
+- ❌ `id` (應為 `userId`)
+- ❌ `email` (不存在於 MemberSummary)
+
+### 🟢 Low: JavaScript 元素未加 ID
+
+**症狀**: 事件綁定失敗，功能無反應
+
+**原因**: HTML 元素缺少 `id` 屬性，JavaScript 無法取得參照
+
+**正確做法**:
+```html
+<!-- 需要 JS 操作的元素必須有 id -->
+<button id="search-btn" type="button">搜尋</button>
+```
+
+```javascript
+// 確保元素存在才綁定事件
+const btn = document.getElementById('search-btn');
+if (btn) {
+    btn.addEventListener('click', handleSearch);
+}
+```
+
+### 開發前檢查清單
+
+每次修改程式碼前，確認以下事項：
+
+- [ ] Fragment 無循環引用
+- [ ] Form 提交對應正確的 Controller 類型
+- [ ] 路由使用複數形式 (`/trips/`)
+- [ ] DTO 欄位名稱正確
+- [ ] 時間轉換使用正確方法
+- [ ] 需要 JS 操作的元素有唯一 ID

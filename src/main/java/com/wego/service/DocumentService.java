@@ -468,4 +468,26 @@ public class DocumentService {
 
         return response;
     }
+
+    /**
+     * Gets document count for a trip.
+     *
+     * @contract
+     *   - pre: tripId != null, userId != null
+     *   - pre: user has view permission on trip
+     *   - post: returns count of documents in trip
+     *   - calledBy: TripController#showTripDetail
+     *
+     * @param tripId The trip ID
+     * @param userId The ID of the user requesting
+     * @return Number of documents in trip
+     * @throws ForbiddenException if user has no view permission
+     */
+    @Transactional(readOnly = true)
+    public long getDocumentCount(UUID tripId, UUID userId) {
+        if (!permissionChecker.canView(tripId, userId)) {
+            throw new ForbiddenException("您沒有權限查看此行程");
+        }
+        return documentRepository.countByTripId(tripId);
+    }
 }
