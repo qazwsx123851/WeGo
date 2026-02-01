@@ -3,6 +3,7 @@
 > 最後更新: 2026-02-01 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-01: 新增 Transport Mode 系統 (Phase 0-3)、全域概覽頁面、Profile 頁面、統一錯誤處理
 > - 2026-02-01: 新增 Phase 2 功能 (天氣、路線優化、交通計算、代辦事項)
 > - 2026-01-28: 新增 spring-dotenv 自動載入環境變數
 
@@ -15,6 +16,7 @@
 | 前端模板 | Thymeleaf | (Spring Boot managed) |
 | 安全 | Spring Security + OAuth2 | (Spring Boot managed) |
 | CSS 框架 | Tailwind CSS | 3.4.1 |
+| 動畫 | Lottie-web | CDN |
 | 資料庫 | PostgreSQL (Supabase) | 15+ |
 | 建置工具 | Maven | 3.9.x |
 | Node.js | (Frontend build) | 20.11.0 |
@@ -259,13 +261,15 @@ public String profile(@CurrentUser UserPrincipal principal) {
 | Service | 職責 | 依賴 |
 |---------|------|------|
 | `TripService` | 行程 CRUD、成員管理 | TripRepository, TripMemberRepository |
-| `ActivityService` | 景點 CRUD、排序 | ActivityRepository, TransportCalculationService |
+| `ActivityService` | 景點 CRUD、排序、拖曳重排 | ActivityRepository, TransportCalculationService |
 | `ExpenseService` | 支出記錄、分帳計算 | ExpenseRepository, SettlementService |
 | `TodoService` | 代辦事項管理 | TodoRepository |
 | `WeatherService` | 天氣預報 (5天) | WeatherClient, CacheService |
 | `DocumentService` | 檔案上傳/下載 | StorageClient |
 | `SettlementService` | 債務結算 | DebtSimplifier |
-| `TransportCalculationService` | 交通時間/距離計算 | GoogleMapsClient |
+| `TransportCalculationService` | 交通時間/距離計算、批次重算 | GoogleMapsClient, PlaceRepository |
+| `GlobalExpenseService` | 跨行程支出統計 | ExpenseRepository, TripMemberRepository |
+| `GlobalDocumentService` | 跨行程文件管理 | DocumentRepository, TripMemberRepository |
 
 ### Domain 層級 (核心演算法)
 
@@ -282,6 +286,86 @@ public String profile(@CurrentUser UserPrincipal principal) {
 | `GoogleMapsClientImpl` | Google Maps Directions | MockGoogleMapsClient (Haversine) |
 | `OpenWeatherMapClient` | OpenWeatherMap 5-day | MockWeatherClient |
 | `SupabaseStorageClient` | Supabase Storage | MockStorageClient |
+
+### Transport Mode 系統
+
+交通模式系統支援多種運輸方式，並追蹤計算來源和警告：
+
+**TransportMode 枚舉**:
+| 模式 | 說明 | 支援 API 自動計算 |
+|------|------|:------------------:|
+| `WALKING` | 步行 | Yes |
+| `TRANSIT` | 大眾運輸 | Yes |
+| `DRIVING` | 開車 | Yes |
+| `BICYCLING` | 騎車 | Yes |
+| `FLIGHT` | 飛機 | No (手動輸入) |
+| `HIGH_SPEED_RAIL` | 高鐵 | No (手動輸入) |
+| `NOT_CALCULATED` | 不計算 | N/A |
+
+**TransportSource 枚舉** (計算來源追蹤):
+| 來源 | 說明 | Badge 樣式 |
+|------|------|------------|
+| `GOOGLE_API` | Google Maps 精確路線 | 綠色 |
+| `HAVERSINE` | 直線距離估算 | 藍色 |
+| `MANUAL` | 使用者手動輸入 | 紫色 |
+| `NOT_APPLICABLE` | 不適用 (首個景點) | 灰色 |
+
+**TransportWarning 枚舉** (警告提示):
+| 警告 | 觸發條件 | 嚴重度 |
+|------|----------|--------|
+| `NONE` | 無問題 | - |
+| `ESTIMATED_DISTANCE` | 使用 Haversine 估算 | info |
+| `UNREALISTIC_WALKING` | 步行超過 5 km | warning |
+| `UNREALISTIC_BICYCLING` | 騎車超過 30 km | warning |
+| `VERY_LONG_DISTANCE` | 任何模式超過 100 km | warning |
+| `NO_ROUTE_AVAILABLE` | Google API 無路線 | warning |
+
+---
+
+---
+
+## 新增功能指南
+
+### 全域概覽頁面
+
+新增了跨行程的全域概覽功能：
+
+| 頁面 | 路由 | Controller | 說明 |
+|------|------|------------|------|
+| 支出總覽 | `/expenses` | `GlobalExpenseController` | 所有行程的支出統計、待結算清單 |
+| 文件總覽 | `/documents` | `GlobalDocumentController` | 所有行程的文件搜尋、篩選 |
+| 個人檔案 | `/profile` | `ProfileController` | 使用者資料、統計、暱稱編輯 |
+
+### 統一錯誤處理
+
+專案使用雙層錯誤處理架構：
+
+| Handler | 範圍 | 回傳格式 |
+|---------|------|----------|
+| `GlobalExceptionHandler` | API Controllers | JSON (ApiResponse) |
+| `WebExceptionHandler` | Web Controllers | HTML (error/error.html) |
+
+錯誤頁面特色：
+- 動態圖示依錯誤類型變化 (404/403/401/500)
+- 中文友善錯誤訊息
+- 技術詳情可展開檢視
+- 支援深色模式
+
+### Activity 拖曳重排
+
+景點列表支援拖曳重新排序：
+- 使用原生 HTML5 Drag & Drop API
+- 自動重新計算交通時間
+- 支援跨日拖曳（變更日期）
+- 前端即時回饋 + 後端持久化
+
+### 批次重算交通時間
+
+提供一鍵重新計算所有景點的交通資訊：
+- 使用 Lottie 動畫顯示進度
+- Google Maps API Rate Limiting (100ms 間隔)
+- 超過限額自動降級為 Haversine 估算
+- 返回詳細統計 (API 成功數、估算數、跳過數)
 
 ---
 

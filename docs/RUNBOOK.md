@@ -3,6 +3,7 @@
 > 最後更新: 2026-02-01 | 部署平台: Railway
 >
 > **變更日誌**:
+> - 2026-02-01: 新增 Transport Mode 系統、統一錯誤處理、全域概覽頁面
 > - 2026-02-01: 新增 Phase 2 功能相關問題排查 (天氣 API、路線優化、CSP)
 > - 2026-01-28: 初始版本
 
@@ -316,6 +317,117 @@ railway logs | grep -i "RouteOptimizer"
 - 若活動超過 15 個會顯示警告
 - 第一個活動的位置會被保留為起點
 
+### 10. 批次重算交通時間問題
+
+**症狀**: 重算功能無反應或顯示錯誤
+
+**可能原因**:
+- Google Maps API 配額用盡
+- 網路連線問題
+- 景點缺少座標
+
+**檢查**:
+```bash
+# 查看 TransportCalculationService 日誌
+railway logs | grep -i "TransportCalculation"
+
+# 查看 API 呼叫狀態
+railway logs | grep -i "Google Maps"
+```
+
+**Rate Limiting 機制**:
+- API 呼叫間隔: 100ms
+- 預設最大呼叫次數: 無限制 (可透過參數設定)
+- 超過限額自動切換 Haversine 估算
+
+**回傳統計說明**:
+| 欄位 | 說明 |
+|------|------|
+| `apiSuccessCount` | Google API 成功呼叫次數 |
+| `fallbackCount` | 降級為 Haversine 估算次數 |
+| `skippedCount` | 跳過的景點 (首個景點、NOT_CALCULATED 模式) |
+| `manualCount` | 保留手動輸入的景點 (FLIGHT/HIGH_SPEED_RAIL) |
+
+### 11. Transport Source Badge 不顯示
+
+**症狀**: 交通資訊顯示但沒有來源 Badge (精確/估算/手動)
+
+**原因**: 舊資料可能沒有 `transportSource` 欄位值
+
+**修復**:
+1. 執行批次重算功能更新所有景點
+2. 或手動編輯景點觸發重新計算
+
+**Thymeleaf 顯示邏輯**:
+```html
+<span th:if="${activity.transportSource != null}"
+      th:class="${activity.transportSource.badgeClass}"
+      th:text="${activity.transportSource.displayName}">
+</span>
+```
+
+### 12. 全域概覽頁面無資料
+
+**症狀**: `/expenses` 或 `/documents` 頁面顯示空白
+
+**可能原因**:
+- 使用者尚未加入任何行程
+- 行程中沒有支出/文件
+- 權限問題 (非成員無法查看)
+
+**檢查**:
+```bash
+# 確認使用者的行程成員關係
+railway logs | grep -i "GlobalExpenseService\|GlobalDocumentService"
+```
+
+**注意**: 全域概覽只顯示使用者有權限存取的行程資料
+
+### 13. 錯誤頁面顯示不正確
+
+**症狀**: 錯誤發生時顯示白屏或預設錯誤頁面
+
+**可能原因**:
+- `WebExceptionHandler` 未正確載入
+- 錯誤模板不存在
+- CSP 阻擋樣式載入
+
+**檢查**:
+1. 確認 `error/error.html` 存在於 templates 目錄
+2. 確認 `WebExceptionHandler` 標註 `@Order(1)`
+3. 確認 CSS 檔案正確部署
+
+**錯誤頁面位置**:
+```
+src/main/resources/templates/error/
+├── error.html    # 統一錯誤頁面 (動態內容)
+├── 403.html      # 舊版 403 頁面 (備用)
+├── 404.html      # 舊版 404 頁面 (備用)
+└── 500.html      # 舊版 500 頁面 (備用)
+```
+
+### 14. 拖曳重排無法儲存
+
+**症狀**: 拖曳景點後刷新頁面順序恢復原狀
+
+**可能原因**:
+- JavaScript 錯誤
+- API 呼叫失敗
+- 權限不足 (Viewer 角色)
+
+**檢查**:
+```javascript
+// 瀏覽器 Console 檢查
+console.log('Drag event listeners attached');
+```
+
+```bash
+# 後端日誌
+railway logs | grep -i "reorder"
+```
+
+**權限需求**: 需要 OWNER 或 EDITOR 角色才能重排景點
+
 ---
 
 ## 回滾程序
@@ -415,6 +527,17 @@ spring:
 - [ ] 檢查外部 API 回應時間 (Google Maps, OpenWeatherMap)
 - [ ] 檢查是否有 N+1 查詢問題
 
+### Transport 相關問題
+- [ ] 確認 Google Maps API Key 已設定且有效
+- [ ] 確認 `GOOGLE_MAPS_ENABLED=true`
+- [ ] 檢查景點是否有有效座標
+- [ ] 檢查 TransportMode 是否支援自動計算
+
+### 全域概覽問題
+- [ ] 確認使用者已登入
+- [ ] 確認使用者是行程成員
+- [ ] 檢查 GlobalExpenseService/GlobalDocumentService 日誌
+
 ---
 
 ## 緊急聯絡
@@ -429,6 +552,70 @@ spring:
 
 ---
 
+---
+
+## 新功能維運指南
+
+### Transport Mode 系統監控
+
+**關鍵日誌**:
+```bash
+# 查看交通計算
+railway logs | grep -i "TransportCalculation"
+
+# 查看 Google Maps API 呼叫
+railway logs | grep -i "GoogleMapsClient"
+
+# 查看 Haversine fallback
+railway logs | grep -i "Haversine"
+```
+
+**監控指標**:
+- Google API 成功率
+- Haversine fallback 頻率
+- 平均計算時間
+
+### 全域概覽頁面監控
+
+**關鍵端點**:
+| 端點 | 說明 |
+|------|------|
+| `/expenses` | 全域支出概覽 |
+| `/documents` | 全域文件概覽 |
+| `/profile` | 使用者個人檔案 |
+
+**效能注意事項**:
+- 全域概覽需要聚合多行程資料
+- 文件頁面支援分頁 (每頁 20 筆)
+- 建議監控這些端點的回應時間
+
+### 錯誤處理架構
+
+**錯誤處理流程**:
+```
+Exception 發生
+    │
+    ▼
+是 API Controller? ──Yes──▶ GlobalExceptionHandler ──▶ JSON Response
+    │
+    No
+    │
+    ▼
+WebExceptionHandler ──▶ error/error.html ──▶ HTML Response
+```
+
+**自訂錯誤碼**:
+| ErrorCode | HTTP Status | 說明 |
+|-----------|-------------|------|
+| `VALIDATION_ERROR` | 400 | 驗證失敗 |
+| `AUTH_REQUIRED` | 401 | 需要登入 |
+| `ACCESS_DENIED` | 403 | 無權限 |
+| `TRIP_NOT_FOUND` | 404 | 行程不存在 |
+| `ACTIVITY_NOT_FOUND` | 404 | 景點不存在 |
+| `INTERNAL_ERROR` | 500 | 內部錯誤 |
+
+---
+
 ## 相關文件
 
 | 文件 | 說明 |
@@ -437,3 +624,4 @@ spring:
 | [api-keys-setup.md](./api-keys-setup.md) | API Keys 設定指南 |
 | [software-design-document.md](./software-design-document.md) | 軟體設計文件 |
 | [ui-design-guide.md](./ui-design-guide.md) | UI 設計指南 |
+| [../CLAUDE.md](../CLAUDE.md) | AI 開發指南與錯誤模式 |
