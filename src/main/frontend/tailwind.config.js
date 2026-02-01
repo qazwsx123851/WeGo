@@ -31,6 +31,8 @@ module.exports = {
           500: '#F97316',
           600: '#EA580C',
           700: '#C2410C',
+          800: '#9A3412',
+          900: '#7C2D12',
         },
         // Semantic Colors
         success: {

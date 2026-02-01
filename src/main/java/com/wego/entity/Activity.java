@@ -81,6 +81,16 @@ public class Activity {
     @Column(name = "transport_distance_meters")
     private Integer transportDistanceMeters;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transport_source", length = 20)
+    @Builder.Default
+    private TransportSource transportSource = TransportSource.NOT_APPLICABLE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transport_warning", length = 30)
+    @Builder.Default
+    private TransportWarning transportWarning = TransportWarning.NONE;
+
     @Column(name = "created_at", nullable = false)
     @Builder.Default
     private Instant createdAt = Instant.now();

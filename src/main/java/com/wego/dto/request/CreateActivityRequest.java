@@ -23,6 +23,7 @@ import java.util.UUID;
  *   - durationMinutes: optional, must be >= 0 if provided
  *   - note: optional, max 1000 characters
  *   - transportMode: optional, defaults to WALKING
+ *   - manualTransportMinutes: optional, for manual transport time input (e.g., FLIGHT, HIGH_SPEED_RAIL)
  */
 @Data
 @Builder
@@ -48,4 +49,31 @@ public class CreateActivityRequest {
 
     @Builder.Default
     private TransportMode transportMode = TransportMode.WALKING;
+
+    /**
+     * Manual transport duration in minutes.
+     * Used when transportMode is FLIGHT, HIGH_SPEED_RAIL, or user wants to override auto-calculation.
+     * Maximum 2880 minutes (48 hours).
+     */
+    @Min(value = 0, message = "交通時間必須大於等於0")
+    @Max(value = 2880, message = "交通時間不可超過48小時")
+    private Integer manualTransportMinutes;
+
+    /**
+     * Checks if this request has manual transport input.
+     *
+     * @return true if manualTransportMinutes is provided
+     */
+    public boolean hasManualTransport() {
+        return manualTransportMinutes != null && manualTransportMinutes > 0;
+    }
+
+    /**
+     * Checks if the transport mode requires manual input.
+     *
+     * @return true if mode is FLIGHT or HIGH_SPEED_RAIL
+     */
+    public boolean requiresManualTransportInput() {
+        return transportMode != null && transportMode.requiresManualInput();
+    }
 }

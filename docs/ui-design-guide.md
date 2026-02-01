@@ -1135,3 +1135,108 @@ xl: 1280px  /* 桌機 */
 | Modal Backdrop | 40 | Modal 背景 |
 | Modal | 50 | Modal 本體 |
 | Toast | 60 | 通知訊息 |
+
+### Tailwind CSS 建構與 JIT 模式
+
+#### 建構指令
+
+```bash
+cd src/main/frontend
+
+# 開發模式（監聽變更）
+npm run watch
+
+# 建構生產版本
+npm run build
+
+# 複製到 static 目錄
+cp dist/styles.css ../resources/static/css/styles.css
+```
+
+#### JIT 掃描範圍
+
+Tailwind JIT 只會生成在掃描範圍內出現的 class：
+
+```javascript
+// tailwind.config.js
+content: [
+  '../resources/templates/**/*.html',  // Thymeleaf 模板
+  '../resources/static/js/**/*.js',    // JavaScript 檔案
+]
+```
+
+#### ⚠️ 動態類別的問題
+
+**問題**：在 JavaScript 中動態組合的 Tailwind class，如果建構時不存在於原始碼中，CSS 就不會生成。
+
+```javascript
+// ❌ 這些 class 在建構時可能不存在，導致樣式失效
+return `<div class="sm:!flex-1 sm:!w-auto">...</div>`;
+```
+
+**解決方案**：
+
+| 方案 | 適用場景 | 優缺點 |
+|------|----------|--------|
+| **組件類別** | 複雜響應式元件 | ✅ 可維護性高、可重用 |
+| **Safelist** | 少量特定 class | ✅ 簡單、❌ 增加 CSS 大小 |
+| **模板佔位** | 偶爾使用的 class | ✅ 無需修改配置、❌ 不直觀 |
+
+**方案一：組件類別（推薦）**
+
+```css
+/* src/main/frontend/src/input.css */
+@layer components {
+  .weather-card {
+    @apply flex-shrink-0 p-3 rounded-xl bg-gray-50;
+    width: 72px;
+  }
+
+  @screen sm {
+    .weather-card {
+      flex: 1 1 0%;
+      width: auto;
+      min-width: 0;
+    }
+  }
+
+  .dark .weather-card {
+    @apply bg-gray-800/50;
+  }
+}
+```
+
+**方案二：Safelist**
+
+```javascript
+// tailwind.config.js
+module.exports = {
+  safelist: [
+    'sm:flex-1',
+    'sm:w-auto',
+    'sm:min-w-0',
+    { pattern: /^sm:(flex-1|w-auto|min-w-0)$/ }
+  ],
+}
+```
+
+**方案三：模板佔位**
+
+```html
+<!-- 在模板中隱藏使用，確保 JIT 掃描到 -->
+<div class="hidden sm:flex-1 sm:w-auto sm:min-w-0"></div>
+```
+
+#### 現有組件類別
+
+| 類別 | 用途 | 響應式 |
+|------|------|--------|
+| `.glass-card` | 玻璃卡片容器 | - |
+| `.btn-primary` | 主要按鈕 | - |
+| `.btn-cta` | CTA 按鈕（橘色） | - |
+| `.btn-secondary` | 次要按鈕 | - |
+| `.weather-card` | 天氣預報卡片 | 手機固定寬度，桌面等比填滿 |
+| `.bottom-nav` | 底部導覽 | - |
+| `.toast` | 通知訊息 | - |
+
+詳見 `src/main/frontend/src/input.css`

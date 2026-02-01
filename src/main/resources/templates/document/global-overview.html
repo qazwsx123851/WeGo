@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WeGo - 檔案總覽">
+    <meta name="theme-color" content="#0EA5E9">
+    <title>檔案總覽 - WeGo</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl
+                   border-b border-gray-100 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <a th:href="@{/dashboard}" class="flex items-center gap-2">
+                    <span class="text-h4 text-primary-600 dark:text-primary-400 font-heading font-bold">WeGo</span>
+                </a>
+
+                <!-- User Avatar/Menu -->
+                <div class="flex items-center gap-3">
+                    <a th:href="@{/profile}"
+                       class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30
+                              flex items-center justify-center
+                              text-primary-600 dark:text-primary-400 font-medium
+                              hover:ring-2 hover:ring-primary-500/50
+                              transition-all duration-200 cursor-pointer overflow-hidden">
+                        <img th:if="${picture}" th:src="${picture}" alt="Profile" class="w-full h-full object-cover">
+                        <span th:unless="${picture}"
+                              th:text="${name != null ? #strings.substring(name, 0, 1) : 'U'}">U</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Page Title -->
+        <section class="mb-6 animate-fade-in">
+            <h1 class="text-h2 text-gray-800 dark:text-gray-100 mb-2 font-heading">檔案總覽</h1>
+            <p class="text-body text-gray-500 dark:text-gray-400">管理您所有行程中的文件</p>
+        </section>
+
+        <!-- Storage Overview -->
+        <section class="mb-6 flex flex-wrap gap-4">
+            <span class="inline-flex items-center gap-2 px-3 py-1 bg-primary-100 dark:bg-primary-900/30 rounded-full text-body-sm text-primary-700 dark:text-primary-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span th:text="${overview.totalDocuments} + ' 個檔案'">0 個檔案</span>
+            </span>
+            <span class="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-body-sm text-gray-700 dark:text-gray-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                </svg>
+                <span th:text="${overview.formattedStorageSize}">0 KB</span>
+            </span>
+        </section>
+
+        <!-- Filters -->
+        <section class="mb-6">
+            <form th:action="@{/documents}" method="get" class="flex flex-col sm:flex-row gap-3">
+                <!-- Search -->
+                <div class="flex-1">
+                    <input type="text" name="search" th:value="${search}"
+                           placeholder="搜尋檔案名稱..."
+                           class="w-full px-4 py-2 border border-gray-200 dark:border-gray-700
+                                  rounded-lg bg-white dark:bg-gray-800
+                                  text-gray-800 dark:text-gray-100
+                                  focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                                  transition-all duration-200">
+                </div>
+
+                <!-- Trip Filter -->
+                <select name="tripId"
+                        class="px-4 py-2 border border-gray-200 dark:border-gray-700
+                               rounded-lg bg-white dark:bg-gray-800
+                               text-gray-800 dark:text-gray-100
+                               focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                               transition-all duration-200 cursor-pointer">
+                    <option value="">所有行程</option>
+                    <option th:each="trip : ${userTrips}"
+                            th:value="${trip.id}"
+                            th:selected="${selectedTripId != null and selectedTripId.equals(trip.id)}"
+                            th:text="${trip.title} + ' (' + ${trip.documentCount} + ')'">行程名稱</option>
+                </select>
+
+                <!-- Type Filter -->
+                <select name="type"
+                        class="px-4 py-2 border border-gray-200 dark:border-gray-700
+                               rounded-lg bg-white dark:bg-gray-800
+                               text-gray-800 dark:text-gray-100
+                               focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                               transition-all duration-200 cursor-pointer">
+                    <option value="all" th:selected="${selectedType == 'all' or selectedType == null}">所有類型</option>
+                    <option value="image" th:selected="${selectedType == 'image'}">圖片</option>
+                    <option value="pdf" th:selected="${selectedType == 'pdf'}">PDF</option>
+                </select>
+
+                <!-- Submit -->
+                <button type="submit"
+                        class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white
+                               rounded-lg font-medium transition-colors duration-200 cursor-pointer">
+                    搜尋
+                </button>
+            </form>
+        </section>
+
+        <!-- Documents Grid -->
+        <section th:if="${overview.documents != null and !overview.documents.isEmpty()}" class="mb-8">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <a th:each="doc : ${overview.documents}"
+                   th:href="${doc.fileUrl}" target="_blank" rel="noopener"
+                   class="glass-card group hover:shadow-card-hover transition-all duration-200 cursor-pointer overflow-hidden">
+                    <!-- Preview -->
+                    <div class="relative h-40 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                        <!-- Image Preview -->
+                        <img th:if="${doc.isImage}" th:src="${doc.fileUrl}"
+                             th:alt="${doc.originalFileName}"
+                             class="w-full h-full object-cover">
+                        <!-- PDF Icon -->
+                        <div th:if="${doc.isPdf}" class="text-rose-500">
+                            <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <!-- Other File Icon -->
+                        <div th:if="${!doc.isImage and !doc.isPdf}" class="text-gray-400">
+                            <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                        </div>
+                        <!-- Trip Badge -->
+                        <div class="absolute top-2 left-2 px-2 py-1 bg-black/50 backdrop-blur-sm rounded text-caption text-white truncate max-w-[80%]"
+                             th:text="${doc.tripTitle}">行程名稱</div>
+                    </div>
+                    <!-- Info -->
+                    <div class="p-3">
+                        <h3 class="text-body-sm font-medium text-gray-800 dark:text-gray-100 truncate group-hover:text-primary-600 transition-colors"
+                            th:text="${doc.originalFileName}">檔案名稱.jpg</h3>
+                        <div class="flex items-center justify-between mt-1">
+                            <span class="text-caption text-gray-500 dark:text-gray-400"
+                                  th:text="${doc.formattedFileSize}">100 KB</span>
+                            <span class="text-caption text-gray-400 dark:text-gray-500"
+                                  th:text="${doc.uploadedByName}">上傳者</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <!-- Pagination -->
+        <section th:if="${overview.totalPages > 1}" class="flex justify-center gap-2 mb-8">
+            <a th:if="${overview.hasPrevious}"
+               th:href="@{/documents(search=${search}, tripId=${selectedTripId}, type=${selectedType}, page=${currentPage - 1})}"
+               class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
+                      rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700
+                      transition-colors duration-200 cursor-pointer">
+                上一頁
+            </a>
+            <span class="px-4 py-2 bg-primary-600 text-white rounded-lg"
+                  th:text="${currentPage + 1} + ' / ' + ${overview.totalPages}">1 / 1</span>
+            <a th:if="${overview.hasNext}"
+               th:href="@{/documents(search=${search}, tripId=${selectedTripId}, type=${selectedType}, page=${currentPage + 1})}"
+               class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
+                      rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700
+                      transition-colors duration-200 cursor-pointer">
+                下一頁
+            </a>
+        </section>
+
+        <!-- Empty State -->
+        <section th:if="${overview.documents == null or overview.documents.isEmpty()}" class="glass-card p-8 text-center animate-fade-in">
+            <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+            <h3 class="text-h4 text-gray-700 dark:text-gray-200 mb-2 font-heading" th:if="${filter.hasFilters()}">找不到符合的檔案</h3>
+            <h3 class="text-h4 text-gray-700 dark:text-gray-200 mb-2 font-heading" th:unless="${filter.hasFilters()}">還沒有任何檔案</h3>
+            <p class="text-body-sm text-gray-500 dark:text-gray-400 mb-6" th:if="${filter.hasFilters()}">請嘗試其他搜尋條件</p>
+            <p class="text-body-sm text-gray-500 dark:text-gray-400 mb-6" th:unless="${filter.hasFilters()}">上傳的憑證和照片會顯示在這裡</p>
+            <a th:href="@{/dashboard}" th:unless="${filter.hasFilters()}" class="btn-primary">
+                前往行程
+            </a>
+            <a th:href="@{/documents}" th:if="${filter.hasFilters()}" class="btn-secondary">
+                清除篩選
+            </a>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="flex justify-around max-w-md mx-auto">
+            <!-- Dashboard -->
+            <a th:href="@{/dashboard}" class="bottom-nav-item">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                </svg>
+                <span class="text-xs mt-1">行程</span>
+            </a>
+
+            <!-- Expenses -->
+            <a th:href="@{/expenses}" class="bottom-nav-item">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span class="text-xs mt-1">分帳</span>
+            </a>
+
+            <!-- Add Button -->
+            <a th:href="@{/trips/create}" aria-label="新增"
+               class="-mt-5 w-14 h-14 bg-adventure-500 hover:bg-adventure-600
+                      rounded-full text-white shadow-lg shadow-adventure-500/30
+                      flex items-center justify-center
+                      transition-all duration-200 active:scale-95 cursor-pointer">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+            </a>
+
+            <!-- Documents -->
+            <a th:href="@{/documents}" class="bottom-nav-item active">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="text-xs mt-1">檔案</span>
+            </a>
+
+            <!-- Profile -->
+            <a th:href="@{/profile}" class="bottom-nav-item">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span class="text-xs mt-1">我的</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/app.js}" defer></script>
+</body>
+</html>

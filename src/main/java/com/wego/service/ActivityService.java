@@ -7,6 +7,7 @@ import com.wego.dto.request.CreateActivityRequest;
 import com.wego.dto.request.ReorderActivitiesRequest;
 import com.wego.dto.request.UpdateActivityRequest;
 import com.wego.dto.response.ActivityResponse;
+import com.wego.dto.response.RecalculationResult;
 import com.wego.dto.response.RouteOptimizationResponse;
 import com.wego.entity.Activity;
 import com.wego.entity.Place;
@@ -46,6 +47,44 @@ public class ActivityService {
     private final PlaceRepository placeRepository;
     private final PermissionChecker permissionChecker;
     private final RouteOptimizer routeOptimizer;
+    private final TransportCalculationService transportCalculationService;
+
+    /**
+     * Gets a single activity by ID.
+     *
+     * @contract
+     *   - pre: activityId != null, userId != null
+     *   - pre: User must have view permission on the trip
+     *   - post: Returns activity details with place information
+     *   - calls: PermissionChecker#canView, ActivityRepository#findById, PlaceRepository#findById
+     *   - calledBy: TripController#showActivityDetail
+     *
+     * @param activityId The activity ID
+     * @param userId The user ID performing the operation
+     * @return The activity response
+     * @throws ForbiddenException if user lacks view permission
+     * @throws ResourceNotFoundException if activity not found
+     */
+    @Transactional(readOnly = true)
+    public ActivityResponse getActivity(UUID activityId, UUID userId) {
+        log.debug("Getting activity {} by user {}", activityId, userId);
+
+        // Find activity
+        Activity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new ResourceNotFoundException("Activity", activityId.toString()));
+
+        // Check permission
+        if (!permissionChecker.canView(activity.getTripId(), userId)) {
+            throw new ForbiddenException("activity", "view");
+        }
+
+        // Get place info
+        Place place = activity.getPlaceId() != null
+                ? placeRepository.findById(activity.getPlaceId()).orElse(null)
+                : null;
+
+        return ActivityResponse.fromEntity(activity, place);
+    }
 
     /**
      * Creates a new activity in the specified trip.
@@ -95,8 +134,21 @@ public class ActivityService {
                 .transportMode(request.getTransportMode())
                 .build();
 
+        // Handle transport calculation or manual input
+        if (request.hasManualTransport()) {
+            // Use manual transport duration
+            transportCalculationService.setManualTransportDuration(activity, request.getManualTransportMinutes());
+            log.debug("Using manual transport duration: {} minutes", request.getManualTransportMinutes());
+        } else {
+            // Calculate transport info from previous activity
+            transportCalculationService.calculateTransportFromPrevious(activity);
+        }
+
         Activity saved = activityRepository.save(activity);
         log.info("Created activity {} for trip {}", saved.getId(), tripId);
+
+        // Update transport info for next activity (if exists)
+        updateNextActivityTransport(saved);
 
         return ActivityResponse.fromEntity(saved, place);
     }
@@ -215,14 +267,35 @@ public class ActivityService {
         if (request.getNote() != null) {
             activity.setNote(request.getNote());
         }
+
+        // Handle transport mode and manual transport input
+        boolean transportModeChanged = request.getTransportMode() != null &&
+                !request.getTransportMode().equals(activity.getTransportMode());
+
         if (request.getTransportMode() != null) {
             activity.setTransportMode(request.getTransportMode());
+        }
+
+        // Handle manual transport or recalculate if mode changed
+        if (request.hasManualTransport()) {
+            // Use manual transport duration
+            transportCalculationService.setManualTransportDuration(activity, request.getManualTransportMinutes());
+            log.debug("Using manual transport duration: {} minutes", request.getManualTransportMinutes());
+        } else if (transportModeChanged || request.getPlaceId() != null) {
+            // Recalculate transport if mode changed or place changed
+            transportCalculationService.calculateTransportFromPrevious(activity);
+            log.debug("Recalculated transport due to mode or place change");
         }
 
         activity.setUpdatedAt(Instant.now());
 
         Activity saved = activityRepository.save(activity);
         log.info("Updated activity {}", activityId);
+
+        // Update transport for next activity if place or transport changed
+        if (request.getPlaceId() != null || transportModeChanged) {
+            updateNextActivityTransport(saved);
+        }
 
         return ActivityResponse.fromEntity(saved, place);
     }
@@ -312,6 +385,9 @@ public class ActivityService {
                 activity.setUpdatedAt(Instant.now());
             }
         }
+
+        // Batch recalculate transport info after reordering
+        transportCalculationService.batchCalculateTransport(existingActivities);
 
         // Save all
         List<Activity> saved = activityRepository.saveAll(existingActivities);
@@ -447,6 +523,9 @@ public class ActivityService {
             activity.setUpdatedAt(Instant.now());
         }
 
+        // Batch recalculate transport info after optimization
+        transportCalculationService.batchCalculateTransport(existingActivities);
+
         // Save all
         List<Activity> saved = activityRepository.saveAll(existingActivities);
         log.info("Applied optimized route for trip {} day {}, reordered {} activities",
@@ -463,34 +542,125 @@ public class ActivityService {
     /**
      * Builds a place lookup map for the given activities.
      *
+     * Uses a single batch query to avoid N+1 problem.
+     *
      * @param activities The activities to look up places for
      * @return Map of placeId to Place entity
      */
     private Map<UUID, Place> buildPlaceLookup(List<Activity> activities) {
-        Map<UUID, Place> placeLookup = new HashMap<>();
-        for (Activity activity : activities) {
-            if (activity.getPlaceId() != null) {
-                placeRepository.findById(activity.getPlaceId())
-                        .ifPresent(place -> placeLookup.put(activity.getPlaceId(), place));
-            }
+        List<UUID> placeIds = activities.stream()
+                .map(Activity::getPlaceId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (placeIds.isEmpty()) {
+            return new HashMap<>();
         }
-        return placeLookup;
+
+        return placeRepository.findAllById(placeIds).stream()
+                .collect(Collectors.toMap(Place::getId, place -> place));
     }
 
     /**
      * Maps a list of activities to activity responses.
      *
+     * Uses a single batch query to avoid N+1 problem.
+     *
      * @param activities The activities to map
      * @return List of activity responses
      */
     private List<ActivityResponse> mapActivitiesToResponses(List<Activity> activities) {
+        // Pre-fetch all places in a single query
+        Map<UUID, Place> placeMap = buildPlaceLookup(activities);
+
         return activities.stream()
                 .map(activity -> {
                     Place place = activity.getPlaceId() != null
-                            ? placeRepository.findById(activity.getPlaceId()).orElse(null)
+                            ? placeMap.get(activity.getPlaceId())
                             : null;
                     return ActivityResponse.fromEntity(activity, place);
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Updates transport info for the activity following the given activity.
+     *
+     * When a new activity is inserted, the next activity's transport info
+     * needs to be recalculated based on the new previous activity.
+     *
+     * @contract
+     *   - pre: saved != null and already persisted
+     *   - post: Next activity's transport info updated if exists
+     *   - calls: TransportCalculationService#calculateTransportFromPrevious
+     *   - calledBy: createActivity
+     *
+     * @param saved The newly created/updated activity
+     */
+    private void updateNextActivityTransport(Activity saved) {
+        activityRepository.findByTripIdAndDayOrderBySortOrderAsc(saved.getTripId(), saved.getDay())
+                .stream()
+                .filter(a -> a.getSortOrder() == saved.getSortOrder() + 1)
+                .findFirst()
+                .ifPresent(next -> {
+                    transportCalculationService.calculateTransportFromPrevious(next);
+                    activityRepository.save(next);
+                    log.debug("Updated transport for next activity {}", next.getId());
+                });
+    }
+
+    /**
+     * Recalculates all transport times for a trip.
+     *
+     * Uses Google Maps API with rate limiting. Falls back to Haversine when API fails.
+     * Manual inputs (FLIGHT/HIGH_SPEED_RAIL) are preserved.
+     *
+     * @contract
+     *   - pre: tripId != null, userId != null
+     *   - pre: user has edit permission on the trip
+     *   - pre: maxApiCalls > 0
+     *   - post: All activities in trip have transport info recalculated
+     *   - post: Returns RecalculationResult with statistics
+     *   - calls: PermissionChecker#canEdit, TransportCalculationService#batchRecalculateWithRateLimit
+     *   - calledBy: TripController#recalculateTransport
+     *
+     * @param tripId The trip ID
+     * @param userId The user ID performing the operation
+     * @param maxApiCalls Maximum number of API calls allowed (default 50)
+     * @return RecalculationResult with statistics
+     * @throws ForbiddenException if user lacks edit permission
+     */
+    @Transactional
+    public RecalculationResult recalculateAllTransport(UUID tripId, UUID userId, int maxApiCalls) {
+        log.info("Recalculating all transport for trip {} by user {}, max API calls: {}",
+                tripId, userId, maxApiCalls);
+
+        // Check permission
+        if (!permissionChecker.canEdit(tripId, userId)) {
+            throw new ForbiddenException("activity", "recalculate transport");
+        }
+
+        // Get all activities for the trip, ordered by day and sortOrder
+        List<Activity> activities = activityRepository.findByTripIdOrderByDayAscSortOrderAsc(tripId);
+
+        if (activities.isEmpty()) {
+            return RecalculationResult.builder()
+                    .totalActivities(0)
+                    .message("此行程沒有任何景點")
+                    .build();
+        }
+
+        // Perform batch recalculation with rate limiting
+        RecalculationResult result = transportCalculationService.batchRecalculateWithRateLimit(
+                activities, maxApiCalls);
+
+        // Save all updated activities
+        activityRepository.saveAll(activities);
+
+        log.info("Completed transport recalculation for trip {}: {}",
+                tripId, result.getMessage());
+
+        return result;
     }
 }

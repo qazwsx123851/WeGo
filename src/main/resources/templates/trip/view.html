@@ -167,11 +167,10 @@
         </div>
 
         <!-- Weather Forecast Section -->
-        <section th:if="${weatherLat != null and weatherLng != null}"
-                 id="weather-section"
+        <section id="weather-section"
                  class="mb-6"
-                 th:data-lat="${weatherLat}"
-                 th:data-lng="${weatherLng}">
+                 th:data-fallback-lat="${weatherFallbackLat}"
+                 th:data-fallback-lng="${weatherFallbackLng}">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading flex items-center gap-2">
                     <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -182,18 +181,21 @@
                 </h2>
             </div>
 
-            <!-- Weather Loading Skeleton -->
-            <div id="weather-loading" class="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory">
-                <div th:each="i : ${#numbers.sequence(1, 5)}"
-                     class="flex-shrink-0 w-20 glass-card p-3 animate-pulse">
-                    <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-12"></div>
-                    <div class="h-12 w-12 mx-auto bg-gray-200 dark:bg-gray-700 rounded-full mb-2"></div>
-                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-14 mx-auto"></div>
+            <!-- Weather Loading Skeleton (Glass Card Container) -->
+            <div id="weather-loading" class="glass-card p-4">
+                <div class="flex gap-3 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 scrollbar-hide">
+                    <div th:each="i : ${#numbers.sequence(1, 6)}"
+                         class="weather-card animate-pulse">
+                        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-10 mx-auto"></div>
+                        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded mb-2 w-8 mx-auto"></div>
+                        <div class="h-10 w-10 mx-auto bg-gray-200 dark:bg-gray-700 rounded-full mb-2"></div>
+                        <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-12 mx-auto"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Weather Content Container -->
-            <div id="weather-content" class="hidden">
+            <!-- Weather Content Container (Glass Card) -->
+            <div id="weather-content" class="hidden glass-card p-4">
                 <!-- Forecast cards will be inserted here by JavaScript -->
             </div>
 

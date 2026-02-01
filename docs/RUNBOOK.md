@@ -1,6 +1,10 @@
 # WeGo 維運手冊 (Runbook)
 
-> 最後更新: 2026-01-28 | 部署平台: Railway
+> 最後更新: 2026-02-01 | 部署平台: Railway
+>
+> **變更日誌**:
+> - 2026-02-01: 新增 Phase 2 功能相關問題排查 (天氣 API、路線優化、CSP)
+> - 2026-01-28: 初始版本
 
 ## 部署架構
 
@@ -68,16 +72,31 @@ cp .env.example .env
 
 在 Railway Dashboard 設定以下 Secrets：
 
-| 變數 | 說明 |
-|------|------|
-| `DATABASE_URL` | Supabase PostgreSQL 連線 URL |
-| `DATABASE_USERNAME` | `postgres` |
-| `DATABASE_PASSWORD` | Supabase 資料庫密碼 |
-| `SUPABASE_URL` | `https://xxx.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | Supabase Service Key |
-| `GOOGLE_CLIENT_ID` | Google OAuth Client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth Secret |
-| `PORT` | `8080` (Railway 預設) |
+### 必要變數
+
+| 變數 | 說明 | 範例 |
+|------|------|------|
+| `DATABASE_URL` | PostgreSQL 連線 URL | `jdbc:postgresql://db.xxx.supabase.co:5432/postgres` |
+| `DATABASE_USERNAME` | 資料庫使用者 | `postgres` |
+| `DATABASE_PASSWORD` | 資料庫密碼 | |
+| `SUPABASE_URL` | Supabase 專案 URL | `https://xxx.supabase.co` |
+| `SUPABASE_SERVICE_KEY` | Service Role Key (JWT 格式) | `eyJhbGciOiJIUzI1NiIs...` |
+| `GOOGLE_CLIENT_ID` | OAuth Client ID | `xxx.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | OAuth Secret | `GOCSPX-xxx` |
+| `PORT` | 伺服器埠號 | `8080` |
+
+### 可選變數 (外部 API)
+
+| 變數 | 說明 | 預設 |
+|------|------|------|
+| `GOOGLE_MAPS_API_KEY` | Google Maps Directions API | (Mock) |
+| `GOOGLE_MAPS_ENABLED` | 啟用 Google Maps | `false` |
+| `OPENWEATHERMAP_API_KEY` | 天氣預報 API | (Mock) |
+| `OPENWEATHERMAP_ENABLED` | 啟用天氣服務 | `false` |
+| `EXCHANGERATE_API_KEY` | 匯率轉換 API | (Mock) |
+| `EXCHANGERATE_ENABLED` | 啟用匯率服務 | `false` |
+
+> **注意**: 可選 API 未設定時會使用 Mock 實作，功能正常但回傳模擬資料。
 
 ### GitHub Secrets (CI/CD)
 
@@ -218,6 +237,85 @@ npm run build
 open target/site/jacoco/index.html
 ```
 
+### 6. 天氣 API 失敗
+
+**症狀**: 天氣卡片顯示「載入中...」或「無法取得天氣資料」
+
+**可能原因**:
+- OpenWeatherMap API Key 未設定或無效
+- 日期超過 5 天預報範圍
+- 座標無效
+
+**檢查**:
+```bash
+# 驗證 API Key
+curl "https://api.openweathermap.org/data/2.5/forecast?lat=25.0&lon=121.5&appid=$OPENWEATHERMAP_API_KEY"
+
+# 檢查應用程式日誌
+railway logs | grep -i weather
+```
+
+**修復**:
+1. 確認 `OPENWEATHERMAP_API_KEY` 已正確設定
+2. 確認 `OPENWEATHERMAP_ENABLED=true`
+3. 若 API 配額用盡，系統會自動 fallback 到 MockWeatherClient
+
+### 7. CSP 阻擋資源載入
+
+**症狀**: Console 顯示 `violates the following Content Security Policy directive`
+
+**檢查位置**: `src/main/java/com/wego/config/SecurityConfig.java`
+
+**常見情境**:
+
+| 資源類型 | CSP 指令 | 解決方法 |
+|----------|----------|----------|
+| Inline script | script-src | 移至外部 .js 檔案 |
+| Blob URL (圖片預覽) | img-src | 添加 `blob:` |
+| Google Fonts | font-src, style-src | 添加 `https://fonts.googleapis.com` |
+| Lottie 動畫 | script-src | 添加 `https://unpkg.com` |
+
+### 8. 圖片上傳失敗
+
+**症狀**: 封面圖片上傳後無反應或錯誤
+
+**可能原因**:
+1. Supabase 使用了錯誤的 Key (anon key 而非 service_role key)
+2. Storage bucket 未建立
+3. 檔案大小超過限制 (10MB)
+
+**檢查**:
+```bash
+# 驗證 Supabase 連線
+curl -X GET "$SUPABASE_URL/storage/v1/bucket" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
+```
+
+**修復**:
+1. 確認使用 `service_role` key (JWT 格式，以 `eyJ` 開頭)
+2. 在 Supabase Dashboard 建立 `trip-covers` bucket
+3. 設定 bucket 為 public 或配置適當的 RLS
+
+### 9. 路線優化無效果
+
+**症狀**: 點擊「智慧排序」後順序未改變
+
+**可能原因**:
+- 活動少於 3 個 (無需優化)
+- 活動沒有地點座標
+- 原本順序已是最佳
+
+**檢查**:
+```bash
+# 查看優化日誌
+railway logs | grep -i "RouteOptimizer"
+```
+
+**注意**:
+- RouteOptimizer 使用 Greedy Nearest Neighbor 演算法
+- 若活動超過 15 個會顯示警告
+- 第一個活動的位置會被保留為起點
+
 ---
 
 ## 回滾程序
@@ -292,6 +390,33 @@ spring:
 
 ---
 
+## 快速診斷清單
+
+當系統出現問題時，依序檢查：
+
+### 啟動失敗
+- [ ] `.env` 檔案存在且包含所有必要變數
+- [ ] `DATABASE_URL` 格式正確 (`jdbc:postgresql://...`)
+- [ ] `GOOGLE_CLIENT_ID` 和 `GOOGLE_CLIENT_SECRET` 已設定
+- [ ] Port 8080 未被佔用
+
+### 登入失敗
+- [ ] Google OAuth redirect URI 設定正確
+- [ ] OAuth consent screen 已配置
+- [ ] 測試使用者已加入 (開發模式)
+
+### 功能異常
+- [ ] 檢查 browser console 是否有 CSP 錯誤
+- [ ] 檢查 network tab 是否有 4xx/5xx 錯誤
+- [ ] 查看 Railway/應用程式日誌
+
+### 效能問題
+- [ ] 檢查 HikariCP 連線池狀態
+- [ ] 檢查外部 API 回應時間 (Google Maps, OpenWeatherMap)
+- [ ] 檢查是否有 N+1 查詢問題
+
+---
+
 ## 緊急聯絡
 
 | 角色 | 聯絡方式 |
@@ -299,6 +424,8 @@ spring:
 | 維運 | (待設定) |
 | 資料庫 | Supabase Support |
 | 部署 | Railway Support |
+| 地圖 API | Google Cloud Support |
+| 天氣 API | OpenWeatherMap Support |
 
 ---
 
@@ -309,3 +436,4 @@ spring:
 | [CONTRIB.md](./CONTRIB.md) | 開發貢獻指南 |
 | [api-keys-setup.md](./api-keys-setup.md) | API Keys 設定指南 |
 | [software-design-document.md](./software-design-document.md) | 軟體設計文件 |
+| [ui-design-guide.md](./ui-design-guide.md) | UI 設計指南 |

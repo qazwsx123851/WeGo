@@ -1,8 +1,10 @@
 # WeGo 開發貢獻指南
 
-> 最後更新: 2026-01-28 | 自動生成自 pom.xml 和 .env.example
+> 最後更新: 2026-02-01 | 自動生成自 pom.xml 和 .env.example
 >
-> **變更日誌**: 新增 spring-dotenv 自動載入環境變數
+> **變更日誌**:
+> - 2026-02-01: 新增 Phase 2 功能 (天氣、路線優化、交通計算、代辦事項)
+> - 2026-01-28: 新增 spring-dotenv 自動載入環境變數
 
 ## 技術棧
 
@@ -11,11 +13,14 @@
 | 後端 | Spring Boot | 3.2.2 |
 | Java | OpenJDK | 17 |
 | 前端模板 | Thymeleaf | (Spring Boot managed) |
-| CSS 框架 | Tailwind CSS | 3.x |
+| 安全 | Spring Security + OAuth2 | (Spring Boot managed) |
+| CSS 框架 | Tailwind CSS | 3.4.1 |
 | 資料庫 | PostgreSQL (Supabase) | 15+ |
 | 建置工具 | Maven | 3.9.x |
 | Node.js | (Frontend build) | 20.11.0 |
 | 環境變數 | spring-dotenv | 4.0.0 |
+| Rate Limiting | Bucket4j | 8.7.0 |
+| 覆蓋率 | JaCoCo | 0.8.11 |
 
 ---
 
@@ -92,9 +97,13 @@ target/site/jacoco/index.html
 
 ```bash
 # 手動執行 (在 src/main/frontend 目錄)
+cd src/main/frontend
 npm install
 npm run build  # 輸出到 dist/styles.css
+npm run watch  # 開發時監聽變更
 ```
+
+> **重要**: 若在 JavaScript 中動態使用 Tailwind class，需在 `input.css` 中定義組件類別或在 `tailwind.config.js` 中使用 safelist，否則 JIT 模式不會生成對應的 CSS。
 
 ---
 
@@ -243,6 +252,39 @@ public String profile(@CurrentUser UserPrincipal principal) {
 
 ---
 
+## 核心服務架構
+
+### Service 層級
+
+| Service | 職責 | 依賴 |
+|---------|------|------|
+| `TripService` | 行程 CRUD、成員管理 | TripRepository, TripMemberRepository |
+| `ActivityService` | 景點 CRUD、排序 | ActivityRepository, TransportCalculationService |
+| `ExpenseService` | 支出記錄、分帳計算 | ExpenseRepository, SettlementService |
+| `TodoService` | 代辦事項管理 | TodoRepository |
+| `WeatherService` | 天氣預報 (5天) | WeatherClient, CacheService |
+| `DocumentService` | 檔案上傳/下載 | StorageClient |
+| `SettlementService` | 債務結算 | DebtSimplifier |
+| `TransportCalculationService` | 交通時間/距離計算 | GoogleMapsClient |
+
+### Domain 層級 (核心演算法)
+
+| Domain | 演算法 | 說明 |
+|--------|--------|------|
+| `RouteOptimizer` | Greedy Nearest Neighbor | 路線優化，O(n^2) 時間複雜度 |
+| `DebtSimplifier` | Greedy Debt Settlement | 最小化交易次數的債務簡化 |
+| `PermissionChecker` | Role-based | 基於角色的權限檢查 |
+
+### 外部服務整合
+
+| Client | 外部 API | Fallback |
+|--------|----------|----------|
+| `GoogleMapsClientImpl` | Google Maps Directions | MockGoogleMapsClient (Haversine) |
+| `OpenWeatherMapClient` | OpenWeatherMap 5-day | MockWeatherClient |
+| `SupabaseStorageClient` | Supabase Storage | MockStorageClient |
+
+---
+
 ## 相關文件
 
 | 文件 | 說明 |
@@ -252,4 +294,5 @@ public String profile(@CurrentUser UserPrincipal principal) {
 | [software-design-document.md](./software-design-document.md) | 軟體設計文件 |
 | [test-cases.md](./test-cases.md) | 測試案例規格書 |
 | [tdd-guide.md](./tdd-guide.md) | TDD 開發指南 |
+| [ui-design-guide.md](./ui-design-guide.md) | UI 設計指南 |
 | [api-keys-setup.md](./api-keys-setup.md) | API Keys 設定指南 |

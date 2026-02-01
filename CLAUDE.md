@@ -695,6 +695,80 @@ const objectUrl = URL.createObjectURL(file);
 console.log('Object URL:', objectUrl);
 ```
 
+### 🔴 Critical: Tailwind JIT 動態類別不生效
+
+**症狀**: 在 JavaScript 中動態使用的 Tailwind class 沒有樣式效果
+
+**原因**: Tailwind JIT 只在**建構時**掃描檔案生成 CSS。如果 class 是在 JS 中動態組合或新增的，且建構時沒有被掃描到，該 class 就不會被生成。
+
+**錯誤範例**:
+```javascript
+// app.js - 這些 class 在建構時不存在，CSS 不會生成
+return `<div class="sm:!flex-1 sm:!w-auto sm:min-w-0">...</div>`;
+```
+
+**正確做法**:
+
+1. **方法一：在 `input.css` 中創建組件類別**（推薦）
+```css
+/* input.css */
+@layer components {
+  .weather-card {
+    @apply flex-shrink-0 p-3 rounded-xl;
+    width: 72px;
+  }
+
+  @screen sm {
+    .weather-card {
+      flex: 1 1 0%;
+      width: auto;
+      min-width: 0;
+    }
+  }
+}
+```
+
+```javascript
+// app.js - 使用組件類別
+return `<div class="weather-card">...</div>`;
+```
+
+2. **方法二：在 `tailwind.config.js` 添加 safelist**
+```javascript
+// tailwind.config.js
+module.exports = {
+  safelist: [
+    'sm:flex-1',
+    'sm:w-auto',
+    'sm:min-w-0',
+    // 或使用正則
+    { pattern: /^sm:(flex-1|w-auto|min-w-0)$/ }
+  ],
+  // ...
+}
+```
+
+3. **方法三：確保 class 在模板中出現**
+```html
+<!-- 在 HTML 模板中隱藏使用，讓 JIT 掃描到 -->
+<div class="hidden sm:flex-1 sm:w-auto sm:min-w-0"></div>
+```
+
+**重要：修改後必須重建 CSS**
+```bash
+cd src/main/frontend
+npm run build
+cp dist/styles.css ../resources/static/css/styles.css
+```
+
+**Tailwind 掃描範圍**（定義於 `tailwind.config.js`）:
+```javascript
+content: [
+  '../resources/templates/**/*.html',
+  '../resources/static/js/**/*.js',  // JS 檔案也會掃描
+]
+```
+
 ### 開發前檢查清單
 
 每次修改程式碼前，確認以下事項：
@@ -708,3 +782,4 @@ console.log('Object URL:', objectUrl);
 - [ ] CSP 設定允許所需資源 (特別是 blob:, inline scripts)
 - [ ] Supabase 使用 service_role key (不是 publishable key)
 - [ ] Thymeleaf 不直接使用 #request (改用 ControllerAdvice 注入)
+- [ ] 動態 Tailwind class 使用組件類別或 safelist（避免 JIT 問題）

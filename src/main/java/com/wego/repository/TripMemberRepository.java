@@ -124,4 +124,19 @@ public interface TripMemberRepository extends JpaRepository<TripMember, UUID> {
      * @param userId The user ID
      */
     void deleteByTripIdAndUserId(UUID tripId, UUID userId);
+
+    // ========== Global Profile Methods ==========
+
+    /**
+     * Counts the number of trips a user is a member of.
+     *
+     * @contract
+     *   - pre: userId != null
+     *   - post: Returns count >= 0
+     *   - calledBy: ProfileController#showProfile
+     *
+     * @param userId The user ID
+     * @return Number of trips user is member of
+     */
+    long countByUserId(UUID userId);
 }

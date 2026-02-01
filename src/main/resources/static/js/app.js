@@ -354,14 +354,22 @@ const WeatherUI = {
     unavailableEl: null,
     lat: null,
     lng: null,
+    fallbackLat: null,
+    fallbackLng: null,
 
     /**
      * Initialize weather UI component.
      *
+     * Location priority:
+     * 1. User's current location (if permitted)
+     * 2. Today's first activity coordinates
+     * 3. Any activity with coordinates
+     * 4. Default: Taipei 101
+     *
      * @contract
      *   - pre: weatherSection element exists in DOM
      *   - post: Weather data is loaded and displayed
-     *   - calls: WeatherUI#loadWeather
+     *   - calls: WeatherUI#tryGeolocation, WeatherUI#loadWeather
      */
     init() {
         const weatherSection = document.getElementById('weather-section');
@@ -373,11 +381,69 @@ const WeatherUI = {
         this.errorEl = document.getElementById('weather-error');
         this.unavailableEl = document.getElementById('weather-unavailable');
 
-        this.lat = weatherSection.dataset.lat;
-        this.lng = weatherSection.dataset.lng;
+        // Store fallback coordinates from server
+        this.fallbackLat = weatherSection.dataset.fallbackLat;
+        this.fallbackLng = weatherSection.dataset.fallbackLng;
+
+        // Try to get user's current location first
+        this.tryGeolocation();
+    },
+
+    /**
+     * Try to get user's current geolocation.
+     * Falls back to server-provided coordinates if denied or failed.
+     *
+     * @contract
+     *   - post: Sets lat/lng and calls loadWeather
+     */
+    tryGeolocation() {
+        console.log('[Weather] Starting geolocation request...');
+        console.log('[Weather] Fallback coordinates:', this.fallbackLat, this.fallbackLng);
+
+        // Check if geolocation is supported
+        if (!navigator.geolocation) {
+            console.log('[Weather] Geolocation not supported, using fallback');
+            this.useFallbackLocation();
+            return;
+        }
+
+        // Try to get current position
+        navigator.geolocation.getCurrentPosition(
+            // Success callback
+            (position) => {
+                this.lat = position.coords.latitude;
+                this.lng = position.coords.longitude;
+                console.log('[Weather] ✅ User allowed geolocation');
+                console.log('[Weather] Using USER location:', this.lat, this.lng);
+                this.loadWeather();
+            },
+            // Error callback (denied or failed)
+            (error) => {
+                console.log('[Weather] ❌ Geolocation denied or failed:', error.code, error.message);
+                this.useFallbackLocation();
+            },
+            // Options
+            {
+                enableHighAccuracy: false,
+                timeout: 5000,
+                maximumAge: 300000 // 5 minutes cache
+            }
+        );
+    },
+
+    /**
+     * Use fallback location from server.
+     */
+    useFallbackLocation() {
+        this.lat = this.fallbackLat;
+        this.lng = this.fallbackLng;
 
         if (this.lat && this.lng) {
+            console.log('[Weather] Using FALLBACK location:', this.lat, this.lng);
             this.loadWeather();
+        } else {
+            // No fallback available, show error
+            this.renderError('無法取得位置資訊');
         }
     },
 
@@ -426,8 +492,9 @@ const WeatherUI = {
         // Build forecast cards HTML
         const cardsHtml = forecasts.map(forecast => this.buildForecastCard(forecast)).join('');
 
+        // Horizontal scroll on mobile, auto-fit on desktop
         this.contentEl.innerHTML = `
-            <div class="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory"
+            <div class="flex gap-3 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 scrollbar-hide"
                  style="-webkit-overflow-scrolling: touch;">
                 ${cardsHtml}
             </div>
@@ -456,14 +523,15 @@ const WeatherUI = {
         const rainPercent = Math.round(forecast.rainProbability * 100);
         const showRain = rainPercent >= 30;
 
+        // Responsive card: fixed width on mobile, equal-width fill on desktop
+        // Uses .weather-card component class defined in input.css
         return `
-            <div class="flex-shrink-0 w-20 snap-start glass-card p-3 text-center
-                        hover:shadow-lg transition-all duration-200">
-                <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">${monthDay}</div>
-                <div class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">${weekday}</div>
+            <div class="weather-card">
+                <div class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">${monthDay}</div>
+                <div class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">${weekday}</div>
                 <img src="${iconUrl}"
                      alt="${forecast.description || forecast.condition}"
-                     class="w-12 h-12 mx-auto"
+                     class="w-10 h-10 mx-auto"
                      loading="lazy"/>
                 <div class="mt-1">
                     <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">${tempHigh}°</span>

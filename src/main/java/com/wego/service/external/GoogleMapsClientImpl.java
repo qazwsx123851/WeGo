@@ -2,6 +2,7 @@ package com.wego.service.external;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wego.config.GoogleMapsProperties;
 import com.wego.dto.response.DirectionResult;
 import com.wego.dto.response.PlaceDetails;
@@ -9,6 +10,10 @@ import com.wego.dto.response.PlaceSearchResult;
 import com.wego.entity.TransportMode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
@@ -26,9 +31,9 @@ import java.util.List;
  * Real implementation of GoogleMapsClient that calls Google Maps APIs.
  *
  * Uses the following Google APIs:
- * - Distance Matrix API for directions
- * - Places Nearby Search API for place search
- * - Place Details API for place information
+ * - Distance Matrix API for directions (Legacy API)
+ * - Places API (New) Text Search for place search
+ * - Places API (New) Place Details for place information
  *
  * @contract
  *   - pre: GoogleMapsProperties must be configured with valid apiKey
@@ -36,6 +41,7 @@ import java.util.List;
  *   - throws: GoogleMapsException on API errors or invalid responses
  *
  * @see GoogleMapsClient
+ * @see <a href="https://developers.google.com/maps/documentation/places/web-service/overview">Places API (New)</a>
  */
 @Slf4j
 @Component
@@ -47,10 +53,11 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
 
     private static final String DISTANCE_MATRIX_URL =
             "https://maps.googleapis.com/maps/api/distancematrix/json";
-    private static final String PLACES_NEARBY_URL =
-            "https://maps.googleapis.com/maps/api/place/nearbysearch/json";
+    // Places API (New) endpoints
+    private static final String PLACES_TEXT_SEARCH_URL =
+            "https://places.googleapis.com/v1/places:searchText";
     private static final String PLACE_DETAILS_URL =
-            "https://maps.googleapis.com/maps/api/place/details/json";
+            "https://places.googleapis.com/v1/places/";
 
     private final GoogleMapsProperties properties;
     private final RestTemplate restTemplate;
@@ -135,6 +142,9 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
 
     /**
      * {@inheritDoc}
+     *
+     * Uses Places API (New) Text Search endpoint.
+     * @see <a href="https://developers.google.com/maps/documentation/places/web-service/text-search">Text Search (New)</a>
      */
     @Override
     public List<PlaceSearchResult> searchPlaces(String query, double lat, double lng, int radiusMeters) {
@@ -145,32 +155,57 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
 
         log.debug("Searching places for '{}' near ({}, {}) within {}m", query, lat, lng, radiusMeters);
 
-        String baseUrl = String.format(
-                "%s?location=%f,%f&radius=%d&keyword=%s",
-                PLACES_NEARBY_URL,
-                lat, lng,
-                radiusMeters,
-                encodeUrl(query)
-        );
-
         try {
-            String url = appendApiKey(baseUrl);
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            // Build request body for Places API (New)
+            ObjectNode requestBody = objectMapper.createObjectNode();
+            requestBody.put("textQuery", query);
+            requestBody.put("pageSize", 20);
+            requestBody.put("languageCode", "zh-TW");
+
+            // Add location bias
+            ObjectNode locationBias = objectMapper.createObjectNode();
+            ObjectNode circle = objectMapper.createObjectNode();
+            ObjectNode center = objectMapper.createObjectNode();
+            center.put("latitude", lat);
+            center.put("longitude", lng);
+            circle.set("center", center);
+            circle.put("radius", (double) radiusMeters);
+            locationBias.set("circle", circle);
+            requestBody.set("locationBias", locationBias);
+
+            // Create headers for Places API (New)
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-Goog-Api-Key", properties.getApiKey());
+            headers.set("X-Goog-FieldMask",
+                    "places.id,places.displayName,places.formattedAddress," +
+                    "places.location,places.rating,places.userRatingCount," +
+                    "places.types,places.photos,places.regularOpeningHours");
+
+            HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(requestBody), headers);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    PLACES_TEXT_SEARCH_URL, HttpMethod.POST, entity, String.class);
+
             JsonNode root = objectMapper.readTree(response.getBody());
 
-            String status = root.path("status").asText();
-            if ("ZERO_RESULTS".equals(status)) {
-                log.debug("No places found for query: {}", query);
-                return new ArrayList<>();
+            // Check for error response
+            if (root.has("error")) {
+                String errorMessage = root.path("error").path("message").asText("Unknown error");
+                String errorStatus = root.path("error").path("status").asText("");
+                log.error("Places API error: {} - {}", errorStatus, errorMessage);
+                throw GoogleMapsException.apiError(errorMessage);
             }
 
-            validateApiStatus(status, root);
-
             List<PlaceSearchResult> results = new ArrayList<>();
-            JsonNode resultsNode = root.path("results");
+            JsonNode placesNode = root.path("places");
 
-            for (JsonNode placeNode : resultsNode) {
-                PlaceSearchResult place = parsePlaceSearchResult(placeNode);
+            if (placesNode.isMissingNode() || placesNode.isEmpty()) {
+                log.debug("No places found for query: {}", query);
+                return results;
+            }
+
+            for (JsonNode placeNode : placesNode) {
+                PlaceSearchResult place = parsePlaceSearchResultNew(placeNode);
                 results.add(place);
             }
 
@@ -190,6 +225,9 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
 
     /**
      * {@inheritDoc}
+     *
+     * Uses Places API (New) Place Details endpoint.
+     * @see <a href="https://developers.google.com/maps/documentation/places/web-service/place-details">Place Details (New)</a>
      */
     @Override
     public PlaceDetails getPlaceDetails(String placeId) {
@@ -197,35 +235,37 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
 
         log.debug("Getting details for place: {}", placeId);
 
-        String fields = String.join(",", List.of(
-                "place_id", "name", "formatted_address", "formatted_phone_number",
-                "international_phone_number", "website", "url", "geometry",
-                "rating", "user_ratings_total", "price_level", "types",
-                "photos", "reviews", "opening_hours", "utc_offset"
-        ));
-
-        String baseUrl = String.format(
-                "%s?place_id=%s&fields=%s",
-                PLACE_DETAILS_URL,
-                encodeUrl(placeId),
-                encodeUrl(fields)
-        );
-
         try {
-            String url = appendApiKey(baseUrl);
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            // Create headers for Places API (New)
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-Goog-Api-Key", properties.getApiKey());
+            headers.set("X-Goog-FieldMask",
+                    "id,displayName,formattedAddress,nationalPhoneNumber," +
+                    "internationalPhoneNumber,websiteUri,googleMapsUri,location," +
+                    "rating,userRatingCount,priceLevel,types,photos,reviews," +
+                    "regularOpeningHours,utcOffsetMinutes");
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            String url = PLACE_DETAILS_URL + placeId;
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, String.class);
+
             JsonNode root = objectMapper.readTree(response.getBody());
 
-            String status = root.path("status").asText();
-            if ("NOT_FOUND".equals(status) || "INVALID_REQUEST".equals(status)) {
-                throw new GoogleMapsException("NOT_FOUND",
-                        "Place not found: " + placeId);
+            // Check for error response
+            if (root.has("error")) {
+                String errorMessage = root.path("error").path("message").asText("Unknown error");
+                String errorStatus = root.path("error").path("status").asText("");
+                if ("NOT_FOUND".equals(errorStatus)) {
+                    throw new GoogleMapsException("NOT_FOUND", "Place not found: " + placeId);
+                }
+                log.error("Places API error: {} - {}", errorStatus, errorMessage);
+                throw GoogleMapsException.apiError(errorMessage);
             }
 
-            validateApiStatus(status, root);
-
-            JsonNode resultNode = root.path("result");
-            PlaceDetails details = parsePlaceDetails(resultNode);
+            PlaceDetails details = parsePlaceDetailsNew(root);
 
             log.info("Retrieved details for place: {}", placeId);
             return details;
@@ -323,36 +363,41 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
     }
 
     /**
-     * Parses a place search result from JSON.
+     * Parses a place search result from Places API (New) JSON response.
      */
-    private PlaceSearchResult parsePlaceSearchResult(JsonNode node) {
-        JsonNode geometryNode = node.path("geometry").path("location");
+    private PlaceSearchResult parsePlaceSearchResultNew(JsonNode node) {
+        JsonNode locationNode = node.path("location");
         JsonNode photosNode = node.path("photos");
-        JsonNode openingHoursNode = node.path("opening_hours");
+        JsonNode openingHoursNode = node.path("regularOpeningHours");
 
         List<String> types = new ArrayList<>();
         for (JsonNode typeNode : node.path("types")) {
             types.add(typeNode.asText());
         }
 
+        // In Places API (New), photos have a "name" field that serves as photo reference
         String photoReference = null;
         if (photosNode.isArray() && photosNode.size() > 0) {
-            photoReference = photosNode.get(0).path("photo_reference").asText();
+            // Format: places/{placeId}/photos/{photoReference}
+            String photoName = photosNode.get(0).path("name").asText();
+            if (!photoName.isEmpty()) {
+                photoReference = photoName;
+            }
         }
 
         Boolean isOpen = null;
         if (!openingHoursNode.isMissingNode()) {
-            isOpen = openingHoursNode.path("open_now").asBoolean();
+            isOpen = openingHoursNode.path("openNow").asBoolean();
         }
 
         return PlaceSearchResult.builder()
-                .placeId(node.path("place_id").asText())
-                .name(node.path("name").asText())
-                .address(node.path("vicinity").asText())
-                .latitude(geometryNode.path("lat").asDouble())
-                .longitude(geometryNode.path("lng").asDouble())
+                .placeId(node.path("id").asText())
+                .name(node.path("displayName").path("text").asText())
+                .address(node.path("formattedAddress").asText())
+                .latitude(locationNode.path("latitude").asDouble())
+                .longitude(locationNode.path("longitude").asDouble())
                 .rating(node.path("rating").asDouble())
-                .userRatingsTotal(node.path("user_ratings_total").asInt())
+                .userRatingsTotal(node.path("userRatingCount").asInt())
                 .types(types)
                 .photoReference(photoReference)
                 .isOpen(isOpen)
@@ -360,10 +405,10 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
     }
 
     /**
-     * Parses place details from JSON.
+     * Parses place details from Places API (New) JSON response.
      */
-    private PlaceDetails parsePlaceDetails(JsonNode node) {
-        JsonNode geometryNode = node.path("geometry").path("location");
+    private PlaceDetails parsePlaceDetailsNew(JsonNode node) {
+        JsonNode locationNode = node.path("location");
 
         // Parse types
         List<String> types = new ArrayList<>();
@@ -371,57 +416,68 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
             types.add(typeNode.asText());
         }
 
-        // Parse photo references
+        // Parse photo references (format: places/{placeId}/photos/{photoReference})
         List<String> photoReferences = new ArrayList<>();
         for (JsonNode photoNode : node.path("photos")) {
-            photoReferences.add(photoNode.path("photo_reference").asText());
+            String photoName = photoNode.path("name").asText();
+            if (!photoName.isEmpty()) {
+                photoReferences.add(photoName);
+            }
         }
 
         // Parse reviews
         List<PlaceDetails.Review> reviews = new ArrayList<>();
         for (JsonNode reviewNode : node.path("reviews")) {
             PlaceDetails.Review review = PlaceDetails.Review.builder()
-                    .authorName(reviewNode.path("author_name").asText())
+                    .authorName(reviewNode.path("authorAttribution").path("displayName").asText())
                     .rating(reviewNode.path("rating").asInt())
-                    .text(reviewNode.path("text").asText())
-                    .relativeTimeDescription(reviewNode.path("relative_time_description").asText())
+                    .text(reviewNode.path("text").path("text").asText())
+                    .relativeTimeDescription(reviewNode.path("relativePublishTimeDescription").asText())
                     .build();
             reviews.add(review);
         }
 
         // Parse opening hours
         PlaceDetails.OpeningHours openingHours = null;
-        JsonNode openingHoursNode = node.path("opening_hours");
+        JsonNode openingHoursNode = node.path("regularOpeningHours");
         if (!openingHoursNode.isMissingNode()) {
             List<String> weekdayText = new ArrayList<>();
-            for (JsonNode dayNode : openingHoursNode.path("weekday_text")) {
+            for (JsonNode dayNode : openingHoursNode.path("weekdayDescriptions")) {
                 weekdayText.add(dayNode.asText());
             }
 
             openingHours = PlaceDetails.OpeningHours.builder()
-                    .isOpenNow(openingHoursNode.path("open_now").asBoolean())
+                    .isOpenNow(openingHoursNode.path("openNow").asBoolean())
                     .weekdayText(weekdayText)
                     .build();
         }
 
+        // Parse price level (enum in new API: PRICE_LEVEL_FREE, PRICE_LEVEL_INEXPENSIVE, etc.)
+        int priceLevel = 0;
+        String priceLevelStr = node.path("priceLevel").asText("");
+        if (priceLevelStr.contains("INEXPENSIVE")) priceLevel = 1;
+        else if (priceLevelStr.contains("MODERATE")) priceLevel = 2;
+        else if (priceLevelStr.contains("EXPENSIVE")) priceLevel = 3;
+        else if (priceLevelStr.contains("VERY_EXPENSIVE")) priceLevel = 4;
+
         return PlaceDetails.builder()
-                .placeId(node.path("place_id").asText())
-                .name(node.path("name").asText())
-                .formattedAddress(node.path("formatted_address").asText())
-                .formattedPhoneNumber(node.path("formatted_phone_number").asText())
-                .internationalPhoneNumber(node.path("international_phone_number").asText())
-                .website(node.path("website").asText())
-                .url(node.path("url").asText())
-                .latitude(geometryNode.path("lat").asDouble())
-                .longitude(geometryNode.path("lng").asDouble())
+                .placeId(node.path("id").asText())
+                .name(node.path("displayName").path("text").asText())
+                .formattedAddress(node.path("formattedAddress").asText())
+                .formattedPhoneNumber(node.path("nationalPhoneNumber").asText())
+                .internationalPhoneNumber(node.path("internationalPhoneNumber").asText())
+                .website(node.path("websiteUri").asText())
+                .url(node.path("googleMapsUri").asText())
+                .latitude(locationNode.path("latitude").asDouble())
+                .longitude(locationNode.path("longitude").asDouble())
                 .rating(node.path("rating").asDouble())
-                .userRatingsTotal(node.path("user_ratings_total").asInt())
-                .priceLevel(node.path("price_level").asInt())
+                .userRatingsTotal(node.path("userRatingCount").asInt())
+                .priceLevel(priceLevel)
                 .types(types)
                 .photoReferences(photoReferences)
                 .reviews(reviews.isEmpty() ? null : reviews)
                 .openingHours(openingHours)
-                .utcOffset(node.path("utc_offset").asInt())
+                .utcOffset(node.path("utcOffsetMinutes").asInt())
                 .build();
     }
 

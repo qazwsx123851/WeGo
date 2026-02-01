@@ -17,16 +17,17 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.util.stream.Collectors;
 
 /**
- * Global exception handler for REST controllers.
+ * Global exception handler for REST API controllers only.
  *
  * Converts exceptions to standardized ApiResponse format.
+ * Only applies to controllers in the api package.
  *
  * @contract
  *   - post: All exceptions return ApiResponse with appropriate HTTP status
  *   - calledBy: Spring exception handling mechanism
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.wego.controller.api")
 public class GlobalExceptionHandler {
 
     /**

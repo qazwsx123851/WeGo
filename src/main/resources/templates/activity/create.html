@@ -39,8 +39,7 @@
     <main class="max-w-4xl mx-auto px-4 py-6">
         <form id="activity-form"
               th:action="${activity?.id != null} ? @{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})} : @{/trips/{tripId}/activities(tripId=${trip.id})}"
-              th:method="${activity?.id != null} ? 'put' : 'post'"
-              th:object="${activity}"
+              method="post"
               class="space-y-6">
 
             <!-- Activity Type Selection -->
@@ -146,7 +145,7 @@
                         <input type="text"
                                id="placeName"
                                name="placeName"
-                               th:value="${activity?.placeName}"
+                               th:value="${activity?.place?.name}"
                                required
                                autocomplete="off"
                                placeholder="搜尋或輸入地點名稱"
@@ -226,10 +225,10 @@
                                    focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
                                    cursor-pointer">
                         <option value="" disabled selected>選擇日期</option>
-                        <th:block th:each="date : ${dates}">
+                        <th:block th:each="date, dateStat : ${dates}">
                             <option th:value="${#temporals.format(date, 'yyyy-MM-dd')}"
                                     th:text="${#temporals.format(date, 'M月d日 (E)')}"
-                                    th:selected="${activity?.activityDate != null and #temporals.format(activity.activityDate, 'yyyy-MM-dd') == #temporals.format(date, 'yyyy-MM-dd')}">
+                                    th:selected="${activity?.day != null and activity.day == (dateStat.index + 1)}">
                                 3月15日 (一)
                             </option>
                         </th:block>
@@ -300,6 +299,211 @@
                 </div>
             </section>
 
+            <!-- Transport Mode Selection -->
+            <section class="glass-card p-4 space-y-4">
+                <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">
+                    前往此景點的交通方式
+                </h2>
+
+                <!-- Primary Transport Options (4-column grid) -->
+                <div class="grid grid-cols-4 gap-2" id="transport-mode-primary">
+                    <!-- Walking -->
+                    <label class="transport-mode-option cursor-pointer">
+                        <input type="radio" name="transportMode" value="WALKING"
+                               th:checked="${activity?.transportMode == null or activity?.transportMode.name() == 'WALKING'}"
+                               class="sr-only peer">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20
+                                    hover:bg-gray-50 dark:hover:bg-gray-800
+                                    transition-all duration-200 min-h-[70px]">
+                            <div class="w-8 h-8 flex items-center justify-center text-gray-600 dark:text-gray-400
+                                        peer-checked:text-primary-500">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M13 5.25c.414 0 .75-.336.75-.75V4a.75.75 0 00-1.5 0v.5c0 .414.336.75.75.75zM12 8a2 2 0 100-4 2 2 0 000 4zm-.5 2.5l-2 4.5L12 13l2.5 2-2-4.5"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M10.5 15l-1.5 4m4-4l1.5 4"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">步行</span>
+                        </div>
+                    </label>
+
+                    <!-- Transit -->
+                    <label class="transport-mode-option cursor-pointer">
+                        <input type="radio" name="transportMode" value="TRANSIT"
+                               th:checked="${activity?.transportMode?.name() == 'TRANSIT'}"
+                               class="sr-only peer">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20
+                                    hover:bg-gray-50 dark:hover:bg-gray-800
+                                    transition-all duration-200 min-h-[70px]">
+                            <div class="w-8 h-8 flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2m-8 0h8m-8 0H6a2 2 0 00-2 2v8a2 2 0 002 2h.5m3.5 0h4m0 0h.5a2 2 0 002-2V9a2 2 0 00-2-2h-2M10 19v2m4-2v2"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">大眾運輸</span>
+                        </div>
+                    </label>
+
+                    <!-- Driving -->
+                    <label class="transport-mode-option cursor-pointer">
+                        <input type="radio" name="transportMode" value="DRIVING"
+                               th:checked="${activity?.transportMode?.name() == 'DRIVING'}"
+                               class="sr-only peer">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20
+                                    hover:bg-gray-50 dark:hover:bg-gray-800
+                                    transition-all duration-200 min-h-[70px]">
+                            <div class="w-8 h-8 flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M19 17H5m14 0a2 2 0 100-4h-1l-2-4H8l-2 4H5a2 2 0 100 4m14 0v1a1 1 0 01-1 1h-1a1 1 0 01-1-1v-1m-10 0v1a1 1 0 01-1 1H5a1 1 0 01-1-1v-1"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">開車</span>
+                        </div>
+                    </label>
+
+                    <!-- Bicycling -->
+                    <label class="transport-mode-option cursor-pointer">
+                        <input type="radio" name="transportMode" value="BICYCLING"
+                               th:checked="${activity?.transportMode?.name() == 'BICYCLING'}"
+                               class="sr-only peer">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20
+                                    hover:bg-gray-50 dark:hover:bg-gray-800
+                                    transition-all duration-200 min-h-[70px]">
+                            <div class="w-8 h-8 flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="5.5" cy="17.5" r="3.5" stroke-width="2"/>
+                                    <circle cx="18.5" cy="17.5" r="3.5" stroke-width="2"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M15 6h2l3 6m-5-6l-3 6h6m-6 0l-2 5.5M5.5 17.5l4-6"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">騎車</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- More Options Toggle -->
+                <button type="button" id="toggle-more-transport"
+                        class="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-500 dark:text-gray-400
+                               hover:text-primary-500 transition-colors duration-200 cursor-pointer">
+                    <span id="toggle-more-text">更多選項</span>
+                    <svg id="toggle-more-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+
+                <!-- Extended Transport Options (hidden by default) -->
+                <div id="transport-mode-extended" class="hidden grid grid-cols-3 gap-2">
+                    <!-- Flight -->
+                    <label class="transport-mode-option cursor-pointer">
+                        <input type="radio" name="transportMode" value="FLIGHT"
+                               th:checked="${activity?.transportMode?.name() == 'FLIGHT'}"
+                               class="sr-only peer transport-requires-manual">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-adventure-500 peer-checked:bg-adventure-50 dark:peer-checked:bg-adventure-900/20
+                                    hover:bg-gray-50 dark:hover:bg-gray-800
+                                    transition-all duration-200 min-h-[70px]">
+                            <div class="w-8 h-8 flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M12 19l-2 3m4-3l2 3M5 17h14l1-7-4 2V5a1 1 0 00-1-1h-6a1 1 0 00-1 1v7l-4-2 1 7z"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">飛機</span>
+                        </div>
+                    </label>
+
+                    <!-- High Speed Rail -->
+                    <label class="transport-mode-option cursor-pointer">
+                        <input type="radio" name="transportMode" value="HIGH_SPEED_RAIL"
+                               th:checked="${activity?.transportMode?.name() == 'HIGH_SPEED_RAIL'}"
+                               class="sr-only peer transport-requires-manual">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-adventure-500 peer-checked:bg-adventure-50 dark:peer-checked:bg-adventure-900/20
+                                    hover:bg-gray-50 dark:hover:bg-gray-800
+                                    transition-all duration-200 min-h-[70px]">
+                            <div class="w-8 h-8 flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">高鐵</span>
+                        </div>
+                    </label>
+
+                    <!-- Not Calculated -->
+                    <label class="transport-mode-option cursor-pointer">
+                        <input type="radio" name="transportMode" value="NOT_CALCULATED"
+                               th:checked="${activity?.transportMode?.name() == 'NOT_CALCULATED'}"
+                               class="sr-only peer">
+                        <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
+                                    peer-checked:border-gray-500 peer-checked:bg-gray-50 dark:peer-checked:bg-gray-700/50
+                                    hover:bg-gray-50 dark:hover:bg-gray-800
+                                    transition-all duration-200 min-h-[70px]">
+                            <div class="w-8 h-8 flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">不計算</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Manual Transport Duration Input (shown when FLIGHT or HIGH_SPEED_RAIL selected) -->
+                <div id="manual-transport-input" class="hidden space-y-3 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                    <!-- Info banner -->
+                    <div class="flex items-start gap-2">
+                        <svg class="w-5 h-5 text-blue-500 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-sm text-blue-700 dark:text-blue-300">
+                            Google Maps 不支援飛機或高鐵的路線計算，請手動輸入預估交通時間。
+                        </p>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label for="manualTransportMinutes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            預估交通時間 (分鐘) <span class="text-error">*</span>
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <input type="number"
+                                   id="manualTransportMinutes"
+                                   name="manualTransportMinutes"
+                                   th:value="${activity?.transportDurationMinutes}"
+                                   min="1"
+                                   max="2880"
+                                   step="5"
+                                   placeholder="例: 180 (3小時)"
+                                   class="flex-1 px-4 py-3
+                                          bg-white dark:bg-gray-800
+                                          border border-gray-200 dark:border-gray-700
+                                          rounded-xl
+                                          text-gray-800 dark:text-gray-100
+                                          placeholder:text-gray-400 dark:placeholder:text-gray-500
+                                          focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
+                                          transition-all duration-200">
+                            <span id="manual-transport-display" class="text-sm text-gray-600 dark:text-gray-300 min-w-[80px] font-medium">
+                                <!-- Calculated display -->
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            包含搭乘時間與候機/候車時間，建議查詢航班或車次資訊後填寫
+                        </p>
+                    </div>
+                </div>
+            </section>
+
             <!-- Notes -->
             <section class="glass-card p-4 space-y-4">
                 <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">備註</h2>
@@ -310,7 +514,7 @@
                     </label>
                     <textarea id="notes"
                               name="notes"
-                              th:text="${activity?.notes}"
+                              th:text="${activity?.note}"
                               rows="3"
                               placeholder="記錄任何想法、注意事項或預約資訊..."
                               class="w-full px-4 py-3
@@ -385,6 +589,14 @@
 
     <!-- Scripts -->
     <script th:src="@{/js/app.js}" defer></script>
+    <script th:inline="javascript">
+        // Trip search configuration from server
+        window.tripSearchConfig = {
+            lat: /*[[${searchLat}]]*/ 25.0330,
+            lng: /*[[${searchLng}]]*/ 121.5654,
+            radius: /*[[${searchRadius}]]*/ 50000
+        };
+    </script>
     <script>
         // Duration display calculation
         document.addEventListener('DOMContentLoaded', function() {
@@ -477,9 +689,15 @@
                     return;
                 }
 
+                // Get search coordinates from server config
+                const config = window.tripSearchConfig || { lat: 25.0330, lng: 121.5654, radius: 50000 };
+                const { lat, lng, radius } = config;
+
                 try {
                     showSearchLoading();
-                    const response = await fetch(`/api/places/search?query=${encodeURIComponent(query.trim())}`);
+                    const response = await fetch(
+                        `/api/places/search?query=${encodeURIComponent(query.trim())}&lat=${lat}&lng=${lng}&radius=${radius}`
+                    );
 
                     if (!response.ok) {
                         throw new Error('搜尋失敗');
@@ -626,6 +844,132 @@
                     hideSearchResults();
                 }
             });
+
+            // =====================================================
+            // Transport Mode Selection Functionality
+            // =====================================================
+            const toggleMoreBtn = document.getElementById('toggle-more-transport');
+            const toggleMoreText = document.getElementById('toggle-more-text');
+            const toggleMoreIcon = document.getElementById('toggle-more-icon');
+            const extendedOptions = document.getElementById('transport-mode-extended');
+            const manualInputSection = document.getElementById('manual-transport-input');
+            const manualTransportInput = document.getElementById('manualTransportMinutes');
+            const manualTransportDisplay = document.getElementById('manual-transport-display');
+            const transportModeInputs = document.querySelectorAll('input[name="transportMode"]');
+
+            // Modes that require manual input
+            const manualModes = ['FLIGHT', 'HIGH_SPEED_RAIL'];
+
+            // Toggle extended options
+            if (toggleMoreBtn && extendedOptions) {
+                toggleMoreBtn.addEventListener('click', function() {
+                    const isHidden = extendedOptions.classList.contains('hidden');
+                    extendedOptions.classList.toggle('hidden');
+                    toggleMoreIcon.classList.toggle('rotate-180');
+                    toggleMoreText.textContent = isHidden ? '收起選項' : '更多選項';
+                });
+            }
+
+            // Handle transport mode changes
+            transportModeInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    const selectedMode = this.value;
+                    const requiresManual = manualModes.includes(selectedMode);
+
+                    // Show/hide manual input section
+                    if (manualInputSection) {
+                        if (requiresManual) {
+                            manualInputSection.classList.remove('hidden');
+                        } else {
+                            manualInputSection.classList.add('hidden');
+                            // Clear manual input when switching away from manual modes
+                            if (manualTransportInput) {
+                                manualTransportInput.value = '';
+                                updateManualTransportDisplay();
+                            }
+                        }
+                    }
+
+                    // Auto-expand extended options if a mode from there is selected
+                    const extendedModes = ['FLIGHT', 'HIGH_SPEED_RAIL', 'NOT_CALCULATED'];
+                    if (extendedModes.includes(selectedMode) && extendedOptions.classList.contains('hidden')) {
+                        extendedOptions.classList.remove('hidden');
+                        toggleMoreIcon.classList.add('rotate-180');
+                        toggleMoreText.textContent = '收起選項';
+                    }
+                });
+            });
+
+            // Update manual transport display
+            function updateManualTransportDisplay() {
+                if (!manualTransportInput || !manualTransportDisplay) return;
+
+                const minutes = parseInt(manualTransportInput.value) || 0;
+                if (minutes > 0) {
+                    const hours = Math.floor(minutes / 60);
+                    const mins = minutes % 60;
+                    if (hours > 0 && mins > 0) {
+                        manualTransportDisplay.textContent = `${hours} 小時 ${mins} 分鐘`;
+                    } else if (hours > 0) {
+                        manualTransportDisplay.textContent = `${hours} 小時`;
+                    } else {
+                        manualTransportDisplay.textContent = `${mins} 分鐘`;
+                    }
+                } else {
+                    manualTransportDisplay.textContent = '';
+                }
+            }
+
+            if (manualTransportInput) {
+                manualTransportInput.addEventListener('input', updateManualTransportDisplay);
+                updateManualTransportDisplay(); // Initial update
+            }
+
+            // Initialize: Check if current mode requires manual input and show section
+            const currentMode = document.querySelector('input[name="transportMode"]:checked');
+            if (currentMode && manualModes.includes(currentMode.value)) {
+                if (manualInputSection) {
+                    manualInputSection.classList.remove('hidden');
+                }
+                // Also expand extended options if needed
+                if (extendedOptions && extendedOptions.classList.contains('hidden')) {
+                    extendedOptions.classList.remove('hidden');
+                    toggleMoreIcon.classList.add('rotate-180');
+                    toggleMoreText.textContent = '收起選項';
+                }
+            }
+
+            // Form validation before submit
+            const activityForm = document.getElementById('activity-form');
+            if (activityForm) {
+                activityForm.addEventListener('submit', function(e) {
+                    const selectedMode = document.querySelector('input[name="transportMode"]:checked');
+                    if (selectedMode && manualModes.includes(selectedMode.value)) {
+                        const manualMinutes = manualTransportInput ? parseInt(manualTransportInput.value) : 0;
+                        if (!manualMinutes || manualMinutes <= 0) {
+                            e.preventDefault();
+                            // Show error message
+                            if (manualInputSection) {
+                                manualInputSection.classList.remove('hidden');
+                                manualInputSection.classList.add('ring-2', 'ring-red-500');
+                                setTimeout(() => manualInputSection.classList.remove('ring-2', 'ring-red-500'), 3000);
+                            }
+                            if (manualTransportInput) {
+                                manualTransportInput.focus();
+                                manualTransportInput.classList.add('border-red-500');
+                                setTimeout(() => manualTransportInput.classList.remove('border-red-500'), 3000);
+                            }
+                            // Show toast if available
+                            if (typeof showToast === 'function') {
+                                showToast('選擇飛機或高鐵時，必須輸入預估交通時間', 'error');
+                            } else {
+                                alert('選擇飛機或高鐵時，必須輸入預估交通時間');
+                            }
+                            return false;
+                        }
+                    }
+                });
+            }
         });
     </script>
 </body>

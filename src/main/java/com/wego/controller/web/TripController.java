@@ -1,6 +1,8 @@
 package com.wego.controller.web;
 
 import com.wego.dto.request.CreateActivityRequest;
+import com.wego.dto.request.UpdateActivityRequest;
+import com.wego.dto.response.ActivityResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.Place;
 import com.wego.entity.Role;
@@ -25,6 +27,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.wego.dto.request.CreateTripRequest;
 import com.wego.dto.request.UpdateTripRequest;
@@ -309,8 +312,8 @@ public class TripController {
         model.addAttribute("totalExpense", totalExpense);
         model.addAttribute("averageExpense", averageExpense);
 
-        // Get weather coordinates from first activity with a place
-        addWeatherCoordinatesToModel(activities, model);
+        // Get weather fallback coordinates (used when user denies geolocation)
+        addWeatherCoordinatesToModel(activities, trip, model);
 
         // Load todo data for preview section
         addTodoDataToModel(id, user.getId(), model);
@@ -358,24 +361,112 @@ public class TripController {
     }
 
     /**
-     * Extracts weather coordinates from the first activity with place coordinates.
+     * Adds default search coordinates for place search functionality.
      *
      * @contract
-     *   - pre: activities != null, model != null
-     *   - post: Adds weatherLat and weatherLng to model if activity with place found
+     *   - pre: tripId != null, userId != null, model != null
+     *   - post: Adds searchLat, searchLng, searchRadius to model
+     *   - post: Coordinates come from first activity's place, or default to Taipei (25.0330, 121.5654)
+     *   - calls: ActivityService#getActivitiesByTrip
+     *   - calledBy: showActivityCreateForm
      */
-    private void addWeatherCoordinatesToModel(List<com.wego.dto.response.ActivityResponse> activities, Model model) {
-        // Find first activity with valid place coordinates
-        activities.stream()
+    private void addSearchCoordinatesToModel(UUID tripId, UUID userId, Model model) {
+        // Default coordinates (Taipei)
+        double defaultLat = 25.0330;
+        double defaultLng = 121.5654;
+        int searchRadius = 50000; // 50km
+
+        try {
+            // Try to get coordinates from existing activities
+            List<com.wego.dto.response.ActivityResponse> activities =
+                    activityService.getActivitiesByTrip(tripId, userId);
+
+            activities.stream()
+                    .filter(a -> a.getPlace() != null &&
+                            a.getPlace().getLatitude() != 0 &&
+                            a.getPlace().getLongitude() != 0)
+                    .findFirst()
+                    .ifPresent(activity -> {
+                        model.addAttribute("searchLat", activity.getPlace().getLatitude());
+                        model.addAttribute("searchLng", activity.getPlace().getLongitude());
+                    });
+
+            // Set defaults if not set from activities
+            if (!model.containsAttribute("searchLat")) {
+                model.addAttribute("searchLat", defaultLat);
+                model.addAttribute("searchLng", defaultLng);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get search coordinates for trip {}: {}", tripId, e.getMessage());
+            model.addAttribute("searchLat", defaultLat);
+            model.addAttribute("searchLng", defaultLng);
+        }
+
+        model.addAttribute("searchRadius", searchRadius);
+    }
+
+    /**
+     * Extracts weather fallback coordinates for when user denies geolocation.
+     *
+     * Priority:
+     * 1. Today's first activity with coordinates
+     * 2. Any activity with coordinates (sorted by day)
+     * 3. Default: Taipei 101 (25.0339, 121.5645)
+     *
+     * @contract
+     *   - pre: activities != null, model != null, trip != null
+     *   - post: Always adds weatherFallbackLat and weatherFallbackLng to model
+     */
+    private void addWeatherCoordinatesToModel(
+            List<com.wego.dto.response.ActivityResponse> activities,
+            com.wego.dto.response.TripResponse trip,
+            Model model) {
+
+        // Default: Taipei 101
+        final double defaultLat = 25.0339;
+        final double defaultLng = 121.5645;
+
+        // Calculate today's day number within the trip
+        LocalDate today = LocalDate.now();
+        LocalDate tripStart = trip.getStartDate();
+        int todayDayNumber = (int) java.time.temporal.ChronoUnit.DAYS.between(tripStart, today) + 1;
+
+        // Priority 1: Find today's first activity with coordinates
+        var todayActivity = activities.stream()
+                .filter(a -> a.getDay() == todayDayNumber)
                 .filter(a -> a.getPlace() != null)
-                .findFirst()
-                .ifPresent(activity -> {
-                    var place = activity.getPlace();
-                    model.addAttribute("weatherLat", place.getLatitude());
-                    model.addAttribute("weatherLng", place.getLongitude());
-                    log.debug("Weather coordinates set: lat={}, lng={}",
-                            place.getLatitude(), place.getLongitude());
+                .filter(a -> a.getPlace().getLatitude() != 0 || a.getPlace().getLongitude() != 0)
+                .min((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()));
+
+        if (todayActivity.isPresent()) {
+            var place = todayActivity.get().getPlace();
+            model.addAttribute("weatherFallbackLat", place.getLatitude());
+            model.addAttribute("weatherFallbackLng", place.getLongitude());
+            log.debug("Weather fallback: today's activity at ({}, {})", place.getLatitude(), place.getLongitude());
+            return;
+        }
+
+        // Priority 2: Find any activity with coordinates (sorted by day, then sortOrder)
+        var anyActivity = activities.stream()
+                .filter(a -> a.getPlace() != null)
+                .filter(a -> a.getPlace().getLatitude() != 0 || a.getPlace().getLongitude() != 0)
+                .min((a, b) -> {
+                    int dayCompare = Integer.compare(a.getDay(), b.getDay());
+                    return dayCompare != 0 ? dayCompare : Integer.compare(a.getSortOrder(), b.getSortOrder());
                 });
+
+        if (anyActivity.isPresent()) {
+            var place = anyActivity.get().getPlace();
+            model.addAttribute("weatherFallbackLat", place.getLatitude());
+            model.addAttribute("weatherFallbackLng", place.getLongitude());
+            log.debug("Weather fallback: first activity at ({}, {})", place.getLatitude(), place.getLongitude());
+            return;
+        }
+
+        // Priority 3: Default to Taipei 101
+        model.addAttribute("weatherFallbackLat", defaultLat);
+        model.addAttribute("weatherFallbackLng", defaultLng);
+        log.debug("Weather fallback: default Taipei 101 ({}, {})", defaultLat, defaultLng);
     }
 
     /**
@@ -468,6 +559,80 @@ public class TripController {
         model.addAttribute("picture", user.getAvatarUrl());
 
         return "activity/list";
+    }
+
+    /**
+     * Show activity detail page.
+     *
+     * @contract
+     *   - pre: id != null, activityId != null, principal != null
+     *   - post: Returns activity detail view
+     *   - calls: TripService#getTrip, ActivityService#getActivity
+     *   - calledBy: Web browser requests
+     */
+    @GetMapping("/{id}/activities/{activityId}")
+    public String showActivityDetail(@PathVariable UUID id,
+                                      @PathVariable UUID activityId,
+                                      @AuthenticationPrincipal OAuth2User principal,
+                                      Model model) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        TripResponse trip;
+        try {
+            trip = tripService.getTrip(id, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get trip {}: {}", id, e.getMessage());
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        if (trip == null) {
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        // Get activity details
+        com.wego.dto.response.ActivityResponse activity;
+        try {
+            activity = activityService.getActivity(activityId, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get activity {}: {}", activityId, e.getMessage());
+            return "redirect:/trips/" + id + "/activities?error=activity_not_found";
+        }
+
+        // Find current member's role
+        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
+                .filter(m -> m.getUserId().equals(user.getId()))
+                .findFirst()
+                .orElse(null);
+
+        boolean canEdit = currentMember != null &&
+                (currentMember.getRole() == Role.OWNER ||
+                 currentMember.getRole() == Role.EDITOR);
+
+        // Get next activity for navigation (if exists)
+        List<com.wego.dto.response.ActivityResponse> allActivities =
+                activityService.getActivitiesByTrip(id, user.getId());
+        com.wego.dto.response.ActivityResponse nextActivity = null;
+        for (int i = 0; i < allActivities.size() - 1; i++) {
+            if (allActivities.get(i).getId().equals(activityId)) {
+                nextActivity = allActivities.get(i + 1);
+                break;
+            }
+        }
+
+        model.addAttribute("trip", trip);
+        model.addAttribute("activity", activity);
+        model.addAttribute("nextActivity", nextActivity);
+        model.addAttribute("currentMember", currentMember);
+        model.addAttribute("canEdit", canEdit);
+        model.addAttribute("isOwner", currentMember != null &&
+                currentMember.getRole() == Role.OWNER);
+        model.addAttribute("name", user.getNickname());
+        model.addAttribute("picture", user.getAvatarUrl());
+
+        return "activity/detail";
     }
 
     /**
@@ -684,6 +849,9 @@ public class TripController {
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
 
+        // Add default coordinates for place search (from first activity or default to Taipei)
+        addSearchCoordinatesToModel(id, user.getId(), model);
+
         return "activity/create";
     }
 
@@ -709,6 +877,8 @@ public class TripController {
                                   @RequestParam(required = false) Integer durationMinutes,
                                   @RequestParam(required = false) String notes,
                                   @RequestParam(required = false, defaultValue = "ATTRACTION") String type,
+                                  @RequestParam(required = false, defaultValue = "WALKING") String transportMode,
+                                  @RequestParam(required = false) Integer manualTransportMinutes,
                                   @AuthenticationPrincipal OAuth2User principal,
                                   Model model) {
         User user = getCurrentUser(principal);
@@ -766,6 +936,38 @@ public class TripController {
                     ? LocalTime.parse(startTime)
                     : null;
 
+            // Parse transport mode
+            TransportMode parsedTransportMode;
+            try {
+                parsedTransportMode = TransportMode.valueOf(transportMode);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid transport mode '{}', defaulting to WALKING", transportMode);
+                parsedTransportMode = TransportMode.WALKING;
+            }
+
+            // Validate manualTransportMinutes range (0-2880, max 48 hours)
+            Integer validatedManualMinutes = manualTransportMinutes;
+            if (validatedManualMinutes != null) {
+                if (validatedManualMinutes < 0) {
+                    log.warn("Invalid manualTransportMinutes '{}', must be >= 0, setting to null",
+                            validatedManualMinutes);
+                    validatedManualMinutes = null;
+                } else if (validatedManualMinutes > 2880) {
+                    log.warn("manualTransportMinutes '{}' exceeds max (2880), capping",
+                            validatedManualMinutes);
+                    validatedManualMinutes = 2880;
+                }
+            }
+
+            // Validate: FLIGHT/HIGH_SPEED_RAIL requires manual input
+            if (parsedTransportMode.requiresManualInput() &&
+                (validatedManualMinutes == null || validatedManualMinutes <= 0)) {
+                log.warn("Transport mode '{}' requires manual duration but none provided",
+                        parsedTransportMode);
+                model.addAttribute("error", "選擇飛機或高鐵時，必須輸入預估交通時間");
+                return "redirect:/trips/" + id + "/activities/new?error=manual_time_required";
+            }
+
             // Build request
             CreateActivityRequest request = CreateActivityRequest.builder()
                     .placeId(place.getId())
@@ -773,7 +975,8 @@ public class TripController {
                     .startTime(parsedStartTime)
                     .durationMinutes(durationMinutes)
                     .note(notes)
-                    .transportMode(TransportMode.WALKING)
+                    .transportMode(parsedTransportMode)
+                    .manualTransportMinutes(validatedManualMinutes)
                     .build();
 
             // Create activity
@@ -786,6 +989,270 @@ public class TripController {
             log.error("Failed to create activity: {}", e.getMessage(), e);
             model.addAttribute("error", "新增景點失敗：" + e.getMessage());
             return "redirect:/trips/" + id + "/activities/new?error=create_failed";
+        }
+    }
+
+    /**
+     * Show edit activity form.
+     *
+     * @contract
+     *   - pre: id != null, activityId != null, principal != null
+     *   - pre: user has OWNER or EDITOR role
+     *   - post: Returns activity edit form with existing data
+     *   - calls: TripService#getTrip, ActivityService#getActivity
+     *   - calledBy: Web browser requests
+     */
+    @GetMapping("/{id}/activities/{activityId}/edit")
+    public String showActivityEditForm(@PathVariable UUID id,
+                                        @PathVariable UUID activityId,
+                                        @AuthenticationPrincipal OAuth2User principal,
+                                        Model model) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        TripResponse trip;
+        try {
+            trip = tripService.getTrip(id, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get trip {}: {}", id, e.getMessage());
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        if (trip == null) {
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        // Check permission
+        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
+                .filter(m -> m.getUserId().equals(user.getId()))
+                .findFirst()
+                .orElse(null);
+
+        if (currentMember == null ||
+            (currentMember.getRole() != Role.OWNER &&
+             currentMember.getRole() != Role.EDITOR)) {
+            return "redirect:/trips/" + id + "?error=access_denied";
+        }
+
+        // Get activity details
+        ActivityResponse activity;
+        try {
+            activity = activityService.getActivity(activityId, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get activity {}: {}", activityId, e.getMessage());
+            return "redirect:/trips/" + id + "/activities?error=activity_not_found";
+        }
+
+        // Generate dates from startDate to endDate
+        List<LocalDate> dates = trip.getStartDate() != null && trip.getEndDate() != null
+                ? trip.getStartDate().datesUntil(trip.getEndDate().plusDays(1)).collect(Collectors.toList())
+                : List.of(LocalDate.now());
+
+        // Calculate selected date from activity's day
+        LocalDate selectedDate = trip.getStartDate().plusDays(activity.getDay() - 1);
+
+        model.addAttribute("trip", trip);
+        model.addAttribute("tripId", id);
+        model.addAttribute("activity", activity);
+        model.addAttribute("dates", dates);
+        model.addAttribute("selectedDay", activity.getDay());
+        model.addAttribute("selectedDate", selectedDate);
+        model.addAttribute("isEdit", true);
+        model.addAttribute("canEdit", true);
+        model.addAttribute("name", user.getNickname());
+        model.addAttribute("picture", user.getAvatarUrl());
+
+        // Add default coordinates for place search
+        addSearchCoordinatesToModel(id, user.getId(), model);
+
+        return "activity/create";
+    }
+
+    /**
+     * Handle update activity form submission.
+     *
+     * @contract
+     *   - pre: id != null, activityId != null, principal != null
+     *   - pre: user has OWNER or EDITOR role
+     *   - post: Activity is updated, transport recalculated if mode/place changed
+     *   - post: redirects to activities list with success message
+     *   - calls: ActivityService#updateActivity
+     *   - calledBy: Web browser form submission
+     */
+    @PostMapping("/{id}/activities/{activityId}")
+    public String updateActivity(@PathVariable UUID id,
+                                  @PathVariable UUID activityId,
+                                  @RequestParam String placeName,
+                                  @RequestParam(required = false) String address,
+                                  @RequestParam(required = false) String placeId,
+                                  @RequestParam(required = false) Double latitude,
+                                  @RequestParam(required = false) Double longitude,
+                                  @RequestParam String activityDate,
+                                  @RequestParam(required = false) String startTime,
+                                  @RequestParam(required = false) String endTime,
+                                  @RequestParam(required = false) Integer durationMinutes,
+                                  @RequestParam(required = false) String notes,
+                                  @RequestParam(required = false, defaultValue = "WALKING") String transportMode,
+                                  @RequestParam(required = false) Integer manualTransportMinutes,
+                                  @AuthenticationPrincipal OAuth2User principal,
+                                  RedirectAttributes redirectAttributes) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        try {
+            // Get trip to verify permission and calculate day
+            TripResponse trip = tripService.getTrip(id, user.getId());
+            if (trip == null) {
+                return "redirect:/dashboard?error=trip_not_found";
+            }
+
+            // Check permission
+            TripResponse.MemberSummary currentMember = trip.getMembers().stream()
+                    .filter(m -> m.getUserId().equals(user.getId()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (currentMember == null ||
+                (currentMember.getRole() != Role.OWNER &&
+                 currentMember.getRole() != Role.EDITOR)) {
+                return "redirect:/trips/" + id + "?error=access_denied";
+            }
+
+            // Find or create Place (same logic as createActivity)
+            Place place;
+            if (placeId != null && !placeId.isEmpty()) {
+                place = placeRepository.findByGooglePlaceId(placeId).orElse(null);
+            } else {
+                place = null;
+            }
+
+            if (place == null) {
+                // Create new place with provided data
+                place = Place.builder()
+                        .name(placeName)
+                        .address(address)
+                        .latitude(latitude != null ? latitude : 0.0)
+                        .longitude(longitude != null ? longitude : 0.0)
+                        .googlePlaceId(placeId)
+                        .build();
+                place = placeRepository.save(place);
+                log.info("Created new place for activity update: {} with id {}", placeName, place.getId());
+            }
+
+            // Calculate day from activityDate
+            LocalDate selectedDate = LocalDate.parse(activityDate);
+            int day = (int) ChronoUnit.DAYS.between(trip.getStartDate(), selectedDate) + 1;
+
+            // Parse times
+            LocalTime parsedStartTime = (startTime != null && !startTime.isEmpty())
+                    ? LocalTime.parse(startTime)
+                    : null;
+
+            // Parse transport mode
+            TransportMode parsedTransportMode;
+            try {
+                parsedTransportMode = TransportMode.valueOf(transportMode);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid transport mode '{}', defaulting to WALKING", transportMode);
+                parsedTransportMode = TransportMode.WALKING;
+            }
+
+            // Validate manualTransportMinutes range (0-2880, max 48 hours)
+            Integer validatedManualMinutes = manualTransportMinutes;
+            if (validatedManualMinutes != null) {
+                if (validatedManualMinutes < 0) {
+                    log.warn("Invalid manualTransportMinutes '{}', must be >= 0, setting to null",
+                            validatedManualMinutes);
+                    validatedManualMinutes = null;
+                } else if (validatedManualMinutes > 2880) {
+                    log.warn("manualTransportMinutes '{}' exceeds max (2880), capping",
+                            validatedManualMinutes);
+                    validatedManualMinutes = 2880;
+                }
+            }
+
+            // Validate: FLIGHT/HIGH_SPEED_RAIL requires manual input
+            if (parsedTransportMode.requiresManualInput() &&
+                (validatedManualMinutes == null || validatedManualMinutes <= 0)) {
+                log.warn("Transport mode '{}' requires manual duration but none provided",
+                        parsedTransportMode);
+                redirectAttributes.addFlashAttribute("error", "選擇飛機或高鐵時，必須輸入預估交通時間");
+                return "redirect:/trips/" + id + "/activities/" + activityId + "/edit?error=manual_time_required";
+            }
+
+            // Build update request
+            UpdateActivityRequest request = UpdateActivityRequest.builder()
+                    .placeId(place.getId())
+                    .day(day)
+                    .startTime(parsedStartTime)
+                    .durationMinutes(durationMinutes)
+                    .note(notes)
+                    .transportMode(parsedTransportMode)
+                    .manualTransportMinutes(validatedManualMinutes)
+                    .build();
+
+            // Update activity (this will recalculate transport if needed)
+            activityService.updateActivity(activityId, request, user.getId());
+            log.info("Updated activity {} for trip {} on day {}", activityId, id, day);
+
+            redirectAttributes.addFlashAttribute("success", "景點已更新，交通時間已重新計算");
+            return "redirect:/trips/" + id + "/activities";
+
+        } catch (Exception e) {
+            log.error("Failed to update activity: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "更新景點失敗：" + e.getMessage());
+            return "redirect:/trips/" + id + "/activities/" + activityId + "/edit?error=update_failed";
+        }
+    }
+
+    /**
+     * Recalculate all transport times for a trip.
+     *
+     * Uses Google Maps API with rate limiting. Falls back to Haversine when API fails.
+     * Manual inputs (FLIGHT/HIGH_SPEED_RAIL) are preserved.
+     *
+     * @contract
+     *   - pre: id != null, principal != null
+     *   - pre: user has OWNER or EDITOR role
+     *   - post: All activities have transport times recalculated
+     *   - post: Redirects to activities list with result message
+     *   - calls: ActivityService#recalculateAllTransport
+     *   - calledBy: Web browser POST request
+     */
+    @PostMapping("/{id}/recalculate-transport")
+    public String recalculateTransport(@PathVariable UUID id,
+                                        @AuthenticationPrincipal OAuth2User principal,
+                                        RedirectAttributes redirectAttributes) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        try {
+            // Recalculate all transport with default max 50 API calls
+            var result = activityService.recalculateAllTransport(id, user.getId(), 50);
+
+            // Build success message
+            String message = result.getSuccessMessage();
+            redirectAttributes.addFlashAttribute("success", message);
+
+            log.info("Transport recalculation completed for trip {}: total={}, api={}, fallback={}",
+                    id, result.getTotalActivities(), result.getApiSuccessCount(), result.getFallbackCount());
+
+            return "redirect:/trips/" + id + "/activities";
+
+        } catch (com.wego.exception.ForbiddenException e) {
+            log.warn("User {} not authorized to recalculate transport for trip {}", user.getId(), id);
+            redirectAttributes.addFlashAttribute("error", "您沒有權限重新計算此行程的交通時間");
+            return "redirect:/trips/" + id + "/activities";
+        } catch (Exception e) {
+            log.error("Failed to recalculate transport for trip {}: {}", id, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "重新計算交通時間失敗：" + e.getMessage());
+            return "redirect:/trips/" + id + "/activities";
         }
     }
 

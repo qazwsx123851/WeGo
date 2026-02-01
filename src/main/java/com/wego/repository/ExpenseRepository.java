@@ -94,4 +94,36 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     @Query("SELECT DISTINCT e.category FROM Expense e " +
            "WHERE e.tripId = :tripId AND e.category IS NOT NULL")
     List<String> findDistinctCategoriesByTripId(@Param("tripId") UUID tripId);
+
+    // ========== Global Expense Methods ==========
+
+    /**
+     * Sums total amount paid by user across multiple trips.
+     *
+     * @contract
+     *   - pre: userId != null, tripIds not empty
+     *   - post: Returns sum of amounts, 0 if none found
+     *   - calledBy: GlobalExpenseService#getOverview
+     *
+     * @param userId The user ID
+     * @param tripIds List of trip IDs
+     * @return Total amount paid
+     */
+    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM Expense e " +
+           "WHERE e.paidBy = :userId AND e.tripId IN :tripIds")
+    BigDecimal sumAmountPaidByUser(@Param("userId") UUID userId,
+                                    @Param("tripIds") List<UUID> tripIds);
+
+    /**
+     * Counts expenses created by a user.
+     *
+     * @contract
+     *   - pre: createdBy != null
+     *   - post: Returns count >= 0
+     *   - calledBy: ProfileController#showProfile
+     *
+     * @param createdBy The user ID
+     * @return Number of expenses created
+     */
+    long countByCreatedBy(UUID createdBy);
 }

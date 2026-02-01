@@ -277,6 +277,9 @@ public class MockGoogleMapsClient implements GoogleMapsClient {
             case BICYCLING -> BICYCLING_SPEED_KMH;
             case TRANSIT -> TRANSIT_SPEED_KMH;
             case DRIVING -> DRIVING_SPEED_KMH;
+            case HIGH_SPEED_RAIL -> 250.0;
+            case FLIGHT -> 800.0;
+            case NOT_CALCULATED -> 0.0;
         };
     }
 

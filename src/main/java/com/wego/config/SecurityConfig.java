@@ -57,11 +57,12 @@ public class SecurityConfig {
                 .contentSecurityPolicy(csp -> csp
                     .policyDirectives(
                         "default-src 'self'; " +
-                        "script-src 'self' https://unpkg.com; " +
+                        "script-src 'self' 'unsafe-inline' https://unpkg.com; " +
                         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-                        "font-src 'self' https://fonts.gstatic.com; " +
+                        "font-src 'self' https://fonts.gstatic.com data:; " +
                         "img-src 'self' https: data: blob:; " +
-                        "connect-src 'self'; " +
+                        "connect-src 'self' https://unpkg.com https://lottie.host; " +
+                        "frame-src 'self' https://www.google.com https://maps.google.com; " +
                         "frame-ancestors 'none'"
                     )
                 )

@@ -9,6 +9,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${trip.title} + ' - 行程景點'">行程景點 - WeGo</title>
+
+    <!-- CSRF Token for AJAX requests -->
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
     <link rel="stylesheet" th:href="@{/css/styles.css}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -57,6 +62,23 @@
                     </svg>
                 </button>
 
+                <!-- Recalculate Transport Button - Only show if canEdit AND activityCount >= 2 -->
+                <button type="button"
+                        th:if="${canEdit and totalActivityCount >= 2}"
+                        id="recalculate-transport-btn"
+                        th:data-trip-id="${trip.id}"
+                        class="p-2.5 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
+                               text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300
+                               hover:bg-primary-50 dark:hover:bg-primary-900/20
+                               transition-colors duration-200"
+                        aria-label="重新計算交通時間"
+                        title="重新計算交通時間">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </button>
+
                 <!-- View Toggle (Map/List) -->
                 <button type="button"
                         class="p-2.5 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
@@ -86,7 +108,7 @@
                                    border border-gray-200 dark:border-gray-700
                                    hover:border-primary-300 dark:hover:border-primary-600
                                    transition-all duration-200 cursor-pointer min-h-[44px]">
-                        <span class="block text-xs opacity-75" th:text="${#temporals.dayOfWeek(date).toString().substring(0,3)}">MON</span>
+                        <span class="block text-xs opacity-75" th:text="${#temporals.format(date, 'E')}">Mon</span>
                         <span class="block" th:text="${#temporals.format(date, 'M/d')}">3/15</span>
                     </button>
                 </th:block>
@@ -103,7 +125,7 @@
                         <div class="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30
                                     flex flex-col items-center justify-center">
                             <span class="text-xs text-primary-600 dark:text-primary-400 font-medium"
-                                  th:text="${#temporals.dayOfWeek(dayGroup.key).toString().substring(0,3)}">MON</span>
+                                  th:text="${#temporals.format(dayGroup.key, 'E')}">Mon</span>
                             <span class="text-lg font-bold text-primary-700 dark:text-primary-300"
                                   th:text="${#temporals.day(dayGroup.key)}">15</span>
                         </div>
@@ -115,19 +137,24 @@
                         </div>
                     </div>
 
-                    <!-- Activity Cards -->
-                    <div class="space-y-0" id="sortable-activities">
+                    <!-- Activity Cards (only render if there are activities) -->
+                    <div th:if="${!#lists.isEmpty(dayGroup.value)}"
+                         class="space-y-0 sortable-activities"
+                         th:data-day="${dayGroup.value[0].day}"
+                         th:data-trip-id="${trip.id}">
                         <th:block th:each="activity, activityStat : ${dayGroup.value}">
                             <!-- Activity Card -->
-                            <a th:href="@{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})}"
-                               class="activity-card block bg-white dark:bg-gray-800 rounded-xl
+                            <div class="activity-card bg-white dark:bg-gray-800 rounded-xl
                                       border border-gray-100 dark:border-gray-700
                                       p-3 flex gap-3
                                       hover:bg-gray-50 dark:hover:bg-gray-750
                                       active:bg-gray-100 dark:active:bg-gray-700
-                                      transition-colors duration-200 cursor-pointer
-                                      touch-action-manipulation">
-                                <div class="flex gap-3 items-start flex-1">
+                                      transition-colors duration-200
+                                      touch-action-manipulation"
+                                 th:data-activity-id="${activity.id}"
+                                 th:attr="draggable=${canEdit ? 'true' : 'false'}">
+                                <a th:href="@{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})}"
+                                   class="activity-link flex gap-3 items-start flex-1 cursor-pointer">
                                     <!-- Activity Type Icon (based on place category) -->
                                     <div th:switch="${activity.place?.category}">
                                         <!-- Restaurant/Food -->
@@ -181,7 +208,7 @@
                                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                             <span th:if="${activity.startTime}"
                                                   th:text="${#temporals.format(activity.startTime, 'HH:mm')}">10:00</span>
-                                            <span th:if="${activity.startTime and activity.endTime}"> - </span>
+                                            <span th:if="${activity.startTime != null and activity.endTime != null}"> - </span>
                                             <span th:if="${activity.endTime}"
                                                   th:text="${#temporals.format(activity.endTime, 'HH:mm')}">12:00</span>
                                             <span th:if="${activity.durationMinutes}" class="ml-2 text-gray-400">
@@ -192,34 +219,141 @@
                                            class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate"
                                            th:text="${activity.note}">記得買御守</p>
                                     </div>
+                                </a>
 
-                                    <!-- Drag Handle -->
-                                    <div class="drag-handle text-gray-300 dark:text-gray-600
-                                                cursor-grab active:cursor-grabbing self-center"
-                                         aria-label="拖曳排序">
-                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"/>
-                                        </svg>
-                                    </div>
-                                </div>
-                            </a>
-
-                            <!-- Transit Time Connector (between activities) -->
-                            <div th:if="${!activityStat.last and activity.transitDurationMinutes != null}"
-                                 class="flex items-center gap-2 py-2 pl-5 ml-5">
-                                <div class="w-0.5 h-6 bg-gray-200 dark:bg-gray-700"></div>
-                                <div class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                              d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                <!-- Drag Handle (only visible for editors) -->
+                                <div th:if="${canEdit}"
+                                     class="drag-handle text-gray-300 dark:text-gray-600
+                                            cursor-grab active:cursor-grabbing self-center flex-shrink-0"
+                                     tabindex="0"
+                                     role="button"
+                                     aria-label="拖曳排序">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"/>
                                     </svg>
-                                    <span th:text="${activity.transitDurationMinutes} + ' 分鐘'">25 分鐘</span>
                                 </div>
                             </div>
 
-                            <!-- Spacer between activities without transit time -->
-                            <div th:if="${!activityStat.last and activity.transitDurationMinutes == null}"
-                                 class="h-2"></div>
+                            <!-- Transit Time Connector (between activities) - Shows NEXT activity's transport info -->
+                            <th:block th:if="${!activityStat.last}">
+                                <th:block th:with="nextActivity=${dayGroup.value[activityStat.index + 1]}">
+                                    <div th:if="${nextActivity != null and nextActivity.transportDurationMinutes != null}"
+                                         class="flex items-center gap-2 py-2 pl-5 ml-5">
+                                        <div class="w-0.5 h-8 bg-gray-200 dark:bg-gray-700"></div>
+                                        <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                            <!-- Transport Mode Icon (from next activity) -->
+                                            <span th:switch="${nextActivity.transportMode?.name()}">
+                                                <!-- Driving -->
+                                                <svg th:case="'DRIVING'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M8 17h8M8 17v4h8v-4M8 17H4.5a1.5 1.5 0 01-1.5-1.5v-5A1.5 1.5 0 014.5 9h15a1.5 1.5 0 011.5 1.5v5a1.5 1.5 0 01-1.5 1.5H16M5 9l1-4h12l1 4"/>
+                                                </svg>
+                                                <!-- Walking -->
+                                                <svg th:case="'WALKING'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M13 4a2 2 0 100-4 2 2 0 000 4zm-1 5.5l-3 3m3-3l3 3m-3-3v8m-3 3l3-3 3 3"/>
+                                                </svg>
+                                                <!-- Transit -->
+                                                <svg th:case="'TRANSIT'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M8 17h8M8 17v2h8v-2M8 17H6a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2h-2M8 7h8M8 11h8"/>
+                                                </svg>
+                                                <!-- Bicycling -->
+                                                <svg th:case="'BICYCLING'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <circle cx="5.5" cy="17.5" r="3.5" stroke-width="2"/>
+                                                    <circle cx="18.5" cy="17.5" r="3.5" stroke-width="2"/>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M15 6a1 1 0 100-2 1 1 0 000 2zm-3 11l-3-8 6 3-3 5zm0 0l6-6"/>
+                                                </svg>
+                                                <!-- Flight -->
+                                                <svg th:case="'FLIGHT'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M12 19l-2 3m4-3l2 3M5 17h14l1-7-4 2V5a1 1 0 00-1-1h-6a1 1 0 00-1 1v7l-4-2 1 7z"/>
+                                                </svg>
+                                                <!-- High Speed Rail -->
+                                                <svg th:case="'HIGH_SPEED_RAIL'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                                </svg>
+                                                <!-- Default Arrow -->
+                                                <svg th:case="*" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                          d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                                </svg>
+                                            </span>
+                                            <!-- Distance (from next activity) -->
+                                            <span th:if="${nextActivity.transportDistanceMeters != null}"
+                                                  th:text="${nextActivity.transportDistanceMeters >= 1000
+                                                      ? #numbers.formatDecimal(nextActivity.transportDistanceMeters / 1000.0, 1, 1) + ' km'
+                                                      : nextActivity.transportDistanceMeters + ' m'}">
+                                                1.2 km
+                                            </span>
+                                            <!-- Separator -->
+                                            <span th:if="${nextActivity.transportDistanceMeters != null}"
+                                                  class="text-gray-300 dark:text-gray-600">·</span>
+                                            <!-- Duration (from next activity) -->
+                                            <span th:text="${nextActivity.transportDurationMinutes} + ' 分鐘'">25 分鐘</span>
+
+                                            <!-- Warning Badge (from next activity) -->
+                                            <span th:if="${nextActivity.transportWarning != null and nextActivity.transportWarning.name() != 'NONE'}"
+                                                  th:switch="${nextActivity.transportWarning.name()}"
+                                                  th:title="${nextActivity.transportWarning.displayMessage}"
+                                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium cursor-help">
+                                                <!-- Estimated Distance (info level) -->
+                                                <span th:case="'ESTIMATED_DISTANCE'"
+                                                      class="bg-info-light dark:bg-blue-900/30 text-info-dark dark:text-blue-400">
+                                                    估算
+                                                </span>
+                                                <!-- Unrealistic Walking (warning level) -->
+                                                <span th:case="'UNREALISTIC_WALKING'"
+                                                      class="bg-warning-light dark:bg-yellow-900/30 text-warning-dark dark:text-yellow-400">
+                                                    距離較長
+                                                </span>
+                                                <!-- Unrealistic Bicycling (warning level) -->
+                                                <span th:case="'UNREALISTIC_BICYCLING'"
+                                                      class="bg-warning-light dark:bg-yellow-900/30 text-warning-dark dark:text-yellow-400">
+                                                    距離較長
+                                                </span>
+                                                <!-- Very Long Distance (warning level) -->
+                                                <span th:case="'VERY_LONG_DISTANCE'"
+                                                      class="bg-warning-light dark:bg-yellow-900/30 text-warning-dark dark:text-yellow-400">
+                                                    超過 100km
+                                                </span>
+                                                <!-- No Route Available (warning level) -->
+                                                <span th:case="'NO_ROUTE_AVAILABLE'"
+                                                      class="bg-error-light dark:bg-red-900/30 text-error-dark dark:text-red-400">
+                                                    無路線
+                                                </span>
+                                            </span>
+
+                                            <!-- Source Badge (from next activity) - using enum methods for dynamic styling -->
+                                            <span th:if="${nextActivity.transportSource != null and nextActivity.transportSource.name() != 'NOT_APPLICABLE'}"
+                                                  th:title="${nextActivity.transportSource.tooltip}"
+                                                  th:classappend="${nextActivity.transportSource.badgeClass}"
+                                                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium cursor-help">
+                                                <!-- Icon based on source type -->
+                                                <svg th:if="${nextActivity.transportSource.name() == 'GOOGLE_API'}"
+                                                     class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                                <svg th:if="${nextActivity.transportSource.name() == 'HAVERSINE'}"
+                                                     class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                                <svg th:if="${nextActivity.transportSource.name() == 'MANUAL'}"
+                                                     class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                                </svg>
+                                                <span th:text="${nextActivity.transportSource.displayName}">精確</span>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Spacer between activities without transit time -->
+                                    <div th:if="${nextActivity == null or nextActivity.transportDurationMinutes == null}"
+                                         class="h-2"></div>
+                                </th:block>
+                            </th:block>
                         </th:block>
                     </div>
                 </section>
@@ -463,6 +597,34 @@
         </div>
     </div>
 
+    <!-- Recalculate Transport Loading Modal -->
+    <div id="recalculate-modal" class="hidden fixed inset-0 z-50">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+        <!-- Modal Content -->
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+                <div class="px-6 py-8 text-center">
+                    <!-- Lottie Animation Container -->
+                    <div id="lottie-loading" class="w-24 h-24 mx-auto mb-4"></div>
+
+                    <!-- CSS Spinner Fallback -->
+                    <div id="css-spinner" class="hidden w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                        <div class="animate-spin rounded-full h-16 w-16 border-4 border-primary-500 border-t-transparent"></div>
+                    </div>
+
+                    <p class="text-lg font-medium text-gray-800 dark:text-gray-100">
+                        正在重新計算交通時間...
+                    </p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                        這可能需要幾秒鐘，請稍候
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Activity data for JS (hidden) -->
     <script th:inline="javascript">
         /*<![CDATA[*/
@@ -473,8 +635,107 @@
         /*]]>*/
     </script>
 
+    <!-- Lottie Animation Library -->
+    <script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
+
     <!-- Scripts -->
     <script th:src="@{/js/app.js}" defer></script>
     <script th:src="@{/js/route-optimizer.js}" defer></script>
+    <script th:src="@{/js/drag-reorder.js}" defer></script>
+
+    <!-- Recalculate Transport Script -->
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            const recalculateBtn = document.getElementById('recalculate-transport-btn');
+            const recalculateModal = document.getElementById('recalculate-modal');
+            const lottieContainer = document.getElementById('lottie-loading');
+            const cssSpinner = document.getElementById('css-spinner');
+
+            if (!recalculateBtn) return;
+
+            // Initialize Lottie animation
+            let loadingAnimation;
+            try {
+                if (typeof lottie !== 'undefined') {
+                    loadingAnimation = lottie.loadAnimation({
+                        container: lottieContainer,
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: false,
+                        path: '/animations/route-loading.json'
+                    });
+                    loadingAnimation.addEventListener('error', function() {
+                        // Show CSS spinner as fallback if Lottie fails
+                        lottieContainer.classList.add('hidden');
+                        cssSpinner.classList.remove('hidden');
+                    });
+                } else {
+                    // Lottie not available, show CSS spinner
+                    lottieContainer.classList.add('hidden');
+                    cssSpinner.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.warn('Lottie animation failed to load:', e);
+                lottieContainer.classList.add('hidden');
+                cssSpinner.classList.remove('hidden');
+            }
+
+            // Recalculate button click handler
+            recalculateBtn.addEventListener('click', async function() {
+                const tripId = this.dataset.tripId;
+
+                // Show loading modal
+                recalculateModal.classList.remove('hidden');
+
+                // Start animation
+                if (loadingAnimation) {
+                    loadingAnimation.play();
+                }
+
+                // Get CSRF token
+                const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+                const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
+                try {
+                    // Create form and submit
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/trips/' + tripId + '/recalculate-transport';
+
+                    // Add CSRF token
+                    if (csrfToken && csrfHeader) {
+                        const csrfInput = document.createElement('input');
+                        csrfInput.type = 'hidden';
+                        csrfInput.name = '_csrf';
+                        csrfInput.value = csrfToken;
+                        form.appendChild(csrfInput);
+                    }
+
+                    document.body.appendChild(form);
+                    form.submit();
+
+                } catch (error) {
+                    console.error('Recalculation failed:', error);
+                    recalculateModal.classList.add('hidden');
+                    if (loadingAnimation) {
+                        loadingAnimation.stop();
+                    }
+                    // Show error toast if available
+                    if (typeof showToast === 'function') {
+                        showToast('重新計算失敗，請稍後再試', 'error');
+                    } else {
+                        alert('重新計算失敗，請稍後再試');
+                    }
+                }
+            });
+
+            // Respect prefers-reduced-motion
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                if (loadingAnimation) {
+                    loadingAnimation.setSpeed(0.5);
+                }
+            }
+        });
+    </script>
 </body>
 </html>

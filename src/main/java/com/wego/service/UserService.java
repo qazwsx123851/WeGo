@@ -126,4 +126,26 @@ public class UserService {
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
     }
+
+    /**
+     * Updates a user's nickname.
+     *
+     * @contract
+     *   - pre: userId != null, nickname != null and not blank
+     *   - post: User's nickname is updated
+     *   - calls: UserRepository#findById, UserRepository#save
+     *   - calledBy: ProfileController#updateProfile
+     *
+     * @param userId The user ID
+     * @param nickname The new nickname
+     * @throws ResourceNotFoundException if user not found
+     */
+    @Transactional
+    public void updateNickname(UUID userId, String nickname) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        user.setNickname(nickname);
+        userRepository.save(user);
+        log.info("Updated nickname for user {}", userId);
+    }
 }
