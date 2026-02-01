@@ -74,6 +74,7 @@ public class MockGoogleMapsClient implements GoogleMapsClient {
                 .durationSeconds(result.getDurationSeconds())
                 .durationText(result.getDurationText())
                 .transportMode(mode)
+                .apiSource(DirectionResult.ApiSource.DISTANCE_MATRIX)
                 .build();
     }
 
@@ -113,6 +114,7 @@ public class MockGoogleMapsClient implements GoogleMapsClient {
                 .durationSeconds(durationSeconds)
                 .durationText(durationText)
                 .transportMode(mode)
+                .apiSource(DirectionResult.ApiSource.DISTANCE_MATRIX)
                 .build();
     }
 

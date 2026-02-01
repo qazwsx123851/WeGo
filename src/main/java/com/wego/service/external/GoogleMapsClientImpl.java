@@ -2,11 +2,13 @@ package com.wego.service.external;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wego.config.GoogleMapsProperties;
 import com.wego.dto.response.DirectionResult;
 import com.wego.dto.response.PlaceDetails;
 import com.wego.dto.response.PlaceSearchResult;
+import com.wego.dto.response.TransitDetails;
 import com.wego.entity.TransportMode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -24,6 +26,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,7 +34,8 @@ import java.util.List;
  * Real implementation of GoogleMapsClient that calls Google Maps APIs.
  *
  * Uses the following Google APIs:
- * - Distance Matrix API for directions (Legacy API)
+ * - Routes API (computeRouteMatrix) for directions (New API, preferred)
+ * - Distance Matrix API for directions (Legacy API, fallback)
  * - Places API (New) Text Search for place search
  * - Places API (New) Place Details for place information
  *
@@ -39,8 +43,11 @@ import java.util.List;
  *   - pre: GoogleMapsProperties must be configured with valid apiKey
  *   - post: All API calls include API key in request
  *   - throws: GoogleMapsException on API errors or invalid responses
+ *   - When useRoutesApi=true: Uses Routes API with fallback chain
+ *   - Fallback: TRANSIT → DRIVING → GoogleMapsException
  *
  * @see GoogleMapsClient
+ * @see <a href="https://developers.google.com/maps/documentation/routes">Routes API</a>
  * @see <a href="https://developers.google.com/maps/documentation/places/web-service/overview">Places API (New)</a>
  */
 @Slf4j
@@ -51,8 +58,14 @@ import java.util.List;
 )
 public class GoogleMapsClientImpl implements GoogleMapsClient {
 
+    // Legacy Distance Matrix API
     private static final String DISTANCE_MATRIX_URL =
             "https://maps.googleapis.com/maps/api/distancematrix/json";
+
+    // Routes API (New)
+    private static final String ROUTES_API_URL =
+            "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix";
+
     // Places API (New) endpoints
     private static final String PLACES_TEXT_SEARCH_URL =
             "https://places.googleapis.com/v1/places:searchText";
@@ -103,6 +116,10 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
 
     /**
      * {@inheritDoc}
+     *
+     * Note: Routes API is only used for coordinate-based queries.
+     * Address-based queries still use Distance Matrix API as Routes API
+     * has limited support for place names.
      */
     @Override
     public DirectionResult getDirections(String origin, String destination, TransportMode mode) {
@@ -111,6 +128,8 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
 
         log.debug("Getting directions from '{}' to '{}' via {}", origin, destination, mode);
 
+        // Address-based queries use legacy Distance Matrix API
+        // (Routes API works better with coordinates)
         String baseUrl = buildDistanceMatrixUrlBase(
                 encodeUrl(origin),
                 encodeUrl(destination),
@@ -122,6 +141,11 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
 
     /**
      * {@inheritDoc}
+     *
+     * When useRoutesApi is enabled, uses Routes API with fallback chain:
+     * 1. Try Routes API with requested mode
+     * 2. If TRANSIT fails, fallback to DRIVING (if configured)
+     * 3. If all fail, throw GoogleMapsException
      */
     @Override
     public DirectionResult getDirections(
@@ -132,12 +156,256 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
         log.debug("Getting directions from ({}, {}) to ({}, {}) via {}",
                 originLat, originLng, destLat, destLng, mode);
 
+        // Use Routes API if enabled
+        if (properties.isUseRoutesApi()) {
+            return getDirectionsViaRoutesApi(originLat, originLng, destLat, destLng, mode);
+        }
+
+        // Legacy: Use Distance Matrix API
         String origin = originLat + "," + originLng;
         String destination = destLat + "," + destLng;
-
         String baseUrl = buildDistanceMatrixUrlBase(origin, destination, mode);
-
         return executeDirectionsRequest(baseUrl, mode);
+    }
+
+    /**
+     * Gets directions using the new Routes API (computeRouteMatrix).
+     *
+     * Implements fallback chain: TRANSIT → DRIVING when configured.
+     *
+     * @contract
+     *   - pre: valid coordinates
+     *   - post: Returns DirectionResult with apiSource = ROUTES_API
+     *   - throws: GoogleMapsException if no route found after fallbacks
+     */
+    private DirectionResult getDirectionsViaRoutesApi(
+            double originLat, double originLng,
+            double destLat, double destLng,
+            TransportMode mode
+    ) {
+        log.debug("[Routes API] Getting directions from ({}, {}) to ({}, {}) via {}",
+                originLat, originLng, destLat, destLng, mode);
+
+        try {
+            DirectionResult result = executeRoutesApiRequest(originLat, originLng, destLat, destLng, mode);
+            log.info("[Routes API] Success: {} ({}) via {}",
+                    result.getDistanceText(), result.getDurationText(), mode);
+            return result;
+
+        } catch (GoogleMapsException e) {
+            // Check if we should fallback to DRIVING for TRANSIT failures
+            if (mode == TransportMode.TRANSIT &&
+                    properties.getRoutesApi().isFallbackToDriving() &&
+                    "NO_ROUTE".equals(e.getErrorCode())) {
+
+                log.warn("[Routes API] TRANSIT failed ({}), falling back to DRIVING", e.getMessage());
+                try {
+                    DirectionResult fallbackResult = executeRoutesApiRequest(
+                            originLat, originLng, destLat, destLng, TransportMode.DRIVING);
+                    fallbackResult.setFromFallback(true);
+                    log.info("[Routes API] DRIVING fallback success: {} ({})",
+                            fallbackResult.getDistanceText(), fallbackResult.getDurationText());
+                    return fallbackResult;
+                } catch (GoogleMapsException fallbackEx) {
+                    log.error("[Routes API] DRIVING fallback also failed: {}", fallbackEx.getMessage());
+                    throw e; // Throw original exception
+                }
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Executes a request to the Routes API computeRouteMatrix endpoint.
+     *
+     * @contract
+     *   - pre: valid coordinates and mode
+     *   - post: Returns DirectionResult
+     *   - throws: GoogleMapsException on API error or no route
+     */
+    private DirectionResult executeRoutesApiRequest(
+            double originLat, double originLng,
+            double destLat, double destLng,
+            TransportMode mode
+    ) {
+        try {
+            // Build request body
+            ObjectNode requestBody = objectMapper.createObjectNode();
+
+            // Origins array
+            ArrayNode origins = objectMapper.createArrayNode();
+            ObjectNode originWaypoint = objectMapper.createObjectNode();
+            ObjectNode originLocation = objectMapper.createObjectNode();
+            ObjectNode originLatLng = objectMapper.createObjectNode();
+            originLatLng.put("latitude", originLat);
+            originLatLng.put("longitude", originLng);
+            originLocation.set("latLng", originLatLng);
+            originWaypoint.set("waypoint", objectMapper.createObjectNode().set("location", originLocation));
+            origins.add(originWaypoint);
+            requestBody.set("origins", origins);
+
+            // Destinations array
+            ArrayNode destinations = objectMapper.createArrayNode();
+            ObjectNode destWaypoint = objectMapper.createObjectNode();
+            ObjectNode destLocation = objectMapper.createObjectNode();
+            ObjectNode destLatLng = objectMapper.createObjectNode();
+            destLatLng.put("latitude", destLat);
+            destLatLng.put("longitude", destLng);
+            destLocation.set("latLng", destLatLng);
+            destWaypoint.set("waypoint", objectMapper.createObjectNode().set("location", destLocation));
+            destinations.add(destWaypoint);
+            requestBody.set("destinations", destinations);
+
+            // Travel mode
+            String travelMode = mapTransportModeToRoutesApi(mode);
+            requestBody.put("travelMode", travelMode);
+
+            // Add departure time for TRANSIT (required for transit routes)
+            if (mode == TransportMode.TRANSIT) {
+                // Use current time + 10 minutes to ensure we get valid transit schedules
+                String departureTime = Instant.now().plusSeconds(600).toString();
+                requestBody.put("departureTime", departureTime);
+
+                // Add transit preferences
+                ObjectNode transitPreferences = objectMapper.createObjectNode();
+                ArrayNode allowedModes = objectMapper.createArrayNode();
+                for (String transitMode : properties.getRoutesApi().getDefaultTransitModes()) {
+                    allowedModes.add(transitMode);
+                }
+                transitPreferences.set("allowedTravelModes", allowedModes);
+                transitPreferences.put("routingPreference",
+                        properties.getRoutesApi().getDefaultRoutingPreference());
+                requestBody.set("transitPreferences", transitPreferences);
+            }
+
+            // Set routing preference for non-transit
+            if (mode != TransportMode.TRANSIT) {
+                requestBody.put("routingPreference", "TRAFFIC_AWARE");
+            }
+
+            // Create headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-Goog-Api-Key", properties.getApiKey());
+            headers.set("X-Goog-FieldMask",
+                    "originIndex,destinationIndex,status,condition,distanceMeters,duration");
+
+            HttpEntity<String> entity = new HttpEntity<>(
+                    objectMapper.writeValueAsString(requestBody), headers);
+
+            log.debug("[Routes API] Request body: {}", objectMapper.writeValueAsString(requestBody));
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    ROUTES_API_URL, HttpMethod.POST, entity, String.class);
+
+            log.debug("[Routes API] Response: {}", response.getBody());
+
+            // Parse response (array of elements)
+            JsonNode root = objectMapper.readTree(response.getBody());
+
+            // Routes API returns an array - get first element
+            JsonNode firstElement;
+            if (root.isArray() && root.size() > 0) {
+                firstElement = root.get(0);
+            } else {
+                throw new GoogleMapsException("NO_ROUTE", "No route elements returned");
+            }
+
+            // Check status
+            JsonNode statusNode = firstElement.path("status");
+            if (!statusNode.isMissingNode()) {
+                String statusCode = statusNode.path("code").asText("");
+                if (!statusCode.isEmpty() && !"0".equals(statusCode)) {
+                    String message = statusNode.path("message").asText("Unknown error");
+                    throw new GoogleMapsException("API_ERROR", message);
+                }
+            }
+
+            // Check condition
+            String condition = firstElement.path("condition").asText("");
+            if ("ROUTE_NOT_FOUND".equals(condition)) {
+                throw new GoogleMapsException("NO_ROUTE",
+                        "No route found between the specified locations");
+            }
+
+            // Extract distance and duration
+            int distanceMeters = firstElement.path("distanceMeters").asInt(0);
+            String durationStr = firstElement.path("duration").asText("0s");
+
+            // Parse duration (format: "123s" for seconds)
+            int durationSeconds = parseDurationString(durationStr);
+
+            return DirectionResult.builder()
+                    .originAddress(String.format("%.6f, %.6f", originLat, originLng))
+                    .destinationAddress(String.format("%.6f, %.6f", destLat, destLng))
+                    .distanceMeters(distanceMeters)
+                    .distanceText(formatDistance(distanceMeters))
+                    .durationSeconds(durationSeconds)
+                    .durationText(formatDuration(durationSeconds))
+                    .transportMode(mode)
+                    .apiSource(DirectionResult.ApiSource.ROUTES_API)
+                    .build();
+
+        } catch (GoogleMapsException e) {
+            throw e;
+        } catch (RestClientException e) {
+            log.error("[Routes API] HTTP error: {}", e.getMessage());
+            throw GoogleMapsException.apiError("HTTP error: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("[Routes API] Error: {}", e.getMessage(), e);
+            throw GoogleMapsException.apiError("Failed to get directions: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Maps WeGo TransportMode to Routes API travelMode string.
+     */
+    private String mapTransportModeToRoutesApi(TransportMode mode) {
+        return switch (mode) {
+            case WALKING -> "WALK";
+            case BICYCLING -> "BICYCLE";
+            case DRIVING -> "DRIVE";
+            case TRANSIT -> "TRANSIT";
+            default -> "DRIVE";
+        };
+    }
+
+    /**
+     * Parses duration string from Routes API (format: "123s").
+     */
+    private int parseDurationString(String duration) {
+        if (duration == null || duration.isEmpty()) {
+            return 0;
+        }
+        // Remove 's' suffix and parse
+        String numericPart = duration.replaceAll("[^0-9]", "");
+        try {
+            return Integer.parseInt(numericPart);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Formats distance in meters to human-readable text.
+     */
+    private String formatDistance(int meters) {
+        if (meters < 1000) {
+            return meters + " m";
+        }
+        return String.format("%.1f km", meters / 1000.0);
+    }
+
+    /**
+     * Formats duration in seconds to human-readable text.
+     */
+    private String formatDuration(int seconds) {
+        int hours = seconds / 3600;
+        int minutes = (seconds % 3600) / 60;
+        if (hours > 0) {
+            return String.format("%d 小時 %d 分", hours, minutes);
+        }
+        return String.format("%d 分鐘", minutes);
     }
 
     /**
@@ -349,6 +617,7 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
                     .durationSeconds(durationSeconds)
                     .durationText(durationText)
                     .transportMode(mode)
+                    .apiSource(DirectionResult.ApiSource.DISTANCE_MATRIX)
                     .build();
 
         } catch (GoogleMapsException e) {
