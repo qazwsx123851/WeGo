@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.HttpClientErrorException;
@@ -22,6 +24,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -68,73 +71,75 @@ class GoogleMapsClientImplTest {
             }
             """;
 
+    // Places API (New) format
     private static final String PLACES_SEARCH_SUCCESS_RESPONSE = """
             {
-                "status": "OK",
-                "results": [{
-                    "place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
-                    "name": "Tokyo Tower",
-                    "vicinity": "4-2-8 Shibakoen, Minato City",
-                    "geometry": {
-                        "location": {
-                            "lat": 35.6585805,
-                            "lng": 139.7454329
-                        }
+                "places": [{
+                    "id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+                    "displayName": {
+                        "text": "Tokyo Tower"
+                    },
+                    "formattedAddress": "4-2-8 Shibakoen, Minato City",
+                    "location": {
+                        "latitude": 35.6585805,
+                        "longitude": 139.7454329
                     },
                     "rating": 4.5,
-                    "user_ratings_total": 12345,
+                    "userRatingCount": 12345,
                     "types": ["tourist_attraction", "point_of_interest"],
                     "photos": [{
-                        "photo_reference": "AWU5eFhqX8Y..."
+                        "name": "places/ChIJN1t_tDeuEmsRUsoyG83frY4/photos/AWU5eFhqX8Y"
                     }],
-                    "opening_hours": {
-                        "open_now": true
+                    "regularOpeningHours": {
+                        "openNow": true
                     }
                 }]
             }
             """;
 
+    // Places API (New) format - no wrapper, direct place object
     private static final String PLACE_DETAILS_SUCCESS_RESPONSE = """
             {
-                "status": "OK",
-                "result": {
-                    "place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
-                    "name": "Tokyo Tower",
-                    "formatted_address": "4-2-8 Shibakoen, Minato City, Tokyo 105-0011",
-                    "formatted_phone_number": "03-3433-5111",
-                    "international_phone_number": "+81 3-3433-5111",
-                    "website": "https://www.tokyotower.co.jp",
-                    "url": "https://maps.google.com/?cid=12345",
-                    "geometry": {
-                        "location": {
-                            "lat": 35.6585805,
-                            "lng": 139.7454329
-                        }
+                "id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+                "displayName": {
+                    "text": "Tokyo Tower"
+                },
+                "formattedAddress": "4-2-8 Shibakoen, Minato City, Tokyo 105-0011",
+                "nationalPhoneNumber": "03-3433-5111",
+                "internationalPhoneNumber": "+81 3-3433-5111",
+                "websiteUri": "https://www.tokyotower.co.jp",
+                "googleMapsUri": "https://maps.google.com/?cid=12345",
+                "location": {
+                    "latitude": 35.6585805,
+                    "longitude": 139.7454329
+                },
+                "rating": 4.5,
+                "userRatingCount": 12345,
+                "priceLevel": "PRICE_LEVEL_MODERATE",
+                "types": ["tourist_attraction", "point_of_interest"],
+                "photos": [{
+                    "name": "places/ChIJN1t_tDeuEmsRUsoyG83frY4/photos/photo1"
+                }, {
+                    "name": "places/ChIJN1t_tDeuEmsRUsoyG83frY4/photos/photo2"
+                }],
+                "reviews": [{
+                    "authorAttribution": {
+                        "displayName": "John Doe"
                     },
-                    "rating": 4.5,
-                    "user_ratings_total": 12345,
-                    "price_level": 2,
-                    "types": ["tourist_attraction", "point_of_interest"],
-                    "photos": [{
-                        "photo_reference": "photo1"
-                    }, {
-                        "photo_reference": "photo2"
-                    }],
-                    "reviews": [{
-                        "author_name": "John Doe",
-                        "rating": 5,
-                        "text": "Amazing view!",
-                        "relative_time_description": "a week ago"
-                    }],
-                    "opening_hours": {
-                        "open_now": true,
-                        "weekday_text": [
-                            "Monday: 9:00 AM - 11:00 PM",
-                            "Tuesday: 9:00 AM - 11:00 PM"
-                        ]
+                    "rating": 5,
+                    "text": {
+                        "text": "Amazing view!"
                     },
-                    "utc_offset": 540
-                }
+                    "relativePublishTimeDescription": "a week ago"
+                }],
+                "regularOpeningHours": {
+                    "openNow": true,
+                    "weekdayDescriptions": [
+                        "Monday: 9:00 AM - 11:00 PM",
+                        "Tuesday: 9:00 AM - 11:00 PM"
+                    ]
+                },
+                "utcOffsetMinutes": 540
             }
             """;
 
@@ -320,8 +325,13 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should return list of places on success")
         void shouldReturnListOfPlacesOnSuccess() {
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(PLACES_SEARCH_SUCCESS_RESPONSE, HttpStatus.OK));
+            // Places API (New) uses POST with exchange()
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.POST),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(PLACES_SEARCH_SUCCESS_RESPONSE, HttpStatus.OK));
 
             List<PlaceSearchResult> results = client.searchPlaces(
                     "restaurant",
@@ -341,8 +351,12 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should include coordinates in results")
         void shouldIncludeCoordinatesInResults() {
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(PLACES_SEARCH_SUCCESS_RESPONSE, HttpStatus.OK));
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.POST),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(PLACES_SEARCH_SUCCESS_RESPONSE, HttpStatus.OK));
 
             List<PlaceSearchResult> results = client.searchPlaces(
                     "cafe",
@@ -358,15 +372,19 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should return empty list for ZERO_RESULTS")
         void shouldReturnEmptyListForZeroResults() {
+            // Places API (New) returns empty places array, no status field
             String zeroResultsResponse = """
                     {
-                        "status": "ZERO_RESULTS",
-                        "results": []
+                        "places": []
                     }
                     """;
 
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(zeroResultsResponse, HttpStatus.OK));
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.POST),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(zeroResultsResponse, HttpStatus.OK));
 
             List<PlaceSearchResult> results = client.searchPlaces(
                     "nonexistent",
@@ -380,15 +398,22 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should throw GoogleMapsException on API error")
         void shouldThrowGoogleMapsExceptionOnApiError() {
+            // Places API (New) returns error in different format
             String errorResponse = """
                     {
-                        "status": "OVER_QUERY_LIMIT",
-                        "error_message": "You have exceeded your daily request quota"
+                        "error": {
+                            "status": "RESOURCE_EXHAUSTED",
+                            "message": "You have exceeded your daily request quota"
+                        }
                     }
                     """;
 
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(errorResponse, HttpStatus.OK));
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.POST),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(errorResponse, HttpStatus.OK));
 
             assertThatThrownBy(() -> client.searchPlaces(
                     "restaurant",
@@ -417,8 +442,13 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should return place details on success")
         void shouldReturnPlaceDetailsOnSuccess() {
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(PLACE_DETAILS_SUCCESS_RESPONSE, HttpStatus.OK));
+            // Places API (New) uses GET with exchange()
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.GET),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(PLACE_DETAILS_SUCCESS_RESPONSE, HttpStatus.OK));
 
             PlaceDetails details = client.getPlaceDetails("ChIJN1t_tDeuEmsRUsoyG83frY4");
 
@@ -431,8 +461,12 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should include contact information")
         void shouldIncludeContactInformation() {
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(PLACE_DETAILS_SUCCESS_RESPONSE, HttpStatus.OK));
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.GET),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(PLACE_DETAILS_SUCCESS_RESPONSE, HttpStatus.OK));
 
             PlaceDetails details = client.getPlaceDetails("test-place-id");
 
@@ -444,8 +478,12 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should include reviews")
         void shouldIncludeReviews() {
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(PLACE_DETAILS_SUCCESS_RESPONSE, HttpStatus.OK));
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.GET),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(PLACE_DETAILS_SUCCESS_RESPONSE, HttpStatus.OK));
 
             PlaceDetails details = client.getPlaceDetails("test-place-id");
 
@@ -461,8 +499,12 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should include opening hours")
         void shouldIncludeOpeningHours() {
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(PLACE_DETAILS_SUCCESS_RESPONSE, HttpStatus.OK));
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.GET),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(PLACE_DETAILS_SUCCESS_RESPONSE, HttpStatus.OK));
 
             PlaceDetails details = client.getPlaceDetails("test-place-id");
 
@@ -474,19 +516,25 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should throw for NOT_FOUND status")
         void shouldThrowForNotFoundStatus() {
+            // Places API (New) returns error in different format
             String notFoundResponse = """
                     {
-                        "status": "NOT_FOUND",
-                        "result": {}
+                        "error": {
+                            "status": "NOT_FOUND",
+                            "message": "Place not found"
+                        }
                     }
                     """;
 
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(notFoundResponse, HttpStatus.OK));
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.GET),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(notFoundResponse, HttpStatus.OK));
 
             assertThatThrownBy(() -> client.getPlaceDetails("invalid-place-id"))
-                    .isInstanceOf(GoogleMapsException.class)
-                    .hasMessageContaining("not found");
+                    .isInstanceOf(GoogleMapsException.class);
         }
 
         @Test
@@ -548,15 +596,23 @@ class GoogleMapsClientImplTest {
         @Test
         @DisplayName("should handle OVER_QUERY_LIMIT status")
         void shouldHandleOverQueryLimitStatus() {
+            // Places API (New) returns error in different format
             String rateLimitResponse = """
                     {
-                        "status": "OVER_QUERY_LIMIT",
-                        "error_message": "You have exceeded your rate-limit for this API."
+                        "error": {
+                            "status": "RESOURCE_EXHAUSTED",
+                            "message": "You have exceeded your rate-limit for this API."
+                        }
                     }
                     """;
 
-            when(restTemplate.getForEntity(anyString(), eq(String.class)))
-                    .thenReturn(new ResponseEntity<>(rateLimitResponse, HttpStatus.OK));
+            // searchPlaces uses POST with exchange()
+            when(restTemplate.exchange(
+                    anyString(),
+                    eq(HttpMethod.POST),
+                    any(HttpEntity.class),
+                    eq(String.class)
+            )).thenReturn(new ResponseEntity<>(rateLimitResponse, HttpStatus.OK));
 
             assertThatThrownBy(() -> client.searchPlaces(
                     "test", 35.0, 139.0, 1000

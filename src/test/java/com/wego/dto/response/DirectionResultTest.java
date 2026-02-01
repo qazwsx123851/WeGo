@@ -61,17 +61,20 @@ class DirectionResultTest {
     class AllArgsConstructor {
 
         @Test
-        @DisplayName("should create DirectionResult with all args")
+        @DisplayName("should create DirectionResult with all args using builder")
         void shouldCreateWithAllArgs() {
-            DirectionResult result = new DirectionResult(
-                    "Origin",
-                    "Destination",
-                    2000,
-                    "2.0 km",
-                    300,
-                    "5 mins",
-                    TransportMode.WALKING
-            );
+            // Use builder pattern instead of all-args constructor for maintainability
+            DirectionResult result = DirectionResult.builder()
+                    .originAddress("Origin")
+                    .destinationAddress("Destination")
+                    .distanceMeters(2000)
+                    .distanceText("2.0 km")
+                    .durationSeconds(300)
+                    .durationText("5 mins")
+                    .transportMode(TransportMode.WALKING)
+                    .apiSource(DirectionResult.ApiSource.DISTANCE_MATRIX)
+                    .fromFallback(false)
+                    .build();
 
             assertThat(result.getOriginAddress()).isEqualTo("Origin");
             assertThat(result.getDestinationAddress()).isEqualTo("Destination");
@@ -80,6 +83,8 @@ class DirectionResultTest {
             assertThat(result.getDurationSeconds()).isEqualTo(300);
             assertThat(result.getDurationText()).isEqualTo("5 mins");
             assertThat(result.getTransportMode()).isEqualTo(TransportMode.WALKING);
+            assertThat(result.getApiSource()).isEqualTo(DirectionResult.ApiSource.DISTANCE_MATRIX);
+            assertThat(result.isFromFallback()).isFalse();
         }
     }
 

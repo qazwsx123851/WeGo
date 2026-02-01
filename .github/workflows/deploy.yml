@@ -7,7 +7,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: false  # 暫時停用部署，等測試修復後再啟用
+    # if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
