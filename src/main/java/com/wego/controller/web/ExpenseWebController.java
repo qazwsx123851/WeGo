@@ -99,12 +99,10 @@ public class ExpenseWebController {
             return "redirect:/trips/" + tripId + "/expenses?error=access_denied";
         }
 
-        // Get members for the payer and participant selection
-        List<TripMember> members = tripMemberRepository.findByTripId(tripId);
-
+        // Get members for the payer and participant selection (use trip.getMembers() which returns MemberSummary)
         model.addAttribute("trip", trip);
         model.addAttribute("tripId", tripId);
-        model.addAttribute("members", members);
+        model.addAttribute("members", trip.getMembers());
         model.addAttribute("currentUserId", user.getId());
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
@@ -298,6 +296,50 @@ public class ExpenseWebController {
         model.addAttribute("picture", user.getAvatarUrl());
 
         return "expense/detail";
+    }
+
+    /**
+     * Shows the expense statistics page.
+     *
+     * @contract
+     *   - pre: tripId != null, principal != null
+     *   - pre: user has view permission on the trip
+     *   - post: Returns statistics page with trip data
+     *   - calls: TripService#getTrip
+     *   - calledBy: Web browser GET /trips/{tripId}/expenses/statistics
+     *
+     * @param tripId The trip ID
+     * @param principal The authenticated user
+     * @param model The Spring MVC model
+     * @return The expense statistics view name
+     */
+    @GetMapping("/statistics")
+    public String showStatistics(@PathVariable UUID tripId,
+                                 @AuthenticationPrincipal OAuth2User principal,
+                                 Model model) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        TripResponse trip;
+        try {
+            trip = tripService.getTrip(tripId, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        if (trip == null) {
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        model.addAttribute("trip", trip);
+        model.addAttribute("tripId", tripId);
+        model.addAttribute("name", user.getNickname());
+        model.addAttribute("picture", user.getAvatarUrl());
+
+        return "expense/statistics";
     }
 
     /**

@@ -51,7 +51,7 @@
                     <!-- Attraction -->
                     <label class="activity-type-option cursor-pointer">
                         <input type="radio" name="type" value="ATTRACTION"
-                               th:checked="${activity?.type == null or activity?.type.name() == 'ATTRACTION'}"
+                               th:checked="true"
                                class="sr-only peer">
                         <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
                                     peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20
@@ -73,7 +73,7 @@
                     <!-- Restaurant -->
                     <label class="activity-type-option cursor-pointer">
                         <input type="radio" name="type" value="RESTAURANT"
-                               th:checked="${activity?.type?.name() == 'RESTAURANT'}"
+                               th:checked="false"
                                class="sr-only peer">
                         <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
                                     peer-checked:border-adventure-500 peer-checked:bg-adventure-50 dark:peer-checked:bg-adventure-900/20
@@ -93,7 +93,7 @@
                     <!-- Transport -->
                     <label class="activity-type-option cursor-pointer">
                         <input type="radio" name="type" value="TRANSPORT"
-                               th:checked="${activity?.type?.name() == 'TRANSPORT'}"
+                               th:checked="false"
                                class="sr-only peer">
                         <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
                                     peer-checked:border-gray-500 peer-checked:bg-gray-50 dark:peer-checked:bg-gray-700/50
@@ -113,7 +113,7 @@
                     <!-- Accommodation -->
                     <label class="activity-type-option cursor-pointer">
                         <input type="radio" name="type" value="ACCOMMODATION"
-                               th:checked="${activity?.type?.name() == 'ACCOMMODATION'}"
+                               th:checked="false"
                                class="sr-only peer">
                         <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
                                     peer-checked:border-success peer-checked:bg-success-light dark:peer-checked:bg-green-900/20

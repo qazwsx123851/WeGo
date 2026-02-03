@@ -2,7 +2,7 @@
 <html lang="zh-TW" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head th:replace="~{fragments/head :: head(title=${expense?.id != null ? '編輯支出' : '新增支出'})}"></head>
-<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20" th:data-base-currency="${trip.baseCurrency}">
     <!-- Header -->
     <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
         <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -182,9 +182,9 @@
                             class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 cursor-pointer">
                         <option value="">請選擇付款人</option>
                         <option th:each="member : ${members}"
-                                th:value="${member.user.id}"
-                                th:text="${member.user.name}"
-                                th:selected="${expense?.payer?.id == member.user.id or (expense?.payer == null and member.user.id == currentUserId)}">
+                                th:value="${member.userId}"
+                                th:text="${member.nickname}"
+                                th:selected="${expense?.payer?.id == member.userId or (expense?.payer == null and member.userId == currentUserId)}">
                             成員名稱
                         </option>
                     </select>
@@ -229,15 +229,15 @@
                             <label class="flex items-center gap-3 flex-1 cursor-pointer">
                                 <input type="checkbox"
                                        th:name="'participantIds'"
-                                       th:value="${member.user.id}"
-                                       th:checked="${expense?.participants == null or expense.participants.^[user.id == __${member.user.id}__] != null}"
+                                       th:value="${member.userId}"
+                                       th:checked="${expense?.participants == null or expense.participants.^[user.id == __${member.userId}__] != null}"
                                        class="participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer">
                                 <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
-                                          th:text="${#strings.substring(member.user.name, 0, 1)}">A</span>
+                                          th:text="${#strings.substring(member.nickname, 0, 1)}">A</span>
                                 </div>
                                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
-                                      th:text="${member.user.name}">成員名稱</span>
+                                      th:text="${member.nickname}">成員名稱</span>
                             </label>
                             <span class="text-sm text-gray-500 dark:text-gray-400 font-mono equal-amount">$0</span>
                         </div>
@@ -248,21 +248,21 @@
                         <div th:each="member : ${members}" class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                             <label class="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox"
-                                       th:data-user-id="${member.user.id}"
+                                       th:data-user-id="${member.userId}"
                                        class="percentage-participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer"
                                        checked>
                                 <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
-                                          th:text="${#strings.substring(member.user.name, 0, 1)}">A</span>
+                                          th:text="${#strings.substring(member.nickname, 0, 1)}">A</span>
                                 </div>
                                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
-                                      th:text="${member.user.name}">成員名稱</span>
+                                      th:text="${member.nickname}">成員名稱</span>
                             </label>
                             <div class="flex-1"></div>
                             <div class="flex items-center gap-2">
                                 <input type="number"
-                                       th:name="'percentages[' + ${member.user.id} + ']'"
-                                       th:id="'percentage-' + ${member.user.id}"
+                                       th:name="'percentages[' + ${member.userId} + ']'"
+                                       th:id="'percentage-' + ${member.userId}"
                                        value="0"
                                        min="0"
                                        max="100"
@@ -284,22 +284,22 @@
                         <div th:each="member : ${members}" class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                             <label class="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox"
-                                       th:data-user-id="${member.user.id}"
+                                       th:data-user-id="${member.userId}"
                                        class="custom-participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer"
                                        checked>
                                 <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
-                                          th:text="${#strings.substring(member.user.name, 0, 1)}">A</span>
+                                          th:text="${#strings.substring(member.nickname, 0, 1)}">A</span>
                                 </div>
                                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
-                                      th:text="${member.user.name}">成員名稱</span>
+                                      th:text="${member.nickname}">成員名稱</span>
                             </label>
                             <div class="flex-1"></div>
                             <div class="flex items-center gap-2">
                                 <span class="text-sm text-gray-500 dark:text-gray-400">$</span>
                                 <input type="number"
-                                       th:name="'customAmounts[' + ${member.user.id} + ']'"
-                                       th:id="'custom-' + ${member.user.id}"
+                                       th:name="'customAmounts[' + ${member.userId} + ']'"
+                                       th:id="'custom-' + ${member.userId}"
                                        value="0"
                                        min="0"
                                        step="0.01"
