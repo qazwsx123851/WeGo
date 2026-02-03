@@ -106,7 +106,9 @@
                     <!-- Checkbox / Status Toggle -->
                     <button th:if="${canEdit}"
                             type="button"
-                            th:onclick="'TodoUI.toggleStatus(\'' + ${todo.id} + '\', \'' + ${todo.status} + '\')'"
+                            th:data-todo-id="${todo.id}"
+                            th:data-todo-status="${todo.status}"
+                            onclick="TodoUI.toggleStatus(this.dataset.todoId, this.dataset.todoStatus)"
                             th:class="'flex-shrink-0 w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all duration-200 ' +
                                       (${todo.status.name() == 'COMPLETED'} ? 'bg-success border-success text-white' :
                                        ${todo.status.name() == 'IN_PROGRESS'} ? 'bg-primary-500 border-primary-500 text-white' :
@@ -131,7 +133,8 @@
                     <!-- Content -->
                     <div class="flex-1 min-w-0 cursor-pointer"
                          th:if="${canEdit}"
-                         th:onclick="'TodoUI.showEditModal(' + ${todo.id} + ')'">
+                         th:data-todo-id="${todo.id}"
+                         onclick="TodoUI.showEditModal(this.dataset.todoId)">
                         <h3 th:class="'font-medium truncate ' + (${todo.status.name() == 'COMPLETED'} ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')"
                             th:text="${todo.title}">待辦事項標題</h3>
                         <p th:if="${todo.description}"
@@ -156,13 +159,13 @@
 
                             <!-- Due Date -->
                             <div th:if="${todo.dueDate}" class="flex items-center gap-1"
-                                 th:classappend="${todo.overdue} ? 'text-error' : ''">
+                                 th:classappend="${todo.isOverdue} ? 'text-error' : ''">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                 </svg>
                                 <span th:text="${#temporals.format(todo.dueDate, 'MM/dd')}">01/15</span>
-                                <span th:if="${todo.overdue}" class="text-error font-medium">逾期</span>
+                                <span th:if="${todo.isOverdue}" class="text-error font-medium">逾期</span>
                             </div>
                         </div>
                     </div>
@@ -191,13 +194,13 @@
 
                             <!-- Due Date -->
                             <div th:if="${todo.dueDate}" class="flex items-center gap-1"
-                                 th:classappend="${todo.overdue} ? 'text-error' : ''">
+                                 th:classappend="${todo.isOverdue} ? 'text-error' : ''">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                           d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                 </svg>
                                 <span th:text="${#temporals.format(todo.dueDate, 'MM/dd')}">01/15</span>
-                                <span th:if="${todo.overdue}" class="text-error font-medium">逾期</span>
+                                <span th:if="${todo.isOverdue}" class="text-error font-medium">逾期</span>
                             </div>
                         </div>
                     </div>

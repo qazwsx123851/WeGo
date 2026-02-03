@@ -59,7 +59,8 @@
             <div class="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                 <button th:each="category : ${categories}"
                         th:classappend="${category.active ? 'bg-primary-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}"
-                        th:onclick="'filterByCategory(\'' + ${category.value} + '\')'"
+                        th:data-category="${category.value}"
+                        onclick="filterByCategory(this.dataset.category)"
                         th:text="${category.label}"
                         class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap cursor-pointer transition-all duration-200 min-h-[36px]">
                     全部

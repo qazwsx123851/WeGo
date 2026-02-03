@@ -117,7 +117,7 @@
                             <div th:unless="${item.fromUserAvatarUrl != null}"
                                  class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0 ring-2 ring-red-200 dark:ring-red-800">
                                 <span class="text-sm font-semibold text-red-600 dark:text-red-400"
-                                      th:text="${#strings.substring(item.fromUserName, 0, 1)}">A</span>
+                                      th:text="${item?.fromUserName?.length() > 0 ? #strings.substring(item.fromUserName, 0, 1) : '?'}">A</span>
                             </div>
                             <span class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate hidden sm:inline"
                                   th:text="${item.fromUserName}">付款人</span>
@@ -148,7 +148,7 @@
                             <div th:unless="${item.toUserAvatarUrl != null}"
                                  class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 ring-2 ring-green-200 dark:ring-green-800">
                                 <span class="text-sm font-semibold text-green-600 dark:text-green-400"
-                                      th:text="${#strings.substring(item.toUserName, 0, 1)}">B</span>
+                                      th:text="${item?.toUserName?.length() > 0 ? #strings.substring(item.toUserName, 0, 1) : '?'}">B</span>
                             </div>
                         </div>
                     </div>

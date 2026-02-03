@@ -438,7 +438,7 @@
 
                     <!-- Due Date Badge -->
                     <div th:if="${todo.dueDate}"
-                         th:class="'flex-shrink-0 text-xs px-2 py-0.5 rounded-full ' + (${todo.overdue} ? 'bg-error-light text-error-dark' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300')"
+                         th:class="'flex-shrink-0 text-xs px-2 py-0.5 rounded-full ' + (${todo.isOverdue} ? 'bg-error-light text-error-dark' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300')"
                          th:text="${#temporals.format(todo.dueDate, 'MM/dd')}">01/15</div>
                 </div>
             </div>

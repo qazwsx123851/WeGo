@@ -38,7 +38,7 @@
     <!-- Main Content -->
     <main class="max-w-4xl mx-auto px-4 py-6">
         <form id="activity-form"
-              th:action="${activity?.id != null} ? @{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})} : @{/trips/{tripId}/activities(tripId=${trip.id})}"
+              th:action="${'/trips/' + trip.id + '/activities' + (activity?.id != null ? '/' + activity.id : '')}"
               method="post"
               class="space-y-6">
 

@@ -94,19 +94,49 @@ EXCHANGERATE_API_KEY=
 ## Thymeleaf SpEL 規範
 
 > 完整參考: `~/.claude/skills/thymeleaf-spel.md`
+> 檢查工具: `/thymeleaf-check`
+
+### 五種表達式類型
+
+| 類型 | 語法 | 用途 | 範例 |
+|------|------|------|------|
+| Variable | `${...}` | 存取 model 屬性 | `${user.name}` |
+| Selection | `*{...}` | 配合 `th:object` | `*{name}` |
+| Message | `#{...}` | i18n 訊息 | `#{welcome.message}` |
+| **Link** | `@{...}` | URL 建構 | `@{/users/{id}(id=${user.id})}` |
+| Fragment | `~{...}` | 引用片段 | `~{fragments/header :: nav}` |
+
+### ⚠️ CRITICAL: 表達式不可混用
+
+```html
+<!-- ❌ 錯誤: 在 ${} 內使用 @{} 會導致 EL1059E -->
+<form th:action="${isEdit ? @{/trips/{id}/edit(id=${trip.id})} : @{/trips/create}}">
+
+<!-- ✅ 正確: 使用字串拼接 -->
+<form th:action="${isEdit ? '/trips/' + trip.id + '/edit' : '/trips/create'}">
+
+<!-- ✅ 正確: 使用 Literal Substitution -->
+<a th:href="|/trips/${tripId}/activities/${activityId}|">Link</a>
+```
 
 ### ⚠️ Null-Safe 必須
 
 ```html
-<!-- ❌ 錯誤 -->
+<!-- ❌ 錯誤: 會拋出 EL1007E -->
 <span th:text="${user.address.city}">City</span>
 
-<!-- ✅ 正確 -->
+<!-- ✅ 正確: 全鏈路 Safe Navigation -->
 <span th:text="${user?.address?.city}">City</span>
-<span th:if="${(trip.memberCount ?: 0) > 0}">Members</span>
+
+<!-- ✅ 正確: 數值比較必須加預設值 -->
+<span th:if="${(trip?.memberCount ?: 0) > 0}">Members</span>
+
+<!-- ✅ 正確: BigDecimal 比較 -->
+<span th:classappend="${(balance ?: T(java.math.BigDecimal).ZERO).compareTo(T(java.math.BigDecimal).ZERO) >= 0} ? 'text-green' : 'text-red'">
 ```
 
 ### 快速參考
+
 | 場景 | 模式 |
 |------|------|
 | 巢狀屬性 | `${obj?.nested?.prop}` |
@@ -114,11 +144,27 @@ EXCHANGERATE_API_KEY=
 | 數值比較 | `${(obj?.count ?: 0) > 0}` |
 | 日期格式 | `${#temporals.format(date, 'yyyy-MM-dd')}` |
 | 金額格式 | `${#numbers.formatDecimal(amount, 0, 'COMMA', 2, 'POINT')}` |
+| 字串截取 | `${str?.length() > 0 ? #strings.substring(str, 0, 1) : '?'}` |
+| 集合迭代 | `th:if="${list != null}" th:each="item : ${list}"` |
 
-### 禁止
-- ❌ `th:utext` 輸出使用者資料 (XSS)
-- ❌ `th:onclick` 拼接變數 (JS injection)
-- ❌ `#dates` 處理 java.time (用 `#temporals`)
+### 禁止事項
+
+| 禁止 | 原因 | 替代方案 |
+|------|------|----------|
+| `th:utext="${userInput}"` | XSS 漏洞 | 用 `th:text` |
+| `th:onclick="'fn(' + ${val} + ')'"` | JS injection | 用 `th:data-*` + JS |
+| `th:action="${cond ? @{url1} : @{url2}}"` | 語法錯誤 | 用字串拼接 |
+| `#dates.format(localDate)` | 類型錯誤 | 用 `#temporals` |
+| `${list[0].prop}` 無 null check | NPE | 先檢查 `list != null and #lists.size(list) > 0` |
+
+### 常見錯誤代碼
+
+| 錯誤代碼 | 原因 | 修正 |
+|----------|------|------|
+| `EL1007E` | 存取 null 物件的屬性 | 使用 `?.` |
+| `EL1059E` | `@` 或 `&` 後接非識別符 | 不要在 `${}` 內用 `@{}` |
+| `EL1021E` | 找不到類別 | 檢查 `T()` 語法 |
+| `EL1030E` | 運算子無法應用 | 檢查 null 值 |
 
 ---
 

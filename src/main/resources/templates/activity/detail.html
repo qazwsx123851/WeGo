@@ -334,13 +334,13 @@
                                 <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700
                                             text-gray-600 dark:text-gray-400
                                             flex items-center justify-center text-sm">
-                                    <span th:text="${expense.category?.icon}">$</span>
+                                    <span th:text="${expense.category}">$</span>
                                 </div>
                                 <div>
                                     <p class="text-sm font-medium text-gray-700 dark:text-gray-200"
                                        th:text="${expense.description}">門票</p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400"
-                                       th:text="${expense.paidBy?.nickname}">小明</p>
+                                       th:text="${expense.paidByName}">小明</p>
                                 </div>
                             </div>
                             <span class="text-sm font-semibold text-gray-800 dark:text-gray-100"

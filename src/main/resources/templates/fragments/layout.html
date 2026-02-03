@@ -94,7 +94,7 @@
                               hover:ring-2 hover:ring-primary-500/50
                               transition-all duration-200 cursor-pointer">
                         <span th:if="${#authentication != null and #authentication.principal != null}"
-                              th:text="${#strings.substring(#authentication.principal.name, 0, 1)}">U</span>
+                              th:text="${#authentication.principal.name?.length() > 0 ? #strings.substring(#authentication.principal.name, 0, 1) : 'U'}">U</span>
                     </a>
                 </div>
             </div>

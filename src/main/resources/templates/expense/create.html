@@ -22,7 +22,7 @@
 
     <!-- Main Content -->
     <main class="max-w-4xl mx-auto px-4 py-6">
-        <form th:action="${expense?.id != null ? @{/trips/{tripId}/expenses/{expenseId}(tripId=${trip.id}, expenseId=${expense.id})} : @{/trips/{tripId}/expenses(tripId=${trip.id})}}"
+        <form th:action="${'/trips/' + trip.id + '/expenses' + (expense?.id != null ? '/' + expense.id : '')}"
               method="post"
               id="expense-form"
               class="space-y-6">
@@ -234,7 +234,7 @@
                                        class="participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer">
                                 <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
-                                          th:text="${#strings.substring(member.nickname, 0, 1)}">A</span>
+                                          th:text="${member?.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : '?'}">A</span>
                                 </div>
                                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
                                       th:text="${member.nickname}">成員名稱</span>
@@ -253,7 +253,7 @@
                                        checked>
                                 <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
-                                          th:text="${#strings.substring(member.nickname, 0, 1)}">A</span>
+                                          th:text="${member?.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : '?'}">A</span>
                                 </div>
                                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
                                       th:text="${member.nickname}">成員名稱</span>
@@ -289,7 +289,7 @@
                                        checked>
                                 <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
-                                          th:text="${#strings.substring(member.nickname, 0, 1)}">A</span>
+                                          th:text="${member?.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : '?'}">A</span>
                                 </div>
                                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
                                       th:text="${member.nickname}">成員名稱</span>

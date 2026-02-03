@@ -223,7 +223,10 @@
                                         border border-gray-100 dark:border-gray-700
                                         py-1 z-10">
                                 <button type="button"
-                                        th:onclick="|changeRole('${trip.id}', '${member.userId}', 'EDITOR')|"
+                                        th:data-trip-id="${trip.id}"
+                                        th:data-user-id="${member.userId}"
+                                        data-role="EDITOR"
+                                        onclick="changeRole(this.dataset.tripId, this.dataset.userId, this.dataset.role)"
                                         class="w-full px-4 py-2 text-left text-sm
                                                text-gray-700 dark:text-gray-300
                                                hover:bg-gray-100 dark:hover:bg-gray-700
@@ -231,7 +234,10 @@
                                     設為編輯者
                                 </button>
                                 <button type="button"
-                                        th:onclick="|changeRole('${trip.id}', '${member.userId}', 'VIEWER')|"
+                                        th:data-trip-id="${trip.id}"
+                                        th:data-user-id="${member.userId}"
+                                        data-role="VIEWER"
+                                        onclick="changeRole(this.dataset.tripId, this.dataset.userId, this.dataset.role)"
                                         class="w-full px-4 py-2 text-left text-sm
                                                text-gray-700 dark:text-gray-300
                                                hover:bg-gray-100 dark:hover:bg-gray-700
