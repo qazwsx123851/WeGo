@@ -4,34 +4,36 @@
 
 ## 功能特色
 
-### 行程編輯器
+### 行程管理
 - **拖拽排序** - 長按景點卡片即可拖動調整順序
-- **交通預估** - 自動計算景點間距離與抵達時間（支援開車/步行/大眾運輸）
-- **智慧排序** - 一鍵優化當日路線，找出最順路的排序
-- **天氣預報** - 整合氣象 API，顯示景點 5 天內天氣
+- **交通預估** - 自動計算景點間距離與抵達時間（支援步行/開車/大眾運輸/騎車/高鐵/飛機）
+- **智慧排序** - 一鍵優化當日路線
+- **天氣預報** - 顯示景點未來天氣
 
 ### 協作功能
-- **多人共編** - 透過邀請連結加入，支援 Owner/Editor/Viewer 三種角色
-- **代辦事項** - 分配任務給成員，追蹤完成狀態
-- **分帳系統** - 多幣別支援、自動換算、債務簡化計算
+- **多人共編** - 支援 Owner/Editor/Viewer 三種角色
+- **邀請連結** - 透過連結快速加入行程
+- **代辦事項** - 分配任務、追蹤進度
+
+### 分帳系統
+- **多幣別支援** - 即時匯率轉換（TWD/USD/JPY/EUR 等 8 種貨幣）
+- **多種分帳方式** - 均分、百分比、自訂金額
+- **債務簡化** - 自動計算最少轉帳次數
+- **統計圖表** - 類別分析、趨勢圖、成員統計
 
 ### 檔案管理
-- **憑證上傳** - 支援 PDF、JPG、PNG、HEIC 格式
-- **快速關聯** - 檔案可綁定至特定日期或景點
-- **離線預覽** - Service Worker 快取機制
+- **憑證上傳** - 支援 PDF、JPG、PNG、HEIC
+- **快速關聯** - 檔案可綁定至日期或景點
 
 ## 技術架構
 
 | 層級 | 技術 |
 |------|------|
-| 後端 | Spring Boot 3.x (Java 17+) |
+| 後端 | Spring Boot 3.2 (Java 17) |
 | 前端 | Thymeleaf + Tailwind CSS |
-| 動畫 | Lottie-web |
 | 資料庫 | Supabase (PostgreSQL) |
 | 部署 | Railway |
-| 地圖 | Google Maps API |
-| 天氣 | OpenWeatherMap API |
-| 匯率 | ExchangeRate-API |
+| 外部 API | Google Maps、OpenWeatherMap、ExchangeRate-API |
 
 ## 快速開始
 
@@ -39,203 +41,76 @@
 
 - Java 17+
 - Maven 3.8+
-- Node.js 18+ (用於 Tailwind CSS 建置)
 
-### 環境變數設定
+### 環境變數
 
-建立 `.env` 檔案或設定以下環境變數：
+複製 `.env.example` 為 `.env` 並填入：
 
 ```bash
-# Database
-DATABASE_URL=postgresql://[user]:[password]@[host]:[port]/[database]
+# 必須
+DATABASE_URL=jdbc:postgresql://...
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SERVICE_KEY=eyJ...  # 必須是 service_role key
+GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxx
 
-# OAuth - Google
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-
-# External APIs
-GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-OPENWEATHERMAP_API_KEY=your_openweathermap_api_key
-EXCHANGERATE_API_KEY=your_exchangerate_api_key
-
-# Supabase Storage
-SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_KEY=your_supabase_service_key
+# 可選（有 Mock 替代）
+GOOGLE_MAPS_API_KEY=
+OPENWEATHERMAP_API_KEY=
+EXCHANGERATE_API_KEY=
 ```
 
-### 本地開發
+### 執行
 
 ```bash
-# 複製專案
-git clone https://github.com/your-username/wego.git
-cd wego
-
-# 安裝依賴並啟動
+# 開發
 ./mvnw spring-boot:run
+
+# 測試
+./mvnw test
+
+# 建置
+./mvnw clean package -DskipTests
 ```
 
 應用程式將在 `http://localhost:8080` 啟動。
-
-### 建置與部署
-
-```bash
-# 建置 JAR
-./mvnw clean package -DskipTests
-
-# 執行
-java -jar target/wego-*.jar
-```
 
 ## 專案結構
 
 ```
 wego/
-├── src/
-│   ├── main/
-│   │   ├── java/com/wego/
-│   │   │   ├── config/        # 設定檔（Security, OAuth, etc.）
-│   │   │   ├── controller/    # Web & API Controllers
-│   │   │   ├── service/       # 業務邏輯
-│   │   │   ├── repository/    # 資料存取層
-│   │   │   ├── entity/        # JPA Entities
-│   │   │   └── dto/           # Data Transfer Objects
-│   │   └── resources/
-│   │       ├── templates/     # Thymeleaf 模板
-│   │       ├── static/        # 靜態資源（CSS, JS, Images）
-│   │       └── application.yml
-│   └── test/
-├── docs/
-│   └── requirements.md        # 完整需求規格書
-├── pom.xml
-└── README.md
+├── src/main/java/com/wego/
+│   ├── config/          # 設定（Security, Cache, OAuth）
+│   ├── controller/      # Web & API Controllers
+│   ├── service/         # 業務邏輯
+│   ├── domain/          # 領域邏輯（演算法）
+│   ├── repository/      # 資料存取
+│   ├── entity/          # JPA Entities
+│   └── dto/             # DTOs
+├── src/main/resources/
+│   ├── templates/       # Thymeleaf 模板
+│   └── static/          # CSS, JS
+└── src/test/            # 測試（786 tests）
 ```
 
-## API 文件
+## 開發進度
 
-### 驗證
+| Phase | 狀態 | 功能 |
+|-------|:----:|------|
+| Phase 1 | ✅ | OAuth 登入、行程 CRUD、景點管理、交通預估、邀請連結、基本分帳 |
+| Phase 2 | ✅ | 權限模型、代辦事項、智慧排序、天氣預報 |
+| Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 |
+| Phase 4 | 🚧 | PWA 離線、深色模式 |
 
-| Method | Endpoint | 說明 |
-|--------|----------|------|
-| GET | `/oauth2/authorization/google` | Google OAuth 登入 |
-| POST | `/api/auth/logout` | 登出 |
-| GET | `/api/auth/me` | 取得當前用戶資訊 |
-
-### 行程
-
-| Method | Endpoint | 說明 |
-|--------|----------|------|
-| GET | `/api/trips` | 取得用戶的行程列表 |
-| POST | `/api/trips` | 建立新行程 |
-| GET | `/api/trips/{tripId}` | 取得行程詳情 |
-| PUT | `/api/trips/{tripId}` | 更新行程 |
-| DELETE | `/api/trips/{tripId}` | 刪除行程 |
-
-### 景點
-
-| Method | Endpoint | 說明 |
-|--------|----------|------|
-| GET | `/api/trips/{tripId}/activities` | 取得所有景點 |
-| POST | `/api/trips/{tripId}/activities` | 新增景點 |
-| PUT | `/api/trips/{tripId}/activities/reorder` | 批次更新排序 |
-| GET | `/api/trips/{tripId}/activities/optimize` | 取得路線優化建議 |
-
-### 分帳
-
-| Method | Endpoint | 說明 |
-|--------|----------|------|
-| GET | `/api/trips/{tripId}/expenses` | 取得所有支出 |
-| POST | `/api/trips/{tripId}/expenses` | 新增支出 |
-| GET | `/api/trips/{tripId}/settlements` | 取得結算結果 |
-
-> 完整 API 文件請參閱 [requirements.md](docs/requirements.md)
-
-## 資料模型
-
-```
-User ─┬─< TripMember >─── Trip
-      │                    │
-      │                    ├──< Activity >── Place
-      │                    │
-      │                    ├──< Expense >──< ExpenseSplit
-      │                    │
-      │                    ├──< Document
-      │                    │
-      └────────────────────┴──< Todo
-```
-
-### 主要實體
-
-| 實體 | 說明 |
-|------|------|
-| User | 使用者（OAuth 登入） |
-| Trip | 行程 |
-| TripMember | 行程成員與角色 |
-| Activity | 行程中的景點/活動 |
-| Place | 地理位置資訊 |
-| Expense | 支出記錄 |
-| ExpenseSplit | 分帳明細 |
-| Document | 上傳的憑證檔案 |
-| Todo | 代辦事項 |
-
-## 權限模型
-
-| 功能 | Owner | Editor | Viewer |
-|------|:-----:|:------:|:------:|
-| 檢視行程 | ✅ | ✅ | ✅ |
-| 編輯景點 | ✅ | ✅ | ❌ |
-| 新增支出 | ✅ | ✅ | ❌ |
-| 移除成員 | ✅ | ❌ | ❌ |
-| 刪除行程 | ✅ | ❌ | ❌ |
-
-## 開發路線圖
-
-### Phase 1: MVP
-- [x] OAuth 登入（Google）
-- [ ] 建立/編輯行程
-- [ ] 新增/編輯景點
-- [ ] 拖拽排序
-- [ ] 交通時間預估
-- [ ] 邀請連結
-- [ ] 基本分帳
-
-### Phase 2: 協作強化
-- [ ] 完整權限模型
-- [ ] 代辦事項
-- [ ] 智慧排序建議
-- [ ] 天氣預報整合
-
-### Phase 3: 分帳進階
-- [ ] 多幣別支援
-- [ ] 自訂分帳比例
-- [ ] 債務簡化演算法
-
-### Phase 4: 體驗優化
-- [ ] 離線快取（PWA）
-- [ ] 深色模式
-
-## 文件索引
+## 文件
 
 | 文件 | 說明 |
 |------|------|
-| [requirements.md](docs/requirements.md) | 完整需求規格書 (PRD) |
-| [software-design-document.md](docs/software-design-document.md) | 軟體設計文件 (SDD)，包含 SOLID 原則、系統架構、模組設計 |
-| [tdd-guide.md](docs/tdd-guide.md) | TDD 測試開發指南，JUnit 5 + Mockito 實作範例 |
-| [test-cases.md](docs/test-cases.md) | 測試案例規格書，所有模組的測試案例清單 |
-| [ui-design-guide.md](docs/ui-design-guide.md) | UI 設計指南，色彩、元件、頁面設計 |
-| [ai-coding-guidelines.md](docs/ai-coding-guidelines.md) | AI 輔助開發規範，防止上下文遺失的契約註解 |
-
-## 貢獻指南
-
-1. Fork 此專案
-2. 建立功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交變更 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 開啟 Pull Request
+| [CLAUDE.md](CLAUDE.md) | AI 開發指南 |
+| [docs/requirements.md](docs/requirements.md) | 需求規格書 |
+| [docs/software-design-document.md](docs/software-design-document.md) | 軟體設計文件 |
+| [docs/bug.md](docs/bug.md) | Bug 追蹤與安全審查 |
 
 ## 授權
 
-此專案採用 MIT 授權 - 詳見 [LICENSE](LICENSE) 檔案
-
-## 聯絡方式
-
-如有任何問題或建議，歡迎開啟 Issue 討論。
+MIT License
