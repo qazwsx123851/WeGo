@@ -1,8 +1,9 @@
 # WeGo 維運手冊 (Runbook)
 
-> 最後更新: 2026-02-01 | 部署平台: Railway
+> 最後更新: 2026-02-02 | 部署平台: Railway
 >
 > **變更日誌**:
+> - 2026-02-02: 遷移至 Google Routes API、新增 API 問題排查、部署流程暫停
 > - 2026-02-01: 新增 Transport Mode 系統、統一錯誤處理、全域概覽頁面
 > - 2026-02-01: 新增 Phase 2 功能相關問題排查 (天氣 API、路線優化、CSP)
 > - 2026-01-28: 初始版本
@@ -20,12 +21,16 @@
 
 ## 部署流程
 
-### 自動部署 (推薦)
+### 自動部署
 
-推送到 `main` 分支會自動觸發 Railway 部署：
+> **⚠️ 目前狀態**: 自動部署已暫停 (2026-02-02)
+>
+> `.github/workflows/deploy.yml` 設定 `if: false`，需手動移除此行以恢復自動部署。
+
+推送到 `main` 分支會觸發 CI 測試，部署需手動啟用：
 
 ```bash
-git push origin main
+git push origin main  # 只觸發 CI 測試
 ```
 
 GitHub Actions 工作流程：
@@ -34,7 +39,7 @@ GitHub Actions 工作流程：
 3. Install frontend dependencies
 4. Build Tailwind CSS
 5. Build JAR (`./mvnw clean package -DskipTests`)
-6. Deploy to Railway
+6. Deploy to Railway (目前暫停)
 
 ### 手動部署
 
@@ -90,8 +95,9 @@ cp .env.example .env
 
 | 變數 | 說明 | 預設 |
 |------|------|------|
-| `GOOGLE_MAPS_API_KEY` | Google Maps Directions API | (Mock) |
+| `GOOGLE_MAPS_API_KEY` | Google Maps API | (Mock) |
 | `GOOGLE_MAPS_ENABLED` | 啟用 Google Maps | `false` |
+| `GOOGLE_MAPS_USE_ROUTES_API` | 使用 Routes API | `true` |
 | `OPENWEATHERMAP_API_KEY` | 天氣預報 API | (Mock) |
 | `OPENWEATHERMAP_ENABLED` | 啟用天氣服務 | `false` |
 | `EXCHANGERATE_API_KEY` | 匯率轉換 API | (Mock) |
@@ -563,17 +569,57 @@ spring:
 # 查看交通計算
 railway logs | grep -i "TransportCalculation"
 
-# 查看 Google Maps API 呼叫
-railway logs | grep -i "GoogleMapsClient"
+# 查看 Google Maps API 呼叫 (Routes API)
+railway logs | grep -i "GoogleMapsClient\|Routes API"
 
 # 查看 Haversine fallback
 railway logs | grep -i "Haversine"
+
+# 查看 TRANSIT → DRIVING fallback
+railway logs | grep -i "fallback\|fromFallback"
 ```
 
 **監控指標**:
 - Google API 成功率
 - Haversine fallback 頻率
+- TRANSIT → DRIVING fallback 頻率
 - 平均計算時間
+
+### Google Routes API 問題排查
+
+**症狀**: 交通時間計算失敗
+
+**可能原因**:
+1. API Key 未啟用 Routes API
+2. TRANSIT 模式在日本部分地區無資料
+3. API 配額用盡
+
+**檢查**:
+```bash
+# 確認 API 回應
+railway logs | grep -i "Routes API\|computeRouteMatrix"
+
+# 確認 fallback 狀態
+railway logs | grep -i "fromFallback"
+```
+
+**Fallback 機制**:
+```
+Routes API (TRANSIT)
+    ↓ 失敗
+Routes API (DRIVING)  ← fromFallback=true
+    ↓ 失敗
+GoogleMapsException
+```
+
+**環境變數切換**:
+```bash
+# 使用新 Routes API (推薦)
+GOOGLE_MAPS_USE_ROUTES_API=true
+
+# 回退到舊 Distance Matrix API
+GOOGLE_MAPS_USE_ROUTES_API=false
+```
 
 ### 全域概覽頁面監控
 

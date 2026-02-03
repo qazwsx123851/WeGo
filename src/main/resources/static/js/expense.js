@@ -10,6 +10,8 @@ const ExpenseForm = {
     form: null,
     /** Amount input element */
     amountInput: null,
+    /** Currency select element */
+    currencySelect: null,
     /** Split method hidden input */
     splitMethodInput: null,
     /** CSRF token */
@@ -18,6 +20,12 @@ const ExpenseForm = {
     csrfHeader: 'X-CSRF-TOKEN',
     /** Trip ID */
     tripId: '',
+    /** Trip base currency */
+    baseCurrency: 'TWD',
+    /** Cached exchange rates */
+    exchangeRates: {},
+    /** Exchange rate preview element */
+    ratePreviewEl: null,
 
     /**
      * Initialize the expense form module
@@ -27,6 +35,7 @@ const ExpenseForm = {
         if (!this.form) return;
 
         this.amountInput = document.getElementById('amount');
+        this.currencySelect = document.getElementById('currency');
         this.splitMethodInput = document.getElementById('splitMethod');
 
         // Get CSRF token
@@ -39,8 +48,13 @@ const ExpenseForm = {
             this.tripId = actionMatch[1];
         }
 
+        // Get base currency from data attribute or default
+        this.baseCurrency = document.body.dataset.baseCurrency ||
+                            this.form.dataset.baseCurrency || 'TWD';
+
         this.bindEvents();
         this.initializeSplitTabs();
+        this.initializeRatePreview();
         this.calculateSplitAmounts();
     },
 
@@ -48,9 +62,17 @@ const ExpenseForm = {
      * Bind event listeners
      */
     bindEvents() {
-        // Amount change triggers recalculation
+        // Amount change triggers recalculation and rate preview
         if (this.amountInput) {
-            this.amountInput.addEventListener('input', () => this.calculateSplitAmounts());
+            this.amountInput.addEventListener('input', () => {
+                this.calculateSplitAmounts();
+                this.updateRatePreview();
+            });
+        }
+
+        // Currency change triggers rate preview
+        if (this.currencySelect) {
+            this.currencySelect.addEventListener('change', () => this.updateRatePreview());
         }
 
         // Split tab switching
@@ -135,6 +157,100 @@ const ExpenseForm = {
         } else if (method === 'CUSTOM') {
             this.calculateCustomSplit(amount);
         }
+    },
+
+    /**
+     * Initialize exchange rate preview element
+     */
+    initializeRatePreview() {
+        // Create rate preview element if it doesn't exist
+        if (!this.currencySelect || !this.amountInput) return;
+
+        const amountContainer = this.amountInput.closest('.space-y-1\\.5');
+        if (!amountContainer) return;
+
+        // Check if preview already exists
+        this.ratePreviewEl = document.getElementById('rate-preview');
+        if (!this.ratePreviewEl) {
+            this.ratePreviewEl = document.createElement('div');
+            this.ratePreviewEl.id = 'rate-preview';
+            this.ratePreviewEl.className = 'text-sm text-gray-500 dark:text-gray-400 mt-2 hidden flex items-center gap-2';
+            this.ratePreviewEl.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+                <span id="rate-preview-text"></span>
+            `;
+            amountContainer.appendChild(this.ratePreviewEl);
+        }
+
+        // Initial update
+        this.updateRatePreview();
+    },
+
+    /**
+     * Update exchange rate preview
+     */
+    async updateRatePreview() {
+        if (!this.currencySelect || !this.amountInput || !this.ratePreviewEl) return;
+
+        const currency = this.currencySelect.value;
+        const amount = parseFloat(this.amountInput.value) || 0;
+        const textEl = this.ratePreviewEl.querySelector('#rate-preview-text');
+
+        // Same currency - hide preview
+        if (currency === this.baseCurrency || amount <= 0) {
+            this.ratePreviewEl.classList.add('hidden');
+            return;
+        }
+
+        // Show loading
+        this.ratePreviewEl.classList.remove('hidden');
+        textEl.textContent = '換算中...';
+
+        try {
+            const rate = await this.getExchangeRate(currency, this.baseCurrency);
+            if (rate) {
+                const convertedAmount = (amount * rate).toFixed(2);
+                textEl.innerHTML = `≈ <span class="font-mono font-medium text-primary-600 dark:text-primary-400">$${this.formatNumber(convertedAmount)}</span> ${this.baseCurrency}
+                    <span class="text-xs text-gray-400 dark:text-gray-500">(1 ${currency} = ${rate.toFixed(4)} ${this.baseCurrency})</span>`;
+            }
+        } catch (error) {
+            console.error('Failed to get exchange rate:', error);
+            textEl.textContent = '無法取得匯率';
+        }
+    },
+
+    /**
+     * Get exchange rate from API
+     * @param {string} from - Source currency
+     * @param {string} to - Target currency
+     * @returns {Promise<number|null>} Exchange rate or null
+     */
+    async getExchangeRate(from, to) {
+        const cacheKey = `${from}-${to}`;
+
+        // Check cache first
+        if (this.exchangeRates[cacheKey]) {
+            return this.exchangeRates[cacheKey];
+        }
+
+        try {
+            const response = await fetch(`/api/exchange-rates?from=${from}&to=${to}`);
+            if (!response.ok) throw new Error('API error');
+
+            const data = await response.json();
+            if (data.success && data.data?.rate) {
+                // Cache the rate
+                this.exchangeRates[cacheKey] = parseFloat(data.data.rate);
+                return this.exchangeRates[cacheKey];
+            }
+        } catch (error) {
+            console.error('Exchange rate API error:', error);
+        }
+
+        return null;
     },
 
     /**

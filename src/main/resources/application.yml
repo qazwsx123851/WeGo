@@ -120,6 +120,12 @@ wego:
     exchangerate:
       api-key: ${EXCHANGERATE_API_KEY:}
       enabled: ${EXCHANGERATE_ENABLED:false}
+      connect-timeout-ms: 5000
+      read-timeout-ms: 10000
+      cache-ttl-hours: 1
+      fallback-ttl-hours: 24
+      circuit-breaker-failure-threshold: 5
+      circuit-breaker-cooldown-minutes: 5
 
   trip:
     max-members: 10

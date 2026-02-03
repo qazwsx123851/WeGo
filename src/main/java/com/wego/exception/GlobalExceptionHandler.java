@@ -1,6 +1,7 @@
 package com.wego.exception;
 
 import com.wego.dto.ApiResponse;
+import com.wego.service.external.ExchangeRateException;
 import com.wego.service.external.GoogleMapsException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -170,6 +171,32 @@ public class GlobalExceptionHandler {
         } else {
             status = HttpStatus.BAD_GATEWAY;
         }
+
+        return ResponseEntity
+            .status(status)
+            .body(ApiResponse.error(errorCode, ex.getMessage()));
+    }
+
+    /**
+     * Handles Exchange Rate API exceptions.
+     *
+     * @contract
+     *   - INVALID_CURRENCY, UNSUPPORTED_CURRENCY -> 400 BAD_REQUEST
+     *   - RATE_LIMIT_EXCEEDED -> 429 TOO_MANY_REQUESTS
+     *   - CACHE_EXPIRED, SERVICE_UNAVAILABLE -> 503 SERVICE_UNAVAILABLE
+     *   - Other errors -> 502 BAD_GATEWAY
+     */
+    @ExceptionHandler(ExchangeRateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleExchangeRateException(ExchangeRateException ex) {
+        String errorCode = ex.getErrorCode();
+        log.error("ExchangeRate API error: {} - {}", errorCode, ex.getMessage());
+
+        HttpStatus status = switch (errorCode) {
+            case "INVALID_CURRENCY", "UNSUPPORTED_CURRENCY" -> HttpStatus.BAD_REQUEST;
+            case "RATE_LIMIT_EXCEEDED" -> HttpStatus.TOO_MANY_REQUESTS;
+            case "CACHE_EXPIRED", "SERVICE_UNAVAILABLE" -> HttpStatus.SERVICE_UNAVAILABLE;
+            default -> HttpStatus.BAD_GATEWAY;
+        };
 
         return ResponseEntity
             .status(status)

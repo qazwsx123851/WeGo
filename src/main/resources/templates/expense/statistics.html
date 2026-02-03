@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head(title=${trip.title} + ' - 支出統計')}"></head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div th:replace="~{fragments/components :: toast-container}"></div>
+
+    <!-- Hidden data for JavaScript -->
+    <input type="hidden" id="trip-id" th:value="${tripId}"/>
+
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a th:href="@{/trips/{tripId}/expenses(tripId=${tripId})}"
+                   class="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                   aria-label="返回分帳列表">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">支出統計</h1>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Trip Info -->
+        <section class="glass-card p-6 mb-6">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100" th:text="${trip.title}">行程名稱</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        <span th:text="${#temporals.format(trip.startDate, 'MM/dd')}" th:if="${trip.startDate != null}">01/01</span>
+                        <span th:if="${trip.startDate != null && trip.endDate != null}"> - </span>
+                        <span th:text="${#temporals.format(trip.endDate, 'MM/dd')}" th:if="${trip.endDate != null}">01/07</span>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary Cards -->
+        <section id="summary-section" class="grid grid-cols-3 gap-4 mb-6">
+            <div class="glass-card p-4 text-center">
+                <p id="total-amount" class="text-2xl font-bold text-gray-800 dark:text-gray-100 font-mono">-</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    總支出 (<span id="currency-label">TWD</span>)
+                </p>
+            </div>
+            <div class="glass-card p-4 text-center">
+                <p id="average-per-day" class="text-2xl font-bold text-gray-800 dark:text-gray-100 font-mono">-</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">日均花費</p>
+            </div>
+            <div class="glass-card p-4 text-center">
+                <p id="total-count" class="text-2xl font-bold text-gray-800 dark:text-gray-100">-</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">筆交易</p>
+            </div>
+        </section>
+
+        <!-- Category Breakdown Chart -->
+        <section class="glass-card p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+                </svg>
+                分類統計
+            </h3>
+            <div id="category-loading" class="flex items-center justify-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            </div>
+            <div id="category-empty" class="hidden text-center py-8 text-gray-500 dark:text-gray-400">
+                尚無支出資料
+            </div>
+            <div id="category-chart-container" class="hidden">
+                <div class="relative h-64">
+                    <canvas id="category-chart"></canvas>
+                </div>
+                <div id="category-legend" class="mt-4 grid grid-cols-2 gap-2 text-sm">
+                    <!-- Legend items populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Trend Chart -->
+        <section class="glass-card p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                </svg>
+                每日趨勢
+            </h3>
+            <div id="trend-loading" class="flex items-center justify-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            </div>
+            <div id="trend-empty" class="hidden text-center py-8 text-gray-500 dark:text-gray-400">
+                尚無支出資料
+            </div>
+            <div id="trend-chart-container" class="hidden">
+                <div class="relative h-64">
+                    <canvas id="trend-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Member Statistics -->
+        <section class="glass-card p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                成員統計
+            </h3>
+            <div id="members-loading" class="flex items-center justify-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            </div>
+            <div id="members-empty" class="hidden text-center py-8 text-gray-500 dark:text-gray-400">
+                尚無成員資料
+            </div>
+            <div id="members-list" class="hidden space-y-3">
+                <!-- Member items populated by JS -->
+            </div>
+        </section>
+
+        <!-- Actions -->
+        <section class="flex flex-col sm:flex-row gap-3">
+            <a th:href="@{/trips/{tripId}/expenses(tripId=${tripId})}"
+               class="btn-secondary flex-1 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                返回分帳列表
+            </a>
+            <a th:href="@{/trips/{tripId}/settlement(tripId=${tripId})}"
+               class="btn-text flex-1 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                結算明細
+            </a>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav th:replace="~{fragments/components :: bottom-nav}"></nav>
+
+    <!-- Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script th:src="@{/js/expense-statistics.js}"></script>
+</body>
+</html>

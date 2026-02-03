@@ -13,8 +13,8 @@ import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,13 +33,14 @@ import java.util.stream.Collectors;
  *   - Calculates balances from expenses and splits
  *   - Uses DebtSimplifier to minimize transactions
  *   - Manages settlement status of splits
+ *   - Supports multi-currency conversion using ExchangeRateService
  *
  * @see DebtSimplifier
  * @see Settlement
+ * @see ExchangeRateService
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SettlementService {
 
     private final ExpenseRepository expenseRepository;
@@ -48,6 +49,39 @@ public class SettlementService {
     private final UserRepository userRepository;
     private final PermissionChecker permissionChecker;
     private final DebtSimplifier debtSimplifier;
+    private final ExchangeRateService exchangeRateService;
+
+    /**
+     * Creates a SettlementService with all dependencies.
+     *
+     * @contract
+     *   - pre: all repository and service dependencies are non-null
+     *   - pre: exchangeRateService can be null (fallback to no conversion)
+     *
+     * @param expenseRepository Expense repository
+     * @param expenseSplitRepository ExpenseSplit repository
+     * @param tripRepository Trip repository
+     * @param userRepository User repository
+     * @param permissionChecker Permission checker
+     * @param debtSimplifier Debt simplifier algorithm
+     * @param exchangeRateService Exchange rate service (optional, can be null)
+     */
+    public SettlementService(
+            ExpenseRepository expenseRepository,
+            ExpenseSplitRepository expenseSplitRepository,
+            TripRepository tripRepository,
+            UserRepository userRepository,
+            PermissionChecker permissionChecker,
+            DebtSimplifier debtSimplifier,
+            @Nullable ExchangeRateService exchangeRateService) {
+        this.expenseRepository = expenseRepository;
+        this.expenseSplitRepository = expenseSplitRepository;
+        this.tripRepository = tripRepository;
+        this.userRepository = userRepository;
+        this.permissionChecker = permissionChecker;
+        this.debtSimplifier = debtSimplifier;
+        this.exchangeRateService = exchangeRateService;
+    }
 
     /**
      * Calculates the settlement for a trip.
@@ -75,22 +109,25 @@ public class SettlementService {
         var trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip", tripId.toString()));
 
+        String baseCurrency = trip.getBaseCurrency();
+
         // Get all expenses and splits
         List<Expense> expenses = expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId);
         List<ExpenseSplit> splits = expenseSplitRepository.findByTripId(tripId);
 
-        // Calculate balances
+        // Calculate currency breakdown (original amounts by currency)
+        Map<String, BigDecimal> currencyBreakdown = calculateCurrencyBreakdown(expenses);
+
+        // Calculate balances with currency conversion
         // Positive balance = owed money (creditor)
         // Negative balance = owes money (debtor)
-        Map<UUID, BigDecimal> balances = calculateBalances(expenses, splits);
+        Map<UUID, BigDecimal> balances = calculateBalances(expenses, splits, baseCurrency);
 
         // Get simplified settlements
         List<Settlement> settlements = debtSimplifier.simplify(balances);
 
-        // Calculate total expenses
-        BigDecimal totalExpenses = expenses.stream()
-                .map(Expense::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Calculate total expenses (converted to base currency)
+        BigDecimal totalExpenses = calculateTotalInBaseCurrency(expenses, baseCurrency);
 
         // Get user info for settlements
         List<UUID> userIds = settlements.stream()
@@ -118,13 +155,15 @@ public class SettlementService {
                 })
                 .collect(Collectors.toList());
 
-        log.debug("Calculated {} settlements for trip {}", settlements.size(), tripId);
+        log.debug("Calculated {} settlements for trip {} with {} currencies",
+                settlements.size(), tripId, currencyBreakdown.size());
 
         return SettlementResponse.builder()
                 .settlements(settlementItems)
                 .totalExpenses(totalExpenses)
-                .baseCurrency(trip.getBaseCurrency())
+                .baseCurrency(baseCurrency)
                 .expenseCount(expenses.size())
+                .currencyBreakdown(currencyBreakdown)
                 .build();
     }
 
@@ -198,12 +237,14 @@ public class SettlementService {
 
     /**
      * Calculates net balances for all users involved in expenses.
+     * Converts all amounts to base currency for consistent settlement calculation.
      *
      * @param expenses List of expenses
      * @param splits List of expense splits
+     * @param baseCurrency The base currency to convert to
      * @return Map of user ID to net balance (positive = creditor, negative = debtor)
      */
-    private Map<UUID, BigDecimal> calculateBalances(List<Expense> expenses, List<ExpenseSplit> splits) {
+    private Map<UUID, BigDecimal> calculateBalances(List<Expense> expenses, List<ExpenseSplit> splits, String baseCurrency) {
         Map<UUID, BigDecimal> balances = new HashMap<>();
 
         // Group splits by expense for easy lookup
@@ -212,17 +253,24 @@ public class SettlementService {
 
         for (Expense expense : expenses) {
             UUID payer = expense.getPaidBy();
+            String expenseCurrency = expense.getCurrency();
             BigDecimal amount = expense.getAmount();
 
-            // Payer is owed the expense amount
-            balances.merge(payer, amount, BigDecimal::add);
+            // Convert expense amount to base currency
+            BigDecimal amountInBaseCurrency = convertToBaseCurrency(amount, expenseCurrency, baseCurrency);
+
+            // Payer is owed the expense amount (in base currency)
+            balances.merge(payer, amountInBaseCurrency, BigDecimal::add);
 
             // Each split participant owes their share
             List<ExpenseSplit> expenseSplits = splitsByExpense.getOrDefault(expense.getId(), List.of());
             for (ExpenseSplit split : expenseSplits) {
                 // Only count unsettled splits
                 if (!split.isSettled()) {
-                    balances.merge(split.getUserId(), split.getAmount().negate(), BigDecimal::add);
+                    // Convert split amount to base currency
+                    BigDecimal splitAmountInBaseCurrency = convertToBaseCurrency(
+                            split.getAmount(), expenseCurrency, baseCurrency);
+                    balances.merge(split.getUserId(), splitAmountInBaseCurrency.negate(), BigDecimal::add);
                 }
             }
         }
@@ -232,6 +280,65 @@ public class SettlementService {
                 entry.getValue().compareTo(BigDecimal.ZERO) == 0);
 
         return balances;
+    }
+
+    /**
+     * Converts an amount from one currency to base currency.
+     *
+     * @contract
+     *   - pre: amount != null, fromCurrency != null, baseCurrency != null
+     *   - post: returns amount in base currency
+     *   - calledBy: calculateBalances, calculateTotalInBaseCurrency
+     *
+     * @param amount The amount to convert
+     * @param fromCurrency The source currency
+     * @param baseCurrency The target base currency
+     * @return Amount in base currency
+     */
+    private BigDecimal convertToBaseCurrency(BigDecimal amount, String fromCurrency, String baseCurrency) {
+        if (fromCurrency == null || fromCurrency.equals(baseCurrency)) {
+            return amount;
+        }
+
+        if (exchangeRateService == null) {
+            log.warn("ExchangeRateService not available, using original amount for {} -> {}", fromCurrency, baseCurrency);
+            return amount;
+        }
+
+        try {
+            return exchangeRateService.convert(amount, fromCurrency, baseCurrency);
+        } catch (Exception e) {
+            log.error("Failed to convert {} {} to {}: {}", amount, fromCurrency, baseCurrency, e.getMessage());
+            // Fallback: return original amount (may cause incorrect calculations, but service keeps running)
+            return amount;
+        }
+    }
+
+    /**
+     * Calculates the total expenses converted to base currency.
+     *
+     * @param expenses List of expenses
+     * @param baseCurrency The base currency to convert to
+     * @return Total amount in base currency
+     */
+    private BigDecimal calculateTotalInBaseCurrency(List<Expense> expenses, String baseCurrency) {
+        return expenses.stream()
+                .map(expense -> convertToBaseCurrency(expense.getAmount(), expense.getCurrency(), baseCurrency))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Calculates the breakdown of expenses by original currency.
+     *
+     * @param expenses List of expenses
+     * @return Map of currency code to total amount in that currency
+     */
+    private Map<String, BigDecimal> calculateCurrencyBreakdown(List<Expense> expenses) {
+        return expenses.stream()
+                .collect(Collectors.groupingBy(
+                        expense -> expense.getCurrency() != null ? expense.getCurrency() : "TWD",
+                        Collectors.reducing(BigDecimal.ZERO, Expense::getAmount, BigDecimal::add)
+                ));
     }
 
     /**

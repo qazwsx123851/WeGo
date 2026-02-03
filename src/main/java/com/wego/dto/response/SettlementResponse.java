@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -14,8 +15,9 @@ import java.util.UUID;
  *
  * @contract
  *   - settlements: list of payments needed to settle all debts
- *   - totalExpenses: sum of all expenses in the trip
+ *   - totalExpenses: sum of all expenses in the trip (converted to base currency)
  *   - baseCurrency: the currency for all settlement amounts
+ *   - currencyBreakdown: original amounts by currency before conversion
  */
 @Data
 @Builder
@@ -27,6 +29,13 @@ public class SettlementResponse {
     private BigDecimal totalExpenses;
     private String baseCurrency;
     private int expenseCount;
+
+    /**
+     * Breakdown of total expenses by original currency.
+     * Key: currency code (e.g., "USD", "TWD")
+     * Value: total amount in that currency before conversion
+     */
+    private Map<String, BigDecimal> currencyBreakdown;
 
     /**
      * Individual settlement item showing who pays whom.

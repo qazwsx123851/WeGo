@@ -18,12 +18,12 @@ import com.wego.repository.ExpenseSplitRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
+import com.wego.dto.response.ExchangeRateResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -75,7 +75,9 @@ class SettlementServiceTest {
     @Mock
     private DebtSimplifier debtSimplifier;
 
-    @InjectMocks
+    @Mock
+    private ExchangeRateService exchangeRateService;
+
     private SettlementService settlementService;
 
     private UUID tripId;
@@ -124,6 +126,17 @@ class SettlementServiceTest {
                 .baseCurrency("TWD")
                 .ownerId(userId)
                 .build();
+
+        // Manually create SettlementService with all dependencies
+        settlementService = new SettlementService(
+                expenseRepository,
+                expenseSplitRepository,
+                tripRepository,
+                userRepository,
+                permissionChecker,
+                debtSimplifier,
+                exchangeRateService
+        );
     }
 
     @Nested
@@ -312,6 +325,155 @@ class SettlementServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.getTotalExpenses()).isEqualByComparingTo(new BigDecimal("1800"));
             assertThat(response.getExpenseCount()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("should convert multi-currency expenses to base currency")
+        void calculateSettlement_withMultipleCurrencies_shouldConvertToBaseCurrency() {
+            // Given
+            // User1 paid 100 USD (= 3150 TWD at rate 31.5)
+            // User2 paid 10000 JPY (= 2100 TWD at rate 0.21)
+            // Trip base currency is TWD
+            // Total in TWD: 3150 + 2100 = 5250
+            UUID expense1Id = UUID.randomUUID();
+            UUID expense2Id = UUID.randomUUID();
+
+            Expense usdExpense = Expense.builder()
+                    .id(expense1Id)
+                    .tripId(tripId)
+                    .description("Hotel")
+                    .amount(new BigDecimal("100.00"))
+                    .currency("USD")
+                    .paidBy(userId)
+                    .splitType(SplitType.EQUAL)
+                    .build();
+
+            Expense jpyExpense = Expense.builder()
+                    .id(expense2Id)
+                    .tripId(tripId)
+                    .description("Train")
+                    .amount(new BigDecimal("10000"))
+                    .currency("JPY")
+                    .paidBy(user2Id)
+                    .splitType(SplitType.EQUAL)
+                    .build();
+
+            // Splits - in original currency
+            ExpenseSplit split1_1 = ExpenseSplit.builder()
+                    .expenseId(expense1Id)
+                    .userId(userId)
+                    .amount(new BigDecimal("50.00"))
+                    .build();
+            ExpenseSplit split1_2 = ExpenseSplit.builder()
+                    .expenseId(expense1Id)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("50.00"))
+                    .build();
+            ExpenseSplit split2_1 = ExpenseSplit.builder()
+                    .expenseId(expense2Id)
+                    .userId(userId)
+                    .amount(new BigDecimal("5000"))
+                    .build();
+            ExpenseSplit split2_2 = ExpenseSplit.builder()
+                    .expenseId(expense2Id)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("5000"))
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(Arrays.asList(usdExpense, jpyExpense));
+            when(expenseSplitRepository.findByTripId(tripId))
+                    .thenReturn(Arrays.asList(split1_1, split1_2, split2_1, split2_2));
+
+            // Mock exchange rate conversions
+            when(exchangeRateService.convert(new BigDecimal("100.00"), "USD", "TWD"))
+                    .thenReturn(new BigDecimal("3150.00"));
+            when(exchangeRateService.convert(new BigDecimal("10000"), "JPY", "TWD"))
+                    .thenReturn(new BigDecimal("2100.00"));
+            when(exchangeRateService.convert(new BigDecimal("50.00"), "USD", "TWD"))
+                    .thenReturn(new BigDecimal("1575.00"));
+            when(exchangeRateService.convert(new BigDecimal("5000"), "JPY", "TWD"))
+                    .thenReturn(new BigDecimal("1050.00"));
+
+            // Expected settlements: User2 owes User1
+            // User1: paid 3150, owes 1575 + 1050 = 2625, balance = +525
+            // User2: paid 2100, owes 1575 + 1050 = 2625, balance = -525
+            Settlement settlement = Settlement.builder()
+                    .fromUserId(user2Id)
+                    .toUserId(userId)
+                    .amount(new BigDecimal("525.00"))
+                    .build();
+
+            when(debtSimplifier.simplify(anyMap())).thenReturn(Collections.singletonList(settlement));
+            when(userRepository.findAllById(any())).thenReturn(Arrays.asList(testUser, testUser2));
+
+            // When
+            SettlementResponse response = settlementService.calculateSettlement(tripId, userId);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.getBaseCurrency()).isEqualTo("TWD");
+            // Total should be in base currency (TWD)
+            assertThat(response.getTotalExpenses()).isEqualByComparingTo(new BigDecimal("5250.00"));
+            assertThat(response.getExpenseCount()).isEqualTo(2);
+
+            // Currency breakdown should show original amounts
+            assertThat(response.getCurrencyBreakdown()).isNotNull();
+            assertThat(response.getCurrencyBreakdown()).hasSize(2);
+            assertThat(response.getCurrencyBreakdown().get("USD")).isEqualByComparingTo(new BigDecimal("100.00"));
+            assertThat(response.getCurrencyBreakdown().get("JPY")).isEqualByComparingTo(new BigDecimal("10000"));
+        }
+
+        @Test
+        @DisplayName("should skip conversion for same currency expenses")
+        void calculateSettlement_withSameCurrency_shouldNotConvert() {
+            // Given - all expenses in TWD (base currency)
+            Expense expense = Expense.builder()
+                    .id(expenseId)
+                    .tripId(tripId)
+                    .description("Dinner")
+                    .amount(new BigDecimal("1000"))
+                    .currency("TWD")
+                    .paidBy(userId)
+                    .splitType(SplitType.EQUAL)
+                    .build();
+
+            ExpenseSplit split1 = ExpenseSplit.builder()
+                    .expenseId(expenseId)
+                    .userId(userId)
+                    .amount(new BigDecimal("500"))
+                    .build();
+            ExpenseSplit split2 = ExpenseSplit.builder()
+                    .expenseId(expenseId)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("500"))
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(Collections.singletonList(expense));
+            when(expenseSplitRepository.findByTripId(tripId))
+                    .thenReturn(Arrays.asList(split1, split2));
+
+            Settlement settlement = Settlement.builder()
+                    .fromUserId(user2Id)
+                    .toUserId(userId)
+                    .amount(new BigDecimal("500"))
+                    .build();
+
+            when(debtSimplifier.simplify(anyMap())).thenReturn(Collections.singletonList(settlement));
+            when(userRepository.findAllById(any())).thenReturn(Arrays.asList(testUser, testUser2));
+
+            // When
+            SettlementResponse response = settlementService.calculateSettlement(tripId, userId);
+
+            // Then
+            assertThat(response.getTotalExpenses()).isEqualByComparingTo(new BigDecimal("1000"));
+            assertThat(response.getCurrencyBreakdown()).hasSize(1);
+            assertThat(response.getCurrencyBreakdown().get("TWD")).isEqualByComparingTo(new BigDecimal("1000"));
         }
     }
 

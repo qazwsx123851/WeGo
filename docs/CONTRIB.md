@@ -1,8 +1,9 @@
 # WeGo 開發貢獻指南
 
-> 最後更新: 2026-02-01 | 自動生成自 pom.xml 和 .env.example
+> 最後更新: 2026-02-02 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-02: 遷移至 Google Routes API、修復 CI 測試、暫停自動部署
 > - 2026-02-01: 新增 Transport Mode 系統 (Phase 0-3)、全域概覽頁面、Profile 頁面、統一錯誤處理
 > - 2026-02-01: 新增 Phase 2 功能 (天氣、路線優化、交通計算、代辦事項)
 > - 2026-01-28: 新增 spring-dotenv 自動載入環境變數
@@ -54,6 +55,7 @@ cp .env.example .env
 | `GOOGLE_CLIENT_SECRET` | ✅ | Google OAuth Secret | `GOCSPX-xxx` |
 | `GOOGLE_MAPS_API_KEY` | ❌ | Google Maps API (可選) | |
 | `GOOGLE_MAPS_ENABLED` | ❌ | 啟用 Google Maps | `true` / `false` |
+| `GOOGLE_MAPS_USE_ROUTES_API` | ❌ | 使用 Routes API (推薦) | `true` / `false` |
 | `OPENWEATHERMAP_API_KEY` | ❌ | 天氣 API (可選) | |
 | `OPENWEATHERMAP_ENABLED` | ❌ | 啟用天氣 API | `true` / `false` |
 | `EXCHANGERATE_API_KEY` | ❌ | 匯率 API (可選) | |
@@ -283,9 +285,32 @@ public String profile(@CurrentUser UserPrincipal principal) {
 
 | Client | 外部 API | Fallback |
 |--------|----------|----------|
-| `GoogleMapsClientImpl` | Google Maps Directions | MockGoogleMapsClient (Haversine) |
+| `GoogleMapsClientImpl` | Google Routes API (computeRouteMatrix) | MockGoogleMapsClient (Haversine) |
+| `GoogleMapsClientImpl` | Google Places API (New) - searchText/details | MockGoogleMapsClient |
 | `OpenWeatherMapClient` | OpenWeatherMap 5-day | MockWeatherClient |
 | `SupabaseStorageClient` | Supabase Storage | MockStorageClient |
+
+#### Google Routes API 遷移 (2026-02-02)
+
+專案已從 Distance Matrix API 遷移至 Routes API：
+
+| 特性 | Distance Matrix API (舊) | Routes API (新) |
+|------|-------------------------|-----------------|
+| Endpoint | `/distanceMatrix/json` | `/distanceMatrix/v2:computeRouteMatrix` |
+| 認證 | URL 參數 `key=` | Header `X-Goog-Api-Key` |
+| 功能 | 基本距離/時間 | 支援交通偏好、詳細資訊 |
+| Fallback | N/A | TRANSIT → DRIVING 自動降級 |
+
+**環境變數**:
+```bash
+GOOGLE_MAPS_USE_ROUTES_API=true  # 推薦，使用新 API
+GOOGLE_MAPS_USE_ROUTES_API=false # 使用舊 Distance Matrix API
+```
+
+**新增 DTO**:
+- `TransitPreferences` - 交通偏好設定
+- `TransitDetails` - 轉乘詳細資訊
+- `DirectionResult.ApiSource` - 區分 API 來源 (ROUTES_API / DISTANCE_MATRIX)
 
 ### Transport Mode 系統
 

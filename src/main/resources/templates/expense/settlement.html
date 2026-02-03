@@ -44,7 +44,9 @@
                 <div class="text-center">
                     <p class="text-2xl font-bold text-gray-800 dark:text-gray-100 font-mono"
                        th:text="'$' + ${#numbers.formatDecimal(settlement.totalExpenses != null ? settlement.totalExpenses : 0, 0, 'COMMA', 0, 'POINT')}">$0</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">總支出</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        總支出 (<span th:text="${settlement.baseCurrency}">TWD</span>)
+                    </p>
                 </div>
                 <div class="text-center">
                     <p class="text-2xl font-bold text-gray-800 dark:text-gray-100 font-mono"
@@ -55,6 +57,20 @@
                     <p class="text-2xl font-bold text-gray-800 dark:text-gray-100"
                        th:text="${settlement.expenseCount}">0</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">筆交易</p>
+                </div>
+            </div>
+
+            <!-- Currency Breakdown -->
+            <div th:if="${settlement.currencyBreakdown != null and #maps.size(settlement.currencyBreakdown) > 1}"
+                 class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">各幣別原始金額</p>
+                <div class="flex flex-wrap gap-2">
+                    <div th:each="entry : ${settlement.currencyBreakdown}"
+                         class="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 dark:bg-gray-700/50 rounded-full text-sm">
+                        <span class="font-medium text-gray-700 dark:text-gray-300" th:text="${entry.key}">USD</span>
+                        <span class="text-gray-500 dark:text-gray-400 font-mono"
+                              th:text="'$' + ${#numbers.formatDecimal(entry.value, 0, 'COMMA', 0, 'POINT')}">$100</span>
+                    </div>
                 </div>
             </div>
         </section>
