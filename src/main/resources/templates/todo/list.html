@@ -153,7 +153,7 @@
                                       class="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30
                                              flex items-center justify-center text-[10px] font-medium
                                              text-primary-600 dark:text-primary-400"
-                                      th:text="${#strings.substring(todo.assigneeName, 0, 1)}">M</span>
+                                      th:text="${todo.assigneeName?.length() > 0 ? #strings.substring(todo.assigneeName, 0, 1) : '?'}">M</span>
                                 <span th:text="${todo.assigneeName}">指派人</span>
                             </div>
 
@@ -188,7 +188,7 @@
                                       class="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30
                                              flex items-center justify-center text-[10px] font-medium
                                              text-primary-600 dark:text-primary-400"
-                                      th:text="${#strings.substring(todo.assigneeName, 0, 1)}">M</span>
+                                      th:text="${todo.assigneeName?.length() > 0 ? #strings.substring(todo.assigneeName, 0, 1) : '?'}">M</span>
                                 <span th:text="${todo.assigneeName}">指派人</span>
                             </div>
 

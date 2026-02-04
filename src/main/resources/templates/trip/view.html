@@ -432,7 +432,7 @@
                               class="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30
                                      flex items-center justify-center text-[10px] font-medium
                                      text-primary-600 dark:text-primary-400"
-                              th:text="${#strings.substring(todo.assigneeName, 0, 1)}"
+                              th:text="${todo.assigneeName?.length() > 0 ? #strings.substring(todo.assigneeName, 0, 1) : '?'}"
                               th:title="${todo.assigneeName}">M</span>
                     </div>
 
