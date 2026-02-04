@@ -2,6 +2,7 @@ package com.wego.repository;
 
 import com.wego.entity.ExpenseSplit;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -80,6 +81,17 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID
      * @param expenseId The expense ID
      */
     void deleteByExpenseId(UUID expenseId);
+
+    /**
+     * Deletes all splits for expenses in a trip.
+     * Used when deleting a trip to prevent orphaned data.
+     *
+     * @param tripId The trip ID
+     */
+    @Modifying
+    @Query("DELETE FROM ExpenseSplit es WHERE es.expenseId IN " +
+           "(SELECT e.id FROM Expense e WHERE e.tripId = :tripId)")
+    void deleteByTripId(@Param("tripId") UUID tripId);
 
     /**
      * Counts splits for an expense.

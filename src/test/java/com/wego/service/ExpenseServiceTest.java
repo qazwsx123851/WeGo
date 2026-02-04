@@ -257,10 +257,15 @@ class ExpenseServiceTest {
                     .userId(userId)
                     .role(Role.OWNER)
                     .build();
+            TripMember member2 = TripMember.builder()
+                    .tripId(tripId)
+                    .userId(testUser2.getId())
+                    .role(Role.EDITOR)
+                    .build();
 
             when(permissionChecker.canEdit(tripId, userId)).thenReturn(true);
             when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
-            when(tripMemberRepository.findByTripId(tripId)).thenReturn(List.of(member1));
+            when(tripMemberRepository.findByTripId(tripId)).thenReturn(Arrays.asList(member1, member2));
             when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
             when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> {
                 Expense expense = invocation.getArgument(0);
@@ -602,15 +607,20 @@ class ExpenseServiceTest {
                     .splits(Arrays.asList(split1, split2))
                     .build();
 
-            TripMember member = TripMember.builder()
+            TripMember member1 = TripMember.builder()
                     .tripId(tripId)
                     .userId(userId)
                     .role(Role.OWNER)
                     .build();
+            TripMember member2 = TripMember.builder()
+                    .tripId(tripId)
+                    .userId(testUser2.getId())
+                    .role(Role.EDITOR)
+                    .build();
 
             when(permissionChecker.canEdit(tripId, userId)).thenReturn(true);
             when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
-            when(tripMemberRepository.findByTripId(tripId)).thenReturn(Collections.singletonList(member));
+            when(tripMemberRepository.findByTripId(tripId)).thenReturn(Arrays.asList(member1, member2));
             when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
             when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> {
                 Expense expense = invocation.getArgument(0);

@@ -4,13 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>找不到頁面 - WeGo</title>
+    <!-- Dark Mode FOUC Prevention -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (theme === 'dark' || (!theme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     <link rel="stylesheet" th:href="@{/css/styles.css}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js"></script>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100 flex flex-col items-center justify-center p-6">
+<body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100
+             dark:from-gray-900 dark:via-gray-900 dark:to-gray-800
+             flex flex-col items-center justify-center p-6">
     <div class="text-center max-w-md mx-auto animate-fade-in">
         <!-- Lottie Animation: Lost Traveler -->
         <div class="w-64 h-64 mx-auto mb-6">
@@ -32,10 +44,10 @@
 
         <!-- Error Message -->
         <div class="glass-card p-8">
-            <h1 class="text-h2 text-gray-800 mb-3 font-heading">
+            <h1 class="text-h2 text-gray-800 dark:text-gray-100 mb-3 font-heading">
                 找不到這個頁面
             </h1>
-            <p class="text-body text-gray-500 mb-6">
+            <p class="text-body text-gray-500 dark:text-gray-400 mb-6">
                 這個行程可能已被刪除，或是連結有誤。<br/>
                 讓我們帶你回到正確的路線上吧！
             </p>
@@ -58,7 +70,7 @@
         </div>
 
         <!-- Error Code -->
-        <p class="text-caption text-gray-400 mt-6">
+        <p class="text-caption text-gray-400 dark:text-gray-500 mt-6">
             錯誤代碼：404
         </p>
     </div>

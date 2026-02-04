@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.wego.exception.UnauthorizedException;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -69,7 +71,7 @@ public class ActivityApiController {
 
         log.debug("POST /api/trips/{}/activities - Creating activity", tripId);
 
-        UUID userId = principal != null ? principal.getId() : getTestUserId();
+        UUID userId = requireUserId(principal);
         ActivityResponse response = activityService.createActivity(tripId, request, userId);
 
         return ResponseEntity
@@ -99,7 +101,7 @@ public class ActivityApiController {
 
         log.debug("GET /api/trips/{}/activities - day={}", tripId, day);
 
-        UUID userId = principal != null ? principal.getId() : getTestUserId();
+        UUID userId = requireUserId(principal);
         List<ActivityResponse> responses;
 
         if (day != null) {
@@ -133,7 +135,7 @@ public class ActivityApiController {
 
         log.debug("PUT /api/activities/{} - Updating activity", activityId);
 
-        UUID userId = principal != null ? principal.getId() : getTestUserId();
+        UUID userId = requireUserId(principal);
         ActivityResponse response = activityService.updateActivity(activityId, request, userId);
 
         return ResponseEntity.ok(ApiResponse.success(response, "Activity updated successfully"));
@@ -158,7 +160,7 @@ public class ActivityApiController {
 
         log.debug("DELETE /api/activities/{} - Deleting activity", activityId);
 
-        UUID userId = principal != null ? principal.getId() : getTestUserId();
+        UUID userId = requireUserId(principal);
         activityService.deleteActivity(activityId, userId);
 
         return ResponseEntity.noContent().build();
@@ -187,7 +189,7 @@ public class ActivityApiController {
         log.debug("PUT /api/trips/{}/activities/reorder - Reordering activities for day {}",
                 tripId, request.getDay());
 
-        UUID userId = principal != null ? principal.getId() : getTestUserId();
+        UUID userId = requireUserId(principal);
         List<ActivityResponse> responses = activityService.reorderActivities(tripId, request, userId);
 
         return ResponseEntity.ok(ApiResponse.success(responses, "Activities reordered successfully"));
@@ -218,7 +220,7 @@ public class ActivityApiController {
 
         log.debug("GET /api/trips/{}/activities/optimize?day={} - Getting route optimization", tripId, day);
 
-        UUID userId = principal != null ? principal.getId() : getTestUserId();
+        UUID userId = requireUserId(principal);
         RouteOptimizationResponse response = activityService.getOptimizedRoute(tripId, day, userId);
 
         String message = response.isOptimizationApplied()
@@ -256,7 +258,7 @@ public class ActivityApiController {
         log.debug("POST /api/trips/{}/activities/apply-optimization - Applying route optimization for day {}",
                 tripId, request.getDay());
 
-        UUID userId = principal != null ? principal.getId() : getTestUserId();
+        UUID userId = requireUserId(principal);
         List<ActivityResponse> responses = activityService.applyOptimizedRoute(
                 tripId, request.getDay(), request.getOptimizedOrder(), userId);
 
@@ -264,10 +266,17 @@ public class ActivityApiController {
     }
 
     /**
-     * Returns a test user ID for testing purposes when principal is null.
-     * This is a fallback for @WebMvcTest scenarios.
+     * Extracts user ID from the principal or throws UnauthorizedException if not authenticated.
+     *
+     * @contract
+     *   - pre: principal != null
+     *   - post: returns valid user UUID
+     *   - throws: UnauthorizedException if principal is null
      */
-    private UUID getTestUserId() {
-        return UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private UUID requireUserId(UserPrincipal principal) {
+        if (principal == null) {
+            throw new UnauthorizedException("認證已過期，請重新登入");
+        }
+        return principal.getId();
     }
 }

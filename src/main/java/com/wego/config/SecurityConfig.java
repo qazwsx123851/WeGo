@@ -47,7 +47,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 // Disable CSRF for public API endpoints
-                .ignoringRequestMatchers("/api/health", "/api/weather/**")
+                .ignoringRequestMatchers("/api/health", "/api/weather/**", "/api/test/auth/**")
             )
             // Security Headers
             .headers(headers -> headers
@@ -89,7 +89,8 @@ public class SecurityConfig {
                     "/favicon.svg",
                     "/.well-known/**",
                     "/api/health",
-                    "/api/weather/**"
+                    "/api/weather/**",
+                    "/api/test/auth/**"  // Test auth endpoint (only available in test/e2e profile)
                 ).permitAll()
                 // All other requests require authentication
                 .anyRequest().authenticated()

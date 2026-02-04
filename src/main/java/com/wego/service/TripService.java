@@ -12,6 +12,12 @@ import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
+import com.wego.repository.ActivityRepository;
+import com.wego.repository.DocumentRepository;
+import com.wego.repository.ExpenseRepository;
+import com.wego.repository.ExpenseSplitRepository;
+import com.wego.repository.InviteLinkRepository;
+import com.wego.repository.TodoRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
@@ -76,6 +82,12 @@ public class TripService {
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
     private final UserRepository userRepository;
+    private final ActivityRepository activityRepository;
+    private final ExpenseRepository expenseRepository;
+    private final ExpenseSplitRepository expenseSplitRepository;
+    private final DocumentRepository documentRepository;
+    private final TodoRepository todoRepository;
+    private final InviteLinkRepository inviteLinkRepository;
     private final PermissionChecker permissionChecker;
     private final StorageClient storageClient;
     private final SupabaseProperties supabaseProperties;
@@ -266,10 +278,31 @@ public class TripService {
         }
 
         // Delete related entities (in proper order for FK constraints)
+        // 1. ExpenseSplits first (depends on Expenses)
+        expenseSplitRepository.deleteByTripId(tripId);
+
+        // 2. Expenses (depends on Trip)
+        expenseRepository.deleteByTripId(tripId);
+
+        // 3. Documents (depends on Trip, may have Activity association)
+        documentRepository.deleteByTripId(tripId);
+
+        // 4. Activities (depends on Trip)
+        activityRepository.deleteByTripId(tripId);
+
+        // 5. Todos (depends on Trip)
+        todoRepository.deleteByTripId(tripId);
+
+        // 6. InviteLinks (depends on Trip)
+        inviteLinkRepository.deleteByTripId(tripId);
+
+        // 7. TripMembers (depends on Trip)
         tripMemberRepository.deleteByTripId(tripId);
+
+        // 8. Finally delete the Trip itself
         tripRepository.delete(trip);
 
-        log.info("Deleted trip: {} by user: {}", tripId, userId);
+        log.info("Deleted trip and all related data: {} by user: {}", tripId, userId);
     }
 
     /**
@@ -604,7 +637,8 @@ public class TripService {
 
     private String extractStoragePath(String url) {
         // Extract path after /public/bucket/
-        String marker = "/public/" + supabaseProperties.getStorageBucket() + "/";
+        // Use coverImageBucket for cover images, not storageBucket (documents)
+        String marker = "/public/" + supabaseProperties.getCoverImageBucket() + "/";
         int index = url.indexOf(marker);
         if (index >= 0) {
             String path = url.substring(index + marker.length());

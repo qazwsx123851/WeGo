@@ -331,22 +331,29 @@ public class DocumentService {
     }
 
     /**
-     * Gets documents linked to a specific activity.
+     * Gets documents linked to a specific activity within a specific trip.
+     *
+     * @contract
+     *   - pre: activityId, tripId, userId are non-null
+     *   - post: Returns only documents that belong to both the trip and activity
+     *   - throws: ForbiddenException if user has no view permission
      *
      * @param activityId The activity ID
+     * @param tripId The trip ID (used for permission check AND filtering)
      * @param userId The requesting user's ID
      * @return List of document responses
      * @throws ForbiddenException if user has no view permission
      */
     @Transactional(readOnly = true)
     public List<DocumentResponse> getDocumentsByActivity(UUID activityId, UUID tripId, UUID userId) {
-        log.debug("Getting documents for activity {} by user {}", activityId, userId);
+        log.debug("Getting documents for activity {} in trip {} by user {}", activityId, tripId, userId);
 
         if (!permissionChecker.canView(tripId, userId)) {
             throw new ForbiddenException("您沒有權限查看此行程的檔案");
         }
 
-        List<Document> documents = documentRepository.findByRelatedActivityId(activityId);
+        // Use tripId AND activityId to prevent IDOR - ensures activity belongs to the authorized trip
+        List<Document> documents = documentRepository.findByTripIdAndRelatedActivityId(tripId, activityId);
 
         return documents.stream()
                 .map(this::buildDocumentResponse)

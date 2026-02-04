@@ -39,6 +39,16 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     List<Document> findByRelatedActivityId(UUID relatedActivityId);
 
     /**
+     * Finds documents linked to a specific activity within a specific trip.
+     * This method prevents IDOR by ensuring the activity belongs to the trip.
+     *
+     * @param tripId The trip ID
+     * @param relatedActivityId The activity ID
+     * @return List of documents belonging to both the trip and activity
+     */
+    List<Document> findByTripIdAndRelatedActivityId(UUID tripId, UUID relatedActivityId);
+
+    /**
      * Finds documents linked to a specific day.
      *
      * @param tripId The trip ID

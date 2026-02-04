@@ -22,8 +22,10 @@ const ExpenseForm = {
     tripId: '',
     /** Trip base currency */
     baseCurrency: 'TWD',
-    /** Cached exchange rates */
+    /** Cached exchange rates with TTL { rate, timestamp } */
     exchangeRates: {},
+    /** Cache TTL in milliseconds (30 minutes) */
+    CACHE_TTL_MS: 30 * 60 * 1000,
     /** Exchange rate preview element */
     ratePreviewEl: null,
 
@@ -223,17 +225,19 @@ const ExpenseForm = {
     },
 
     /**
-     * Get exchange rate from API
+     * Get exchange rate from API with TTL cache
      * @param {string} from - Source currency
      * @param {string} to - Target currency
      * @returns {Promise<number|null>} Exchange rate or null
      */
     async getExchangeRate(from, to) {
         const cacheKey = `${from}-${to}`;
+        const now = Date.now();
 
-        // Check cache first
-        if (this.exchangeRates[cacheKey]) {
-            return this.exchangeRates[cacheKey];
+        // Check cache first with TTL validation
+        const cached = this.exchangeRates[cacheKey];
+        if (cached && (now - cached.timestamp) < this.CACHE_TTL_MS) {
+            return cached.rate;
         }
 
         try {
@@ -242,12 +246,18 @@ const ExpenseForm = {
 
             const data = await response.json();
             if (data.success && data.data?.rate) {
-                // Cache the rate
-                this.exchangeRates[cacheKey] = parseFloat(data.data.rate);
-                return this.exchangeRates[cacheKey];
+                // Cache the rate with timestamp
+                const rate = parseFloat(data.data.rate);
+                this.exchangeRates[cacheKey] = { rate, timestamp: now };
+                return rate;
             }
         } catch (error) {
             console.error('Exchange rate API error:', error);
+            // Return stale cache if available (fallback)
+            if (cached) {
+                console.warn('Using stale cached rate');
+                return cached.rate;
+            }
         }
 
         return null;

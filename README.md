@@ -25,6 +25,11 @@
 - **憑證上傳** - 支援 PDF、JPG、PNG、HEIC
 - **快速關聯** - 檔案可綁定至日期或景點
 
+### 使用者體驗
+- **深色模式** - 支援系統偏好設定與手動切換
+- **響應式設計** - 適配桌面與行動裝置
+- **無障礙支援** - WCAG 2.1 標準
+
 ## 技術架構
 
 | 層級 | 技術 |
@@ -66,8 +71,11 @@ EXCHANGERATE_API_KEY=
 # 開發
 ./mvnw spring-boot:run
 
-# 測試
+# 單元測試
 ./mvnw test
+
+# E2E 測試（需要 Node.js）
+cd e2e && npm install && npx playwright test
 
 # 建置
 ./mvnw clean package -DskipTests
@@ -90,7 +98,8 @@ wego/
 ├── src/main/resources/
 │   ├── templates/       # Thymeleaf 模板
 │   └── static/          # CSS, JS
-└── src/test/            # 測試（786 tests）
+├── src/test/            # 單元測試（786 tests）
+└── e2e/                 # E2E 測試（Playwright, 89 tests）
 ```
 
 ## 開發進度
@@ -100,7 +109,7 @@ wego/
 | Phase 1 | ✅ | OAuth 登入、行程 CRUD、景點管理、交通預估、邀請連結、基本分帳 |
 | Phase 2 | ✅ | 權限模型、代辦事項、智慧排序、天氣預報 |
 | Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 |
-| Phase 4 | 🚧 | PWA 離線、深色模式 |
+| Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙支援 |
 
 ## 文件
 

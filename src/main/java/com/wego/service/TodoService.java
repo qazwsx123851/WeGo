@@ -130,9 +130,8 @@ public class TodoService {
 
         List<Todo> todos = todoRepository.findByTripIdOrderedByDueDateAndStatus(tripId);
 
-        return todos.stream()
-                .map(this::buildTodoResponse)
-                .collect(Collectors.toList());
+        // Use optimized batch query for user details (fixes N+1)
+        return buildTodoResponses(todos);
     }
 
     /**

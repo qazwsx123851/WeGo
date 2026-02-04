@@ -76,6 +76,29 @@
     <!-- Icon slot - use th:insert to add icon -->
 </button>
 
+<!-- Dark Mode Toggle Button -->
+<button th:fragment="dark-mode-toggle"
+        id="dark-mode-toggle"
+        type="button"
+        aria-label="切換深色模式"
+        onclick="DarkMode.toggle(); this.querySelector('.icon-sun').classList.toggle('hidden'); this.querySelector('.icon-moon').classList.toggle('hidden');"
+        class="p-2 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
+               text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200
+               hover:bg-gray-100 dark:hover:bg-gray-800
+               transition-colors duration-200
+               focus:outline-none focus:ring-2 focus:ring-primary-500/50">
+    <!-- Sun icon (shown in dark mode - click to switch to light) -->
+    <svg class="icon-sun w-6 h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+    </svg>
+    <!-- Moon icon (shown in light mode - click to switch to dark) -->
+    <svg class="icon-moon w-6 h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+    </svg>
+</button>
+
 
 <!-- =====================================================
      CARDS
@@ -125,12 +148,12 @@
         </p>
 
         <!-- Member Avatars -->
-        <div class="flex -space-x-2" th:if="${trip.memberCount > 0}">
+        <div class="flex -space-x-2" th:if="${(trip?.memberCount ?: 0) > 0}">
             <span class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30
                          flex items-center justify-center text-xs font-medium
                          text-primary-600 dark:text-primary-400
                          ring-2 ring-white dark:ring-gray-800"
-                  th:text="${trip.memberCount} + ' 人'">
+                  th:text="${(trip?.memberCount ?: 0)} + ' 人'">
                 5 人
             </span>
         </div>
@@ -313,8 +336,29 @@
             <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading" th:text="${title}">
                 頁面標題
             </h1>
-            <div id="header-actions">
-                <!-- Action buttons slot -->
+            <div class="flex items-center gap-2">
+                <!-- Dark Mode Toggle -->
+                <button id="header-dark-mode-toggle"
+                        type="button"
+                        aria-label="切換深色模式"
+                        onclick="DarkMode.toggle(); this.querySelector('.icon-sun').classList.toggle('hidden'); this.querySelector('.icon-moon').classList.toggle('hidden');"
+                        class="p-2 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
+                               text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200
+                               hover:bg-gray-100 dark:hover:bg-gray-800
+                               transition-colors duration-200
+                               focus:outline-none focus:ring-2 focus:ring-primary-500/50">
+                    <svg class="icon-sun w-6 h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <svg class="icon-moon w-6 h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                </button>
+                <div id="header-actions">
+                    <!-- Action buttons slot -->
+                </div>
             </div>
         </div>
     </div>

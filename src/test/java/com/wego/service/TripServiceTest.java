@@ -1,5 +1,6 @@
 package com.wego.service;
 
+import com.wego.config.SupabaseProperties;
 import com.wego.domain.permission.PermissionChecker;
 import com.wego.dto.request.CreateTripRequest;
 import com.wego.dto.request.UpdateTripRequest;
@@ -11,9 +12,16 @@ import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
+import com.wego.repository.ActivityRepository;
+import com.wego.repository.DocumentRepository;
+import com.wego.repository.ExpenseRepository;
+import com.wego.repository.ExpenseSplitRepository;
+import com.wego.repository.InviteLinkRepository;
+import com.wego.repository.TodoRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
+import com.wego.service.external.StorageClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -54,7 +62,31 @@ class TripServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private ActivityRepository activityRepository;
+
+    @Mock
+    private ExpenseRepository expenseRepository;
+
+    @Mock
+    private ExpenseSplitRepository expenseSplitRepository;
+
+    @Mock
+    private DocumentRepository documentRepository;
+
+    @Mock
+    private TodoRepository todoRepository;
+
+    @Mock
+    private InviteLinkRepository inviteLinkRepository;
+
+    @Mock
     private PermissionChecker permissionChecker;
+
+    @Mock
+    private StorageClient storageClient;
+
+    @Mock
+    private SupabaseProperties supabaseProperties;
 
     @InjectMocks
     private TripService tripService;

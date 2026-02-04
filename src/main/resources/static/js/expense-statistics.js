@@ -28,6 +28,12 @@ const ExpenseStatistics = {
         return div.innerHTML;
     },
 
+    /** Cached data for chart recreation on theme change */
+    cachedData: {
+        categories: null,
+        trend: null
+    },
+
     /**
      * Initialize the statistics module
      */
@@ -41,6 +47,9 @@ const ExpenseStatistics = {
         // Configure Chart.js defaults for dark mode support
         this.configureChartDefaults();
 
+        // Listen for theme changes to update charts
+        window.addEventListener('themechange', () => this.onThemeChange());
+
         // Load all statistics
         this.loadCategoryBreakdown();
         this.loadTrend();
@@ -48,15 +57,42 @@ const ExpenseStatistics = {
     },
 
     /**
+     * Check if dark mode is active (localStorage preference first, then system)
+     * @returns {boolean}
+     */
+    isDarkMode() {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            return savedTheme === 'dark';
+        }
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    },
+
+    /**
      * Configure Chart.js defaults
      */
     configureChartDefaults() {
-        const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDarkMode = this.isDarkMode();
         const textColor = isDarkMode ? '#E5E7EB' : '#374151';
         const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 
         Chart.defaults.color = textColor;
         Chart.defaults.borderColor = gridColor;
+    },
+
+    /**
+     * Handle theme change - recreate charts with new colors
+     */
+    onThemeChange() {
+        this.configureChartDefaults();
+
+        // Recreate charts with cached data if available
+        if (this.cachedData.categories) {
+            this.renderCategoryChart(this.cachedData.categories);
+        }
+        if (this.cachedData.trend) {
+            this.renderTrendChart(this.cachedData.trend);
+        }
     },
 
     /**
@@ -86,6 +122,9 @@ const ExpenseStatistics = {
                 '$' + this.formatNumber(data.totalAmount);
             document.getElementById('currency-label').textContent = data.currency || 'TWD';
             document.getElementById('total-count').textContent = data.totalCount;
+
+            // Cache data for theme change recreation
+            this.cachedData.categories = data.categories;
 
             // Render chart
             this.renderCategoryChart(data.categories);
@@ -192,6 +231,9 @@ const ExpenseStatistics = {
             document.getElementById('average-per-day').textContent =
                 '$' + this.formatNumber(data.averagePerDay);
 
+            // Cache data for theme change recreation
+            this.cachedData.trend = data.dataPoints;
+
             // Render chart
             this.renderTrendChart(data.dataPoints);
 
@@ -218,7 +260,7 @@ const ExpenseStatistics = {
         const labels = dataPoints.map(d => d.dateLabel);
         const data = dataPoints.map(d => d.amount);
 
-        const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDarkMode = this.isDarkMode();
         const primaryColor = '#0EA5E9';
         const fillColor = isDarkMode ? 'rgba(14, 165, 233, 0.1)' : 'rgba(14, 165, 233, 0.2)';
 

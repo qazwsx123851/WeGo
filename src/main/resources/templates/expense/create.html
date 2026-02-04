@@ -230,7 +230,7 @@
                                 <input type="checkbox"
                                        th:name="'participantIds'"
                                        th:value="${member.userId}"
-                                       th:checked="${expense?.participants == null or expense.participants.^[user.id == __${member.userId}__] != null}"
+                                       checked
                                        class="participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer">
                                 <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"

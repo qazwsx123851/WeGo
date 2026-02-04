@@ -1,5 +1,7 @@
 package com.wego.config;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -19,8 +21,7 @@ import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Rate limiting configuration using Bucket4j.
@@ -42,9 +43,22 @@ public class RateLimitConfig {
     private static final int REQUESTS_PER_MINUTE = 100;
 
     /**
-     * Cache for per-IP buckets.
+     * Maximum number of IP addresses to track (prevents memory exhaustion).
      */
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private static final int MAX_CACHE_SIZE = 100_000;
+
+    /**
+     * TTL for bucket entries (5 minutes after last access).
+     */
+    private static final int CACHE_TTL_MINUTES = 5;
+
+    /**
+     * Cache for per-IP buckets with bounded size and TTL to prevent memory exhaustion.
+     */
+    private final Cache<String, Bucket> buckets = Caffeine.newBuilder()
+            .maximumSize(MAX_CACHE_SIZE)
+            .expireAfterAccess(CACHE_TTL_MINUTES, TimeUnit.MINUTES)
+            .build();
 
     /**
      * Creates a new rate limiting bucket.
@@ -73,7 +87,7 @@ public class RateLimitConfig {
      * @return The rate limiting bucket for this IP
      */
     private Bucket resolveBucket(String ip) {
-        return buckets.computeIfAbsent(ip, k -> createNewBucket());
+        return buckets.get(ip, k -> createNewBucket());
     }
 
     /**
@@ -125,6 +139,10 @@ public class RateLimitConfig {
     /**
      * Extracts client IP address from request, considering proxy headers.
      *
+     * Security note: X-Forwarded-For can be spoofed. This implementation
+     * takes the leftmost IP but limits the header to prevent abuse.
+     * For production, configure trusted proxy IPs based on your infrastructure.
+     *
      * @contract
      *   - pre: request != null
      *   - post: Returns client IP (from X-Forwarded-For or remote addr)
@@ -135,8 +153,18 @@ public class RateLimitConfig {
     private String getClientIP(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            // X-Forwarded-For can contain multiple IPs; take the first one
-            return xForwardedFor.split(",")[0].trim();
+            // Limit header length to prevent abuse (max ~100 IPs)
+            if (xForwardedFor.length() > 2000) {
+                log.warn("Suspiciously long X-Forwarded-For header, using remote addr");
+                return request.getRemoteAddr();
+            }
+            // X-Forwarded-For can contain multiple IPs; take the first (client) IP
+            String clientIp = xForwardedFor.split(",")[0].trim();
+            // Basic validation: IP should be reasonable length
+            if (clientIp.length() > 45) { // Max IPv6 length
+                return request.getRemoteAddr();
+            }
+            return clientIp;
         }
         return request.getRemoteAddr();
     }

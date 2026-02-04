@@ -71,7 +71,7 @@ export default defineConfig({
 
   /* Run local dev server before starting the tests */
   webServer: {
-    command: 'cd .. && ./mvnw spring-boot:run -DskipTests',
+    command: 'cd .. && ./mvnw spring-boot:run -DskipTests -Dspring-boot.run.profiles=e2e',
     url: 'http://localhost:8080/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

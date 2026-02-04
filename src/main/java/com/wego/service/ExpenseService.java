@@ -13,6 +13,7 @@ import com.wego.entity.User;
 import com.wego.exception.BusinessException;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
+import com.wego.exception.ValidationException;
 import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
 import com.wego.repository.TripMemberRepository;
@@ -29,6 +30,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -297,9 +299,28 @@ public class ExpenseService {
 
     /**
      * Creates expense splits based on the split type.
+     *
+     * @contract
+     *   - pre: expense != null, tripId != null
+     *   - pre: For CUSTOM: split amounts sum to expense total
+     *   - pre: For PERCENTAGE: percentages sum to 100%
+     *   - pre: All split userIds are valid trip members
+     *   - post: Returns list of ExpenseSplit entities
+     *   - throws: ValidationException if validation fails
      */
     private List<ExpenseSplit> createExpenseSplits(Expense expense, CreateExpenseRequest request, UUID tripId) {
         List<ExpenseSplit> splits = new ArrayList<>();
+
+        // Validate splits for CUSTOM and PERCENTAGE types
+        if (request.getSplits() != null && !request.getSplits().isEmpty()) {
+            validateSplitUserIds(request.getSplits(), tripId);
+
+            if (expense.getSplitType() == SplitType.CUSTOM) {
+                validateCustomSplitAmounts(request.getSplits(), expense.getAmount());
+            } else if (expense.getSplitType() == SplitType.PERCENTAGE) {
+                validatePercentageSplits(request.getSplits());
+            }
+        }
 
         switch (expense.getSplitType()) {
             case EQUAL -> {
@@ -383,6 +404,67 @@ public class ExpenseService {
         }
 
         return splits;
+    }
+
+    /**
+     * Validates that all split userIds are valid trip members.
+     *
+     * @contract
+     *   - pre: splitRequests != null, tripId != null
+     *   - throws: ValidationException if any userId is not a trip member
+     */
+    private void validateSplitUserIds(List<CreateExpenseRequest.SplitRequest> splitRequests, UUID tripId) {
+        Set<UUID> memberIds = tripMemberRepository.findByTripId(tripId).stream()
+                .map(TripMember::getUserId)
+                .collect(Collectors.toSet());
+
+        for (CreateExpenseRequest.SplitRequest split : splitRequests) {
+            if (split.getUserId() != null && !memberIds.contains(split.getUserId())) {
+                throw new ValidationException("INVALID_SPLIT_USER",
+                        "分帳用戶不是行程成員: " + split.getUserId());
+            }
+        }
+    }
+
+    /**
+     * Validates that CUSTOM split amounts sum to the expense total.
+     *
+     * @contract
+     *   - pre: splitRequests != null, expenseAmount != null
+     *   - throws: ValidationException if amounts don't sum to total
+     */
+    private void validateCustomSplitAmounts(List<CreateExpenseRequest.SplitRequest> splitRequests, BigDecimal expenseAmount) {
+        BigDecimal totalSplitAmount = splitRequests.stream()
+                .map(s -> s.getAmount() != null ? s.getAmount() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Allow small rounding difference (up to 0.01)
+        if (totalSplitAmount.subtract(expenseAmount).abs().compareTo(new BigDecimal("0.01")) > 0) {
+            throw new ValidationException("SPLIT_AMOUNT_MISMATCH",
+                    String.format("分帳金額總和 (%s) 與支出金額 (%s) 不符",
+                            totalSplitAmount.setScale(2, RoundingMode.HALF_UP),
+                            expenseAmount.setScale(2, RoundingMode.HALF_UP)));
+        }
+    }
+
+    /**
+     * Validates that PERCENTAGE splits sum to 100%.
+     *
+     * @contract
+     *   - pre: splitRequests != null
+     *   - throws: ValidationException if percentages don't sum to 100
+     */
+    private void validatePercentageSplits(List<CreateExpenseRequest.SplitRequest> splitRequests) {
+        BigDecimal totalPercentage = splitRequests.stream()
+                .map(s -> s.getPercentage() != null ? s.getPercentage() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Allow small rounding difference (up to 0.01)
+        if (totalPercentage.subtract(new BigDecimal("100")).abs().compareTo(new BigDecimal("0.01")) > 0) {
+            throw new ValidationException("PERCENTAGE_SUM_INVALID",
+                    String.format("分帳百分比總和 (%s%%) 不等於 100%%",
+                            totalPercentage.setScale(2, RoundingMode.HALF_UP)));
+        }
     }
 
     /**

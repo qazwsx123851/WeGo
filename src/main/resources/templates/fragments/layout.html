@@ -77,7 +77,10 @@
                 </a>
 
                 <!-- User Avatar/Menu -->
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <!-- Dark Mode Toggle -->
+                    <div th:replace="~{fragments/components :: dark-mode-toggle}"></div>
+
                     <button aria-label="通知"
                             class="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200
                                    hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full

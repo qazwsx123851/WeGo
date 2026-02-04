@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.wego.exception.UnauthorizedException;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -230,13 +232,16 @@ public class DocumentApiController {
     }
 
     /**
-     * Gets the current user ID from the OAuth2 principal.
-     * For testing, returns a consistent UUID if principal is null.
+     * Extracts user ID from the OAuth2 principal or throws UnauthorizedException if not authenticated.
+     *
+     * @contract
+     *   - pre: principal != null
+     *   - post: returns valid user UUID
+     *   - throws: UnauthorizedException if principal is null
      */
     private UUID getCurrentUserId(OAuth2User principal) {
         if (principal == null) {
-            // For testing purposes, generate a consistent UUID
-            return UUID.fromString("00000000-0000-0000-0000-000000000001");
+            throw new UnauthorizedException("認證已過期，請重新登入");
         }
         // Extract user ID from the principal
         String sub = principal.getAttribute("sub");
@@ -248,6 +253,6 @@ public class DocumentApiController {
                 return UUID.nameUUIDFromBytes(sub.getBytes());
             }
         }
-        return UUID.fromString("00000000-0000-0000-0000-000000000001");
+        throw new UnauthorizedException("無法取得用戶身份");
     }
 }

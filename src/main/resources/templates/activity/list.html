@@ -10,6 +10,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${trip.title} + ' - 行程景點'">行程景點 - WeGo</title>
 
+    <!-- Dark Mode FOUC Prevention -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (theme === 'dark' || (!theme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+
     <!-- CSRF Token for AJAX requests -->
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>

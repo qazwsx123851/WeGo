@@ -4,23 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WeGo - 旅遊規劃協作平台</title>
+    <!-- Dark Mode FOUC Prevention -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (theme === 'dark' || (!theme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     <link rel="stylesheet" th:href="@{/css/styles.css}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100">
+<body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100
+             dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
     <!-- Hero Section -->
     <div class="min-h-screen flex flex-col items-center justify-center p-6">
         <div class="glass-card p-8 md:p-12 max-w-lg w-full text-center animate-fade-in">
             <!-- Logo -->
             <div class="mb-8">
-                <h1 class="text-display text-primary-900 font-heading">WeGo</h1>
-                <p class="text-body-lg text-gray-600 mt-2">旅遊規劃協作平台</p>
+                <h1 class="text-display text-primary-900 dark:text-primary-400 font-heading">WeGo</h1>
+                <p class="text-body-lg text-gray-600 dark:text-gray-400 mt-2">旅遊規劃協作平台</p>
             </div>
 
             <!-- Tagline -->
-            <p class="text-body text-gray-500 mb-8">
+            <p class="text-body text-gray-500 dark:text-gray-400 mb-8">
                 專為好友、小團體設計的「重協作」旅遊規劃平台<br>
                 讓行程規劃變得輕鬆有趣
             </p>
@@ -31,25 +42,25 @@
                     <svg class="w-4 h-4 text-primary-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    <span class="text-body-sm text-gray-600">共同編輯行程</span>
+                    <span class="text-body-sm text-gray-600 dark:text-gray-400">共同編輯行程</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <svg class="w-4 h-4 text-primary-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    <span class="text-body-sm text-gray-600">智慧交通預估</span>
+                    <span class="text-body-sm text-gray-600 dark:text-gray-400">智慧交通預估</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <svg class="w-4 h-4 text-primary-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    <span class="text-body-sm text-gray-600">簡易分帳結算</span>
+                    <span class="text-body-sm text-gray-600 dark:text-gray-400">簡易分帳結算</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <svg class="w-4 h-4 text-primary-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    <span class="text-body-sm text-gray-600">憑證集中管理</span>
+                    <span class="text-body-sm text-gray-600 dark:text-gray-400">憑證集中管理</span>
                 </div>
             </div>
 
@@ -68,7 +79,7 @@
         </div>
 
         <!-- Footer -->
-        <footer class="mt-8 text-caption text-gray-400">
+        <footer class="mt-8 text-caption text-gray-400 dark:text-gray-500">
             &copy; 2025 WeGo. Made with love for travelers.
         </footer>
     </div>

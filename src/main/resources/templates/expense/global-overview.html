@@ -6,6 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="WeGo - 分帳總覽">
     <meta name="theme-color" content="#0EA5E9">
+
+    <!-- Dark Mode FOUC Prevention -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (theme === 'dark' || (!theme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+
     <title>分帳總覽 - WeGo</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/styles.css}">
@@ -138,7 +150,7 @@
                     <!-- Cover Image -->
                     <div class="relative h-32 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700">
                         <img th:if="${trip.coverImageUrl}" th:src="${trip.coverImageUrl}"
-                             alt="" class="w-full h-full object-cover">
+                             th:alt="${trip.tripTitle + ' 封面圖片'}" class="w-full h-full object-cover">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                         <!-- Balance Badge -->
                         <div class="absolute top-3 right-3 px-2 py-1 rounded-lg text-caption font-medium"

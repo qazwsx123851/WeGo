@@ -149,6 +149,10 @@ const DarkMode = {
     toggle() {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
+
+        // Dispatch custom event for components (e.g., Chart.js) to update
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { isDark } }));
+
         return isDark;
     },
 

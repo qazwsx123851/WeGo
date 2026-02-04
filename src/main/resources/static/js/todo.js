@@ -26,11 +26,16 @@ const TodoApi = {
 
     /**
      * Gets CSRF token from meta tag.
-     * @returns {string} CSRF token or empty string
+     * @returns {string} CSRF token
+     * @throws {Error} if CSRF token is not found
      */
     getCsrfToken() {
         const token = document.querySelector('meta[name="_csrf"]');
-        return token ? token.getAttribute('content') : '';
+        if (!token || !token.getAttribute('content')) {
+            console.error('CSRF token not found in page metadata');
+            throw new Error('CSRF token not found');
+        }
+        return token.getAttribute('content');
     },
 
     /**

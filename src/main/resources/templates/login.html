@@ -4,17 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登入 - WeGo</title>
+    <!-- Dark Mode FOUC Prevention -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (theme === 'dark' || (!theme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     <link rel="stylesheet" th:href="@{/css/styles.css}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100 flex items-center justify-center p-6">
+<body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100
+             dark:from-gray-900 dark:via-gray-900 dark:to-gray-800
+             flex items-center justify-center p-6">
     <div class="glass-card p-8 max-w-sm w-full text-center animate-fade-in">
         <!-- Logo -->
         <div class="mb-6">
-            <h1 class="text-h1 text-primary-900 font-heading">WeGo</h1>
-            <p class="text-body text-gray-500 mt-1">登入您的帳號</p>
+            <h1 class="text-h1 text-primary-900 dark:text-primary-400 font-heading">WeGo</h1>
+            <p class="text-body text-gray-500 dark:text-gray-400 mt-1">登入您的帳號</p>
         </div>
 
         <!-- Error Messages -->

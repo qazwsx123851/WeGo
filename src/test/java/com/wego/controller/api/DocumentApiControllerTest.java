@@ -4,21 +4,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wego.dto.request.CreateDocumentRequest;
 import com.wego.dto.response.DocumentResponse;
 import com.wego.entity.Document;
+import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
+import com.wego.security.UserPrincipal;
 import com.wego.service.DocumentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,6 +27,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oauth2Login;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -49,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   - Tests error handling
  */
 @WebMvcTest(DocumentApiController.class)
-@AutoConfigureMockMvc
+@Import(TestSecurityConfig.class)
 @ActiveProfiles("test")
 class DocumentApiControllerTest {
 
@@ -66,6 +69,8 @@ class DocumentApiControllerTest {
     private UUID documentId;
     private UUID userId;
     private UUID activityId;
+    private User testUser;
+    private UserPrincipal userPrincipal;
     private DocumentResponse testDocumentResponse;
 
     @BeforeEach
@@ -74,6 +79,18 @@ class DocumentApiControllerTest {
         documentId = UUID.randomUUID();
         userId = UUID.randomUUID();
         activityId = UUID.randomUUID();
+
+        testUser = User.builder()
+                .id(userId)
+                .email("test@example.com")
+                .nickname("Test User")
+                .provider("google")
+                .providerId("google-123")
+                .build();
+
+        // Create UserPrincipal with attributes containing "sub" for authentication
+        Map<String, Object> attributes = Map.of("sub", userId.toString());
+        userPrincipal = new UserPrincipal(testUser, attributes);
 
         testDocumentResponse = DocumentResponse.builder()
                 .id(documentId)
@@ -98,7 +115,6 @@ class DocumentApiControllerTest {
     class UploadDocumentTests {
 
         @Test
-        @WithMockUser
         @DisplayName("should upload document and return 201")
         void uploadDocument_withValidFile_shouldReturn201() throws Exception {
             // Given
@@ -115,6 +131,7 @@ class DocumentApiControllerTest {
             // When & Then
             mockMvc.perform(multipart("/api/trips/{tripId}/documents", tripId)
                             .file(file)
+                            .with(oauth2Login().oauth2User(userPrincipal))
                             .with(csrf()))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true))
@@ -123,7 +140,6 @@ class DocumentApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should upload document with metadata and return 201")
         void uploadDocument_withMetadata_shouldReturn201() throws Exception {
             // Given
@@ -152,13 +168,13 @@ class DocumentApiControllerTest {
             mockMvc.perform(multipart("/api/trips/{tripId}/documents", tripId)
                             .file(file)
                             .file(metadataFile)
+                            .with(oauth2Login().oauth2User(userPrincipal))
                             .with(csrf()))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when file exceeds size limit")
         void uploadDocument_exceedingSizeLimit_shouldReturn400() throws Exception {
             // Given
@@ -175,6 +191,7 @@ class DocumentApiControllerTest {
             // When & Then
             mockMvc.perform(multipart("/api/trips/{tripId}/documents", tripId)
                             .file(file)
+                            .with(oauth2Login().oauth2User(userPrincipal))
                             .with(csrf()))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false))
@@ -182,7 +199,6 @@ class DocumentApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when file format is unsupported")
         void uploadDocument_unsupportedFormat_shouldReturn400() throws Exception {
             // Given
@@ -199,6 +215,7 @@ class DocumentApiControllerTest {
             // When & Then
             mockMvc.perform(multipart("/api/trips/{tripId}/documents", tripId)
                             .file(file)
+                            .with(oauth2Login().oauth2User(userPrincipal))
                             .with(csrf()))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false))
@@ -206,7 +223,6 @@ class DocumentApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 403 when user has no permission")
         void uploadDocument_noPermission_shouldReturn403() throws Exception {
             // Given
@@ -223,6 +239,7 @@ class DocumentApiControllerTest {
             // When & Then
             mockMvc.perform(multipart("/api/trips/{tripId}/documents", tripId)
                             .file(file)
+                            .with(oauth2Login().oauth2User(userPrincipal))
                             .with(csrf()))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
@@ -234,7 +251,6 @@ class DocumentApiControllerTest {
     class GetDocumentsByTripTests {
 
         @Test
-        @WithMockUser
         @DisplayName("should return documents list with 200")
         void getDocumentsByTrip_shouldReturn200() throws Exception {
             // Given
@@ -243,7 +259,8 @@ class DocumentApiControllerTest {
                     .thenReturn(documents);
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/documents", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/documents", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data").isArray())
@@ -251,7 +268,6 @@ class DocumentApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return empty list when no documents")
         void getDocumentsByTrip_noDocuments_shouldReturnEmptyList() throws Exception {
             // Given
@@ -259,7 +275,8 @@ class DocumentApiControllerTest {
                     .thenReturn(Collections.emptyList());
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/documents", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/documents", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data").isArray())
@@ -267,7 +284,6 @@ class DocumentApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 403 when user has no permission")
         void getDocumentsByTrip_noPermission_shouldReturn403() throws Exception {
             // Given
@@ -275,7 +291,8 @@ class DocumentApiControllerTest {
                     .thenThrow(new ForbiddenException("您沒有權限查看此行程的檔案"));
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/documents", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/documents", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -286,7 +303,6 @@ class DocumentApiControllerTest {
     class GetDocumentTests {
 
         @Test
-        @WithMockUser
         @DisplayName("should return document with 200")
         void getDocument_shouldReturn200() throws Exception {
             // Given
@@ -294,7 +310,8 @@ class DocumentApiControllerTest {
                     .thenReturn(testDocumentResponse);
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/documents/{documentId}", tripId, documentId))
+            mockMvc.perform(get("/api/trips/{tripId}/documents/{documentId}", tripId, documentId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.id").value(documentId.toString()))
@@ -302,7 +319,6 @@ class DocumentApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 404 when document not found")
         void getDocument_notFound_shouldReturn404() throws Exception {
             // Given
@@ -310,7 +326,8 @@ class DocumentApiControllerTest {
                     .thenThrow(ResourceNotFoundException.withCode("DOCUMENT_NOT_FOUND", "檔案不存在"));
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/documents/{documentId}", tripId, documentId))
+            mockMvc.perform(get("/api/trips/{tripId}/documents/{documentId}", tripId, documentId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.errorCode").value("DOCUMENT_NOT_FOUND"));
@@ -322,7 +339,6 @@ class DocumentApiControllerTest {
     class GetDownloadUrlTests {
 
         @Test
-        @WithMockUser
         @DisplayName("should return download URL with 200")
         void getDownloadUrl_shouldReturn200() throws Exception {
             // Given
@@ -331,14 +347,14 @@ class DocumentApiControllerTest {
                     .thenReturn(signedUrl);
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/documents/{documentId}/download", tripId, documentId))
+            mockMvc.perform(get("/api/trips/{tripId}/documents/{documentId}/download", tripId, documentId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.downloadUrl").value(signedUrl));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 403 when user has no permission")
         void getDownloadUrl_noPermission_shouldReturn403() throws Exception {
             // Given
@@ -346,7 +362,8 @@ class DocumentApiControllerTest {
                     .thenThrow(new ForbiddenException("您沒有權限下載此檔案"));
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/documents/{documentId}/download", tripId, documentId))
+            mockMvc.perform(get("/api/trips/{tripId}/documents/{documentId}/download", tripId, documentId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -357,7 +374,6 @@ class DocumentApiControllerTest {
     class DeleteDocumentTests {
 
         @Test
-        @WithMockUser
         @DisplayName("should delete document and return 200")
         void deleteDocument_shouldReturn200() throws Exception {
             // Given
@@ -365,6 +381,7 @@ class DocumentApiControllerTest {
 
             // When & Then
             mockMvc.perform(delete("/api/trips/{tripId}/documents/{documentId}", tripId, documentId)
+                            .with(oauth2Login().oauth2User(userPrincipal))
                             .with(csrf()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
@@ -372,7 +389,6 @@ class DocumentApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 404 when document not found")
         void deleteDocument_notFound_shouldReturn404() throws Exception {
             // Given
@@ -381,13 +397,13 @@ class DocumentApiControllerTest {
 
             // When & Then
             mockMvc.perform(delete("/api/trips/{tripId}/documents/{documentId}", tripId, documentId)
+                            .with(oauth2Login().oauth2User(userPrincipal))
                             .with(csrf()))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.success").value(false));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 403 when user has no permission")
         void deleteDocument_noPermission_shouldReturn403() throws Exception {
             // Given
@@ -396,6 +412,7 @@ class DocumentApiControllerTest {
 
             // When & Then
             mockMvc.perform(delete("/api/trips/{tripId}/documents/{documentId}", tripId, documentId)
+                            .with(oauth2Login().oauth2User(userPrincipal))
                             .with(csrf()))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
@@ -407,7 +424,6 @@ class DocumentApiControllerTest {
     class GetStorageUsageTests {
 
         @Test
-        @WithMockUser
         @DisplayName("should return storage usage with 200")
         void getStorageUsage_shouldReturn200() throws Exception {
             // Given
@@ -416,7 +432,8 @@ class DocumentApiControllerTest {
                     .thenReturn(usedBytes);
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/documents/storage", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/documents/storage", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.usedBytes").value(usedBytes))
@@ -425,7 +442,6 @@ class DocumentApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 403 when user has no permission")
         void getStorageUsage_noPermission_shouldReturn403() throws Exception {
             // Given
@@ -433,7 +449,8 @@ class DocumentApiControllerTest {
                     .thenThrow(new ForbiddenException("您沒有權限查看此行程"));
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/documents/storage", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/documents/storage", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
@@ -444,7 +461,6 @@ class DocumentApiControllerTest {
     class GetDocumentsByActivityTests {
 
         @Test
-        @WithMockUser
         @DisplayName("should return documents linked to activity with 200")
         void getDocumentsByActivity_shouldReturn200() throws Exception {
             // Given
@@ -453,7 +469,8 @@ class DocumentApiControllerTest {
                     .thenReturn(documents);
 
             // When & Then
-            mockMvc.perform(get("/api/trips/{tripId}/activities/{activityId}/documents", tripId, activityId))
+            mockMvc.perform(get("/api/trips/{tripId}/activities/{activityId}/documents", tripId, activityId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data").isArray())
@@ -466,8 +483,8 @@ class DocumentApiControllerTest {
     class AuthenticationTests {
 
         @Test
-        @DisplayName("should redirect when not authenticated (302)")
-        void uploadDocument_notAuthenticated_shouldRedirect() throws Exception {
+        @DisplayName("should return 4xx when not authenticated")
+        void uploadDocument_notAuthenticated_shouldReturn4xx() throws Exception {
             MockMultipartFile file = new MockMultipartFile(
                     "file",
                     "receipt.pdf",
@@ -475,19 +492,19 @@ class DocumentApiControllerTest {
                     "test content".getBytes()
             );
 
-            // Spring Security redirects to login page for unauthenticated requests
+            // Spring Security returns 4xx for unauthenticated requests
             mockMvc.perform(multipart("/api/trips/{tripId}/documents", tripId)
                             .file(file)
                             .with(csrf()))
-                    .andExpect(status().is3xxRedirection());
+                    .andExpect(status().is4xxClientError());
         }
 
         @Test
-        @DisplayName("should redirect for GET when not authenticated (302)")
-        void getDocuments_notAuthenticated_shouldRedirect() throws Exception {
-            // Spring Security redirects to login page for unauthenticated requests
+        @DisplayName("should return 4xx for GET when not authenticated")
+        void getDocuments_notAuthenticated_shouldReturn4xx() throws Exception {
+            // Spring Security returns 4xx for unauthenticated requests
             mockMvc.perform(get("/api/trips/{tripId}/documents", tripId))
-                    .andExpect(status().is3xxRedirection());
+                    .andExpect(status().is4xxClientError());
         }
     }
 }
