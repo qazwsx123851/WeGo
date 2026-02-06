@@ -284,7 +284,15 @@ public class TripService {
         // 2. Expenses (depends on Trip)
         expenseRepository.deleteByTripId(tripId);
 
-        // 3. Documents (depends on Trip, may have Activity association)
+        // 3. Documents: clean storage files first, then delete DB records
+        documentRepository.findByTripIdOrderByCreatedAtDesc(tripId).forEach(doc -> {
+            try {
+                String storagePath = tripId + "/" + doc.getFileName();
+                storageClient.deleteFile(supabaseProperties.getStorageBucket(), storagePath);
+            } catch (Exception e) {
+                log.warn("Failed to delete storage file for document {}: {}", doc.getId(), e.getMessage());
+            }
+        });
         documentRepository.deleteByTripId(tripId);
 
         // 4. Activities (depends on Trip)
@@ -299,7 +307,16 @@ public class TripService {
         // 7. TripMembers (depends on Trip)
         tripMemberRepository.deleteByTripId(tripId);
 
-        // 8. Finally delete the Trip itself
+        // 8. Delete cover image from storage
+        if (trip.getCoverImageUrl() != null) {
+            try {
+                deleteCoverImage(trip.getCoverImageUrl());
+            } catch (Exception e) {
+                log.warn("Failed to delete cover image for trip {}: {}", tripId, e.getMessage());
+            }
+        }
+
+        // 9. Finally delete the Trip itself
         tripRepository.delete(trip);
 
         log.info("Deleted trip and all related data: {} by user: {}", tripId, userId);
