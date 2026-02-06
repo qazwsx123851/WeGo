@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head(title=(${expense?.description} ?: '支出詳情'))}"></head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div th:replace="~{fragments/components :: toast-container}"></div>
+
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a th:href="|/trips/${trip?.id}/expenses|"
+                   class="p-2 -ml-2 min-w-[44px] min-h-[44px] rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 cursor-pointer flex items-center justify-center"
+                   aria-label="返回分帳列表">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">支出詳情</h1>
+            </div>
+            <!-- Actions -->
+            <div th:if="${canEdit}" class="flex items-center gap-2">
+                <a th:href="|/trips/${trip?.id}/expenses/${expense?.id}/edit|"
+                   class="p-2 min-w-[44px] min-h-[44px] rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 cursor-pointer flex items-center justify-center"
+                   aria-label="編輯支出">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                </a>
+                <button th:if="${isOwner}" id="delete-btn"
+                        class="p-2 min-w-[44px] min-h-[44px] rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200 cursor-pointer flex items-center justify-center"
+                        aria-label="刪除支出">
+                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-6 space-y-4">
+        <!-- Amount Section -->
+        <div class="glass-card p-6 text-center">
+            <p class="text-4xl font-bold text-gray-800 dark:text-gray-100 font-mono"
+               th:text="'$' + ${#numbers.formatDecimal(expense?.amount ?: 0, 0, 'COMMA', 0, 'POINT')}">$0</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1"
+               th:text="${expense?.currency} ?: 'TWD'">TWD</p>
+        </div>
+
+        <!-- Description -->
+        <div class="glass-card p-4">
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">描述</p>
+            <p class="text-gray-800 dark:text-gray-100 font-medium"
+               th:text="${expense?.description} ?: '-'">支出描述</p>
+        </div>
+
+        <!-- Info Grid -->
+        <div class="grid grid-cols-2 gap-4">
+            <!-- Payer -->
+            <div class="glass-card p-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">付款人</p>
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                        <span class="text-xs font-medium text-primary-600 dark:text-primary-400"
+                              th:text="${expense?.paidByName?.length() > 0 ? #strings.substring(expense.paidByName, 0, 1) : '?'}">?</span>
+                    </div>
+                    <span class="text-gray-800 dark:text-gray-100 font-medium"
+                          th:text="${expense?.paidByName} ?: '未知'">付款人</span>
+                </div>
+            </div>
+
+            <!-- Category -->
+            <div class="glass-card p-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">類別</p>
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-xl flex items-center justify-center"
+                         th:classappend="${expense?.category == 'FOOD' ? 'bg-orange-100 dark:bg-orange-900/30' :
+                                          expense?.category == 'TRANSPORT' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                                          expense?.category == 'ACCOMMODATION' ? 'bg-purple-100 dark:bg-purple-900/30' :
+                                          expense?.category == 'ENTERTAINMENT' ? 'bg-pink-100 dark:bg-pink-900/30' :
+                                          'bg-gray-100 dark:bg-gray-700'}">
+                        <svg th:if="${expense?.category == 'FOOD'}" class="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        <svg th:if="${expense?.category == 'TRANSPORT'}" class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <svg th:if="${expense?.category == 'ACCOMMODATION'}" class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        <svg th:if="${expense?.category == 'ENTERTAINMENT'}" class="w-4 h-4 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <svg th:if="${expense?.category == 'OTHER' or expense?.category == null}" class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                        </svg>
+                    </div>
+                    <span class="text-gray-800 dark:text-gray-100 font-medium"
+                          th:text="${expense?.category == 'FOOD' ? '餐飲' :
+                                    expense?.category == 'TRANSPORT' ? '交通' :
+                                    expense?.category == 'ACCOMMODATION' ? '住宿' :
+                                    expense?.category == 'ENTERTAINMENT' ? '娛樂' : '其他'}">類別</span>
+                </div>
+            </div>
+
+            <!-- Split Type -->
+            <div class="glass-card p-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">分攤方式</p>
+                <p class="text-gray-800 dark:text-gray-100 font-medium"
+                   th:text="${expense?.splitType?.name() == 'EQUAL' ? '均分' :
+                             expense?.splitType?.name() == 'PERCENTAGE' ? '百分比' :
+                             expense?.splitType?.name() == 'CUSTOM' ? '自訂金額' :
+                             expense?.splitType?.name() == 'SHARES' ? '比例' : '均分'}">均分</p>
+            </div>
+
+            <!-- Date -->
+            <div class="glass-card p-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">日期</p>
+                <p class="text-gray-800 dark:text-gray-100 font-medium"
+                   th:if="${expense?.expenseDate != null}"
+                   th:text="${#temporals.format(expense.expenseDate, 'yyyy/M/d')}">2024/1/15</p>
+                <p class="text-gray-800 dark:text-gray-100 font-medium"
+                   th:if="${expense?.expenseDate == null}"
+                   th:text="${expense?.createdAt != null ? #temporals.format(expense.createdAt, 'yyyy/M/d') : '-'}">-</p>
+            </div>
+        </div>
+
+        <!-- Note -->
+        <div th:if="${expense?.note != null and expense.note.length() > 0}" class="glass-card p-4">
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">備註</p>
+            <p class="text-gray-800 dark:text-gray-100" th:text="${expense.note}">備註內容</p>
+        </div>
+
+        <!-- Splits Section -->
+        <div th:if="${expense?.splits != null and !expense.splits.isEmpty()}" class="glass-card p-4">
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">分攤明細</p>
+            <div class="space-y-2">
+                <div th:each="split : ${expense.splits}"
+                     class="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                            <span class="text-xs font-medium text-primary-600 dark:text-primary-400"
+                                  th:text="${split.userNickname?.length() > 0 ? #strings.substring(split.userNickname, 0, 1) : '?'}">?</span>
+                        </div>
+                        <span class="text-sm text-gray-700 dark:text-gray-300"
+                              th:text="${split.userNickname} ?: '未知使用者'">使用者</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-medium text-gray-800 dark:text-gray-100 font-mono"
+                              th:text="'$' + ${#numbers.formatDecimal(split.amount ?: 0, 0, 'COMMA', 0, 'POINT')}">$0</span>
+                        <span th:if="${split.settled}"
+                              class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">已結清</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav th:replace="~{fragments/components :: bottom-nav}"></nav>
+
+    <!-- Delete Confirmation Script -->
+    <script th:if="${canEdit and isOwner}" th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            const deleteBtn = document.getElementById('delete-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function() {
+                    if (confirm('確定要刪除這筆支出嗎？此操作無法復原。')) {
+                        const tripId = /*[[${trip?.id}]]*/ '';
+                        const expenseId = /*[[${expense?.id}]]*/ '';
+                        const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+                        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
+                        fetch('/api/trips/' + tripId + '/expenses/' + expenseId, {
+                            method: 'DELETE',
+                            headers: csrfHeader ? { [csrfHeader]: csrfToken } : {}
+                        }).then(function(response) {
+                            if (response.ok) {
+                                window.location.href = '/trips/' + tripId + '/expenses?success=expense_deleted';
+                            } else {
+                                window.location.href = '/trips/' + tripId + '/expenses?error=delete_failed';
+                            }
+                        }).catch(function() {
+                            window.location.href = '/trips/' + tripId + '/expenses?error=delete_failed';
+                        });
+                    }
+                });
+            }
+        });
+    </script>
+
+    <script th:src="@{/js/app.js}" defer></script>
+</body>
+</html>

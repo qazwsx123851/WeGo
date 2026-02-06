@@ -311,8 +311,14 @@ class ExpenseServiceTest {
                     .splits(Arrays.asList(split1, split2))
                     .build();
 
+            TripMember member1 = TripMember.builder()
+                    .tripId(tripId).userId(userId).role(Role.OWNER).build();
+            TripMember member2 = TripMember.builder()
+                    .tripId(tripId).userId(testUser2.getId()).role(Role.EDITOR).build();
+
             when(permissionChecker.canEdit(tripId, userId)).thenReturn(true);
             when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+            when(tripMemberRepository.findByTripId(tripId)).thenReturn(Arrays.asList(member1, member2));
 
             // When & Then
             assertThatThrownBy(() -> expenseService.createExpense(tripId, request, userId))

@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.wego.exception.UnauthorizedException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -213,6 +214,60 @@ public class ExpenseApiController {
         settlementService.markAsUnsettled(splitId, userId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "Split marked as unsettled"));
+    }
+
+    /**
+     * Settles all splits between two users in a trip.
+     *
+     * @contract
+     *   - pre: tripId != null, request body contains fromUserId and toUserId
+     *   - pre: user has edit permission on trip
+     *   - post: all unsettled splits between the users are marked settled
+     *   - calls: SettlementService#settleAllBetweenUsers
+     *
+     * PUT /api/trips/{tripId}/settlement/settle
+     */
+    @PutMapping("/trips/{tripId}/settlement/settle")
+    public ResponseEntity<ApiResponse<Void>> settleByUsers(
+            @PathVariable UUID tripId,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal OAuth2User principal) {
+
+        UUID userId = getCurrentUserId(principal);
+        UUID fromUserId = UUID.fromString(body.get("fromUserId"));
+        UUID toUserId = UUID.fromString(body.get("toUserId"));
+        log.debug("PUT /api/trips/{}/settlement/settle from={} to={} by user {}", tripId, fromUserId, toUserId, userId);
+
+        settlementService.settleAllBetweenUsers(tripId, fromUserId, toUserId, userId);
+
+        return ResponseEntity.ok(ApiResponse.success(null, "已結清"));
+    }
+
+    /**
+     * Unsettles all splits between two users in a trip.
+     *
+     * @contract
+     *   - pre: tripId != null, request body contains fromUserId and toUserId
+     *   - pre: user has edit permission on trip
+     *   - post: all settled splits between the users are marked unsettled
+     *   - calls: SettlementService#unsettleAllBetweenUsers
+     *
+     * PUT /api/trips/{tripId}/settlement/unsettle
+     */
+    @PutMapping("/trips/{tripId}/settlement/unsettle")
+    public ResponseEntity<ApiResponse<Void>> unsettleByUsers(
+            @PathVariable UUID tripId,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal OAuth2User principal) {
+
+        UUID userId = getCurrentUserId(principal);
+        UUID fromUserId = UUID.fromString(body.get("fromUserId"));
+        UUID toUserId = UUID.fromString(body.get("toUserId"));
+        log.debug("PUT /api/trips/{}/settlement/unsettle from={} to={} by user {}", tripId, fromUserId, toUserId, userId);
+
+        settlementService.unsettleAllBetweenUsers(tripId, fromUserId, toUserId, userId);
+
+        return ResponseEntity.ok(ApiResponse.success(null, "已取消結清"));
     }
 
     /**

@@ -231,6 +231,15 @@ const ExpenseForm = {
      * @returns {Promise<number|null>} Exchange rate or null
      */
     async getExchangeRate(from, to) {
+        // Validate and normalize currency code format
+        from = String(from).toUpperCase();
+        to = String(to).toUpperCase();
+        const currencyRegex = /^[A-Z]{3}$/;
+        if (!currencyRegex.test(from) || !currencyRegex.test(to)) {
+            console.warn('Invalid currency code format:', from, to);
+            return null;
+        }
+
         const cacheKey = `${from}-${to}`;
         const now = Date.now();
 

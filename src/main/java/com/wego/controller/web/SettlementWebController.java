@@ -1,5 +1,6 @@
 package com.wego.controller.web;
 
+import com.wego.domain.permission.PermissionChecker;
 import com.wego.dto.response.SettlementResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.User;
@@ -41,6 +42,7 @@ public class SettlementWebController {
     private final TripService tripService;
     private final SettlementService settlementService;
     private final UserService userService;
+    private final PermissionChecker permissionChecker;
 
     /**
      * Shows the settlement page with debt simplification.
@@ -104,10 +106,13 @@ public class SettlementWebController {
                     .divide(BigDecimal.valueOf(trip.getMembers().size()), 2, RoundingMode.HALF_UP);
         }
 
+        boolean canEdit = permissionChecker.canEdit(tripId, user.getId());
+
         model.addAttribute("trip", trip);
         model.addAttribute("settlement", settlement);
         model.addAttribute("perPersonAverage", perPersonAverage);
         model.addAttribute("currentUserId", user.getId());
+        model.addAttribute("canEdit", canEdit);
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
 

@@ -5,7 +5,7 @@
 | 項目 | 內容 |
 |------|------|
 | 建立日期 | 2026-02-03 |
-| 最後更新 | 2026-02-03 |
+| 最後更新 | 2026-02-06 |
 | 測試環境 | localhost:8080 |
 | 測試方式 | Chrome DevTools MCP E2E 測試 |
 | 安全審查 | security-reviewer agent |
@@ -47,7 +47,205 @@
 
 ## 待修復 Bug
 
-*（目前無待修復的功能性 Bug）*
+### 前後端串接缺失
+
+> 審查日期: 2026-02-04
+> 審查工具: Explore agents (Controller/Templates/Service 層分析)
+> 整體狀況: 後端 API 完整度 85%+，前端 JS 互動覆蓋率約 65%
+
+---
+
+### FE-001: 檔案管理缺少 JS 互動
+
+| 屬性 | 內容 |
+|------|------|
+| **狀態** | 🔴 Open |
+| **優先級** | HIGH |
+| **類別** | 前後端串接 |
+| **後端 API** | ✅ 完整 (CRUD + 下載簽名 URL + 儲存統計) |
+| **前端頁面** | `document/list.html`, `document/upload.html` |
+
+**缺失功能：**
+- [ ] 檔案上傳進度條
+- [ ] 上傳完成後自動重整列表
+- [ ] 刪除確認對話框 + AJAX `DELETE /api/trips/{tripId}/documents/{id}`
+- [ ] 檔案預覽 (圖片、PDF)
+- [ ] 拖放上傳
+
+**對應 API：**
+```
+POST   /api/trips/{tripId}/documents              - 上傳
+DELETE /api/trips/{tripId}/documents/{id}         - 刪除
+GET    /api/trips/{tripId}/documents/{id}/download - 下載
+```
+
+**建議修復：** 新增 `document.js` 模組
+
+---
+
+### FE-002: 支出列表缺少刪除功能
+
+| 屬性 | 內容 |
+|------|------|
+| **狀態** | 🔴 Open |
+| **優先級** | HIGH |
+| **類別** | 前後端串接 |
+| **後端 API** | ✅ 完整 (CRUD + 結算標記) |
+| **前端頁面** | `expense/list.html` |
+
+**缺失功能：**
+- [ ] 刪除按鈕 + 確認對話框 + AJAX `DELETE /api/expenses/{id}`
+- [ ] 行內編輯或編輯按鈕連結
+- [ ] 批量選擇與刪除
+
+**對應 API：**
+```
+PUT    /api/expenses/{id}   - 更新
+DELETE /api/expenses/{id}   - 刪除
+```
+
+**建議修復：** 擴展 `expense.js` 或在頁面內嵌 JS
+
+---
+
+### FE-003: 成員管理缺少 JS 互動
+
+| 屬性 | 內容 |
+|------|------|
+| **狀態** | 🔴 Open |
+| **優先級** | HIGH |
+| **類別** | 前後端串接 |
+| **後端 API** | ✅ 完整 (列表/移除/角色變更/邀請連結) |
+| **前端頁面** | `trip/members.html` |
+
+**缺失功能：**
+- [ ] 移除成員確認對話框 + AJAX `DELETE /api/trips/{tripId}/members/{userId}`
+- [ ] 角色變更下拉選單 + AJAX `PUT /api/trips/{tripId}/members/{userId}/role`
+- [ ] 邀請連結複製功能
+- [ ] 邀請連結建立/刪除 AJAX
+
+**對應 API：**
+```
+DELETE /api/trips/{tripId}/members/{userId}        - 移除成員
+PUT    /api/trips/{tripId}/members/{userId}/role   - 角色變更
+POST   /api/trips/{tripId}/invites                 - 建立邀請
+GET    /api/trips/{tripId}/invites                 - 取得邀請連結
+```
+
+**建議修復：** 新增 `members.js` 模組
+
+---
+
+### FE-004: 結算頁面缺少結清操作
+
+| 屬性 | 內容 |
+|------|------|
+| **狀態** | ✅ Fixed |
+| **修復日期** | 2026-02-06 |
+| **優先級** | HIGH |
+| **類別** | 前後端串接 |
+| **後端 API** | ✅ 完整 (結算計算 + 標記已結清) |
+| **前端頁面** | `expense/settlement.html` |
+
+**已修復：**
+- [x] 新增 `PUT /api/trips/{tripId}/settlement/settle` 批次結清 API
+- [x] 新增 `PUT /api/trips/{tripId}/settlement/unsettle` 批次取消結清 API
+- [x] `ExpenseSplitRepository` 新增 `findUnsettledByTripIdAndUsers` / `findSettledByTripIdAndUsers` 查詢
+- [x] `SettlementService` 新增 `settleAllBetweenUsers` / `unsettleAllBetweenUsers` 方法
+- [x] `settlement.html` 每筆結算項目新增「結清」按鈕（含 loading 狀態、CSRF、toast 回饋）
+- [x] `SettlementWebController` 注入 `PermissionChecker`，傳遞 `canEdit` 給模板
+
+---
+
+### FE-005: 景點詳情頁缺少編輯/刪除入口
+
+| 屬性 | 內容 |
+|------|------|
+| **狀態** | 🟡 Open |
+| **優先級** | MEDIUM |
+| **類別** | 前後端串接 |
+| **後端 API** | ✅ 完整 (CRUD + 重排 + 路線優化) |
+| **前端頁面** | `activity/detail.html` |
+
+**缺失功能：**
+- [ ] 刪除景點按鈕 + 確認 + AJAX `DELETE /api/activities/{id}`
+- [ ] 編輯按鈕連結或模式切換
+
+**對應 API：**
+```
+PUT    /api/activities/{id}   - 更新
+DELETE /api/activities/{id}   - 刪除
+```
+
+---
+
+### FE-006: 個人資料編輯缺少驗證回饋
+
+| 屬性 | 內容 |
+|------|------|
+| **狀態** | ✅ Fixed |
+| **修復日期** | 2026-02-06 |
+| **優先級** | MEDIUM |
+| **類別** | 前後端串接 |
+| **後端 API** | ⚠️ 部分 (僅暱稱更新) |
+| **前端頁面** | `profile/edit.html` |
+
+**已修復：**
+- [x] 暱稱即時驗證（blur/input 事件，空白與長度檢查，border-rose-500 錯誤樣式）
+- [x] 儲存成功 Toast 通知（解析 URL `?success=profile_updated` 參數）
+- [x] `ProfileController` redirect URL 加入 `?success=profile_updated`
+
+---
+
+### FE-007: 行程編輯缺少封面預覽
+
+| 屬性 | 內容 |
+|------|------|
+| **狀態** | ✅ Fixed |
+| **修復日期** | 2026-02-06 |
+| **優先級** | MEDIUM |
+| **類別** | 前後端串接 |
+| **後端 API** | ✅ 完整 (CRUD + 封面上傳) |
+| **前端頁面** | `trip/create.html` |
+
+**已修復：**
+- [x] 封面圖片預覽（FileReader + 5MB 大小驗證）
+- [x] 日期範圍即時驗證（setCustomValidity + min 屬性連動）
+- [x] 描述字數計數器
+
+---
+
+### 前後端串接修復優先順序
+
+| 優先級 | ID | 功能 | 原因 |
+|:------:|-----|------|------|
+| 1 | FE-003 | 成員管理 | 協作核心功能 |
+| 2 | FE-004 | 結算操作 | 分帳核心功能 |
+| 3 | FE-001 | 檔案管理 | 基本 CRUD 操作 |
+| 4 | FE-002 | 支出刪除 | 補充 CRUD 的 D |
+| 5 | FE-005 | 景點詳情 | 補充編輯/刪除入口 |
+| 6 | FE-006 | 個人資料 | 體驗優化 |
+| 7 | FE-007 | 行程封面 | 體驗優化 |
+
+---
+
+### 建議新增的 JS 模組
+
+```
+src/main/resources/static/js/
+├── members.js      (NEW) - 成員管理 AJAX
+├── document.js     (NEW) - 檔案管理 AJAX
+├── settlement.js   (NEW) - 結算操作 AJAX
+```
+
+### 可參考的現有 JS 模組
+
+| 模組 | 行數 | 參考用途 |
+|------|------|----------|
+| `todo.js` | 731 | CRUD 操作範例 |
+| `expense.js` | 405 | 表單處理範例 |
+| `drag-reorder.js` | 489 | 拖放互動範例 |
+| `route-optimizer.js` | 438 | 模態框範例 |
 
 ---
 
@@ -542,47 +740,13 @@ public void deleteTrip(UUID tripId, UUID userId) {
 
 | 屬性 | 內容 |
 |------|------|
-| **狀態** | 🔴 Open |
+| **狀態** | ✅ Fixed |
+| **修復日期** | 2026-02-06 |
 | **嚴重度** | HIGH |
 | **類別** | Data Integrity (Financial) |
-| **檔案** | `src/main/java/com/wego/service/ExpenseService.java:205-231` |
+| **檔案** | `src/main/java/com/wego/service/ExpenseService.java` |
 
-**問題描述**
-
-`updateExpense` 在變更 `splitType` 或 `amount` 時，沒有重新驗證 splits 的總和/百分比/份數一致性。
-
-**攻擊情境**
-
-```
-1. 建立 CUSTOM expense: amount=1000, splits=[A:500, B:500]
-2. 更新 expense: amount=2000 (不提供 splitType)
-3. 結果: amount=2000, splits=[A:500, B:500] (總額不符!)
-```
-
-**現有程式碼**
-
-```java
-// 只處理 EQUAL 類型的重算，CUSTOM/PERCENTAGE/SHARES 被忽略
-} else if (request.getAmount() != null && expense.getSplitType() == SplitType.EQUAL) {
-    // Recalculate equal splits if amount changed
-    // ...
-}
-// 缺少：CUSTOM splits 的驗證
-```
-
-**修復方案**
-
-```java
-} else if (request.getAmount() != null) {
-    if (expense.getSplitType() == SplitType.EQUAL) {
-        // ... existing EQUAL logic
-    } else if (expense.getSplitType() == SplitType.CUSTOM) {
-        throw new BusinessException("SPLITS_REQUIRED",
-            "變更金額時需要重新提供 CUSTOM 分帳明細");
-    }
-    // PERCENTAGE and SHARES don't need recalculation as they're ratio-based
-}
-```
+**已修復：** 在 `updateExpense()` 中新增 CUSTOM/PERCENTAGE/SHARES 分帳重算邏輯。當金額變更且提供新 splits 時，刪除舊 splits 並透過 `createExpenseSplits()` 重新建立（內含 `validateCustomSplitAmounts` 和 `validatePercentageSplits` 驗證）。
 
 ---
 
@@ -631,55 +795,13 @@ private String extractStoragePath(String url) {
 
 | 屬性 | 內容 |
 |------|------|
-| **狀態** | 🔴 Open |
+| **狀態** | ✅ Fixed |
+| **修復日期** | 2026-02-06 |
 | **嚴重度** | MEDIUM |
 | **類別** | Authorization |
-| **檔案** | `src/main/java/com/wego/service/ExpenseService.java:95-108` |
+| **檔案** | `src/main/java/com/wego/service/ExpenseService.java` |
 
-**問題描述**
-
-`createExpense` 未驗證 `paidBy` 與 `splits` 內的 `userId` 是否為行程成員。
-
-**現有程式碼**
-
-```java
-Expense expense = Expense.builder()
-        .tripId(tripId)
-        .paidBy(request.getPaidBy())      // 未驗證是否為成員
-        // ...
-        .build();
-
-// splits 中的 userId 也未驗證
-splits.add(ExpenseSplit.builder()
-        .userId(splitReq.getUserId())  // 未驗證是否為成員
-        // ...
-        .build());
-```
-
-**修復方案**
-
-```java
-private void validateExpenseUsers(UUID tripId, UUID paidBy, List<SplitRequest> splits) {
-    // Validate paidBy is a member
-    if (!tripMemberRepository.existsByTripIdAndUserId(tripId, paidBy)) {
-        throw new ValidationException("INVALID_PAYER", "付款人必須是行程成員");
-    }
-
-    // Validate all split users are members
-    if (splits != null) {
-        Set<UUID> memberIds = tripMemberRepository.findByTripId(tripId).stream()
-                .map(TripMember::getUserId)
-                .collect(Collectors.toSet());
-
-        for (SplitRequest split : splits) {
-            if (!memberIds.contains(split.getUserId())) {
-                throw new ValidationException("INVALID_SPLIT_USER",
-                    "分帳對象必須是行程成員: " + split.getUserId());
-            }
-        }
-    }
-}
-```
+**已修復：** 在 `createExpense()` 中新增 paidBy 成員驗證。透過 `tripMemberRepository.findByTripId()` 取得成員清單，檢查 `paidBy` 是否在成員集合中，不符合時拋出 `ValidationException("INVALID_PAYER")`。
 
 ---
 
@@ -851,36 +973,16 @@ public ResponseEntity<ApiResponse<ExchangeRateResponse>> getRate(...) {
 
 | 屬性 | 內容 |
 |------|------|
-| **狀態** | 🔴 Open |
+| **狀態** | ✅ Fixed |
+| **修復日期** | 2026-02-06 |
 | **嚴重度** | HIGH |
 | **類別** | Data Integrity (Financial) |
-| **檔案** | `service/SettlementService.java:308-314` |
+| **檔案** | `service/SettlementService.java`, `dto/response/SettlementResponse.java`, `templates/expense/settlement.html` |
 
-**問題描述**
-
-當匯率轉換失敗時，回退使用原始金額可能導致結算計算嚴重錯誤。例如 100 USD 應該等於 3150 TWD，但回退時會變成 100 TWD。
-
-**現有程式碼**
-
-```java
-} catch (Exception e) {
-    log.error("Failed to convert {} {} to {}: {}", amount, fromCurrency, baseCurrency, e.getMessage());
-    // Fallback: return original amount (may cause incorrect calculations, but service keeps running)
-    return amount;  // 這裡可能導致財務錯誤！
-}
-```
-
-**修復方案**
-
-```java
-} catch (Exception e) {
-    log.error("Failed to convert {} {} to {}: {}", amount, fromCurrency, baseCurrency, e.getMessage());
-    throw new ExchangeRateException("CONVERSION_FAILED",
-        String.format("無法轉換 %s %s 到 %s，請稍後再試", amount, fromCurrency, baseCurrency));
-}
-```
-
-或在結算頁面顯示警告訊息標記「部分匯率轉換失敗」。
+**已修復：** 採用「結算頁面顯示警告訊息」方案。
+- `SettlementResponse` 新增 `List<String> conversionWarnings` 欄位
+- `SettlementService.convertToBaseCurrency()` 在 fallback 時收集警告（使用 `Set<String>` 去重）
+- `settlement.html` 新增琥珀色警告區塊，在有轉換失敗時顯示具體幣別對資訊
 
 ---
 
@@ -913,24 +1015,13 @@ if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
 
 | 屬性 | 內容 |
 |------|------|
-| **狀態** | 🟡 Open |
+| **狀態** | ✅ Fixed |
+| **修復日期** | 2026-02-06 |
 | **嚴重度** | MEDIUM |
 | **類別** | Input Validation |
-| **檔案** | `static/js/expense.js:240` |
+| **檔案** | `static/js/expense.js` |
 
-**問題描述**
-
-前端直接將貨幣代碼傳送到 API，沒有驗證格式。
-
-**修復方案**
-
-```javascript
-const currencyPattern = /^[A-Z]{3}$/;
-if (!currencyPattern.test(from) || !currencyPattern.test(to)) {
-    console.warn('Invalid currency code format');
-    return null;
-}
-```
+**已修復：** 在 `getExchangeRate()` 方法開頭新增幣別代碼驗證，先 `toUpperCase()` 正規化再以 `/^[A-Z]{3}$/` 檢查格式，不符合時回傳 `null` 且不發送 API 請求。
 
 ---
 
@@ -1045,3 +1136,7 @@ if (!currencyPattern.test(from) || !currencyPattern.test(to)) {
 | 2026-02-03 | 新增後端安全審查結果，記錄 7 個安全問題 (BE-SEC-001 ~ BE-SEC-007) |
 | 2026-02-03 | 新增 Phase 3 程式碼審查結果 (CR-HIGH-001 ~ CR-HIGH-003, CR-MEDIUM-001 ~ CR-MEDIUM-005) |
 | 2026-02-03 | ✅ 修復 BUG-001 (編輯景點 500) 和 BUG-002 (新增支出 500)，移至已修復區塊 |
+| 2026-02-04 | 新增前後端串接缺失分析，記錄 7 個待實作項目 (FE-001 ~ FE-007) |
+| 2026-02-06 | ✅ 修復 BE-SEC-006 (paidBy 成員驗證)、BE-SEC-004 (CUSTOM split 更新驗證) |
+| 2026-02-06 | ✅ 修復 CR-MEDIUM-002 (前端幣別代碼驗證)、CR-HIGH-003 (匯率轉換警告) |
+| 2026-02-06 | ✅ 修復 FE-004 (結算結清/取消結清功能)、FE-006 (個人檔案驗證回饋)、FE-007 (封面預覽+日期驗證) |

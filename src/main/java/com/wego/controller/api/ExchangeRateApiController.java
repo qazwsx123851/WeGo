@@ -3,8 +3,10 @@ package com.wego.controller.api;
 import com.wego.dto.ApiResponse;
 import com.wego.dto.response.ExchangeRateResponse;
 import com.wego.service.ExchangeRateService;
+import com.wego.service.RateLimitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,7 +20,7 @@ import java.util.Set;
  * @contract
  *   - All endpoints require valid currency codes (3-letter ISO 4217)
  *   - Responses include cache metadata
- *   - Rate limiting: 30 requests per minute per user (TODO: implement)
+ *   - Rate limiting: 30 requests per minute
  *
  * @see ExchangeRateService
  */
@@ -28,7 +30,10 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ExchangeRateApiController {
 
+    private static final int RATE_LIMIT_EXCHANGE = 30;
+
     private final ExchangeRateService exchangeRateService;
+    private final RateLimitService rateLimitService;
 
     /**
      * Gets the exchange rate between two currencies.
@@ -51,6 +56,12 @@ public class ExchangeRateApiController {
             @RequestParam String to) {
 
         log.debug("GET /api/exchange-rates?from={}&to={}", from, to);
+
+        if (!rateLimitService.isAllowed("exchange-rates", RATE_LIMIT_EXCHANGE)) {
+            log.warn("Rate limit exceeded for exchange rates");
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(ApiResponse.error("RATE_LIMIT_EXCEEDED", "Too many requests. Please try again later."));
+        }
 
         // Normalize to uppercase
         String fromNormalized = from != null ? from.toUpperCase().trim() : null;
@@ -79,6 +90,12 @@ public class ExchangeRateApiController {
             @RequestParam String base) {
 
         log.debug("GET /api/exchange-rates/latest?base={}", base);
+
+        if (!rateLimitService.isAllowed("exchange-rates", RATE_LIMIT_EXCHANGE)) {
+            log.warn("Rate limit exceeded for exchange rates");
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(ApiResponse.error("RATE_LIMIT_EXCEEDED", "Too many requests. Please try again later."));
+        }
 
         // Normalize to uppercase
         String baseNormalized = base != null ? base.toUpperCase().trim() : null;
@@ -111,6 +128,12 @@ public class ExchangeRateApiController {
             @RequestParam BigDecimal amount) {
 
         log.debug("GET /api/exchange-rates/convert?from={}&to={}&amount={}", from, to, amount);
+
+        if (!rateLimitService.isAllowed("exchange-rates", RATE_LIMIT_EXCHANGE)) {
+            log.warn("Rate limit exceeded for exchange rates");
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(ApiResponse.error("RATE_LIMIT_EXCEEDED", "Too many requests. Please try again later."));
+        }
 
         // Normalize to uppercase
         String fromNormalized = from != null ? from.toUpperCase().trim() : null;
@@ -147,6 +170,12 @@ public class ExchangeRateApiController {
     @GetMapping("/currencies")
     public ResponseEntity<ApiResponse<Set<String>>> getSupportedCurrencies() {
         log.debug("GET /api/exchange-rates/currencies");
+
+        if (!rateLimitService.isAllowed("exchange-rates", RATE_LIMIT_EXCHANGE)) {
+            log.warn("Rate limit exceeded for exchange rates");
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(ApiResponse.error("RATE_LIMIT_EXCEEDED", "Too many requests. Please try again later."));
+        }
 
         Set<String> currencies = exchangeRateService.getSupportedCurrencies();
 

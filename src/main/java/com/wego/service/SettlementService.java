@@ -19,9 +19,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -118,16 +121,19 @@ public class SettlementService {
         // Calculate currency breakdown (original amounts by currency)
         Map<String, BigDecimal> currencyBreakdown = calculateCurrencyBreakdown(expenses);
 
+        // Track currency conversion warnings
+        Set<String> conversionWarnings = new HashSet<>();
+
         // Calculate balances with currency conversion
         // Positive balance = owed money (creditor)
         // Negative balance = owes money (debtor)
-        Map<UUID, BigDecimal> balances = calculateBalances(expenses, splits, baseCurrency);
+        Map<UUID, BigDecimal> balances = calculateBalances(expenses, splits, baseCurrency, conversionWarnings);
 
         // Get simplified settlements
         List<Settlement> settlements = debtSimplifier.simplify(balances);
 
         // Calculate total expenses (converted to base currency)
-        BigDecimal totalExpenses = calculateTotalInBaseCurrency(expenses, baseCurrency);
+        BigDecimal totalExpenses = calculateTotalInBaseCurrency(expenses, baseCurrency, conversionWarnings);
 
         // Get user info for settlements
         List<UUID> userIds = settlements.stream()
@@ -164,6 +170,7 @@ public class SettlementService {
                 .baseCurrency(baseCurrency)
                 .expenseCount(expenses.size())
                 .currencyBreakdown(currencyBreakdown)
+                .conversionWarnings(new ArrayList<>(conversionWarnings))
                 .build();
     }
 
@@ -236,6 +243,59 @@ public class SettlementService {
     }
 
     /**
+     * Settles all unsettled splits between two users in a trip.
+     * Used by the settlement page to settle a simplified transfer.
+     *
+     * @contract
+     *   - pre: tripId, fromUserId, toUserId, currentUserId != null
+     *   - pre: current user has edit permission on trip
+     *   - post: all unsettled splits where toUserId paid and fromUserId owes are marked settled
+     *   - calledBy: ExpenseApiController#settleByUsers
+     *
+     * @param tripId The trip ID
+     * @param fromUserId The debtor user ID (who owes)
+     * @param toUserId The creditor user ID (who is owed)
+     * @param currentUserId The user performing the action
+     */
+    @Transactional
+    public void settleAllBetweenUsers(UUID tripId, UUID fromUserId, UUID toUserId, UUID currentUserId) {
+        if (!permissionChecker.canEdit(tripId, currentUserId)) {
+            throw new ForbiddenException("No permission to settle");
+        }
+        List<ExpenseSplit> splits = expenseSplitRepository
+                .findUnsettledByTripIdAndUsers(tripId, toUserId, fromUserId);
+        splits.forEach(ExpenseSplit::markAsSettled);
+        expenseSplitRepository.saveAll(splits);
+        log.info("Settled {} splits between users {} -> {} in trip {}", splits.size(), fromUserId, toUserId, tripId);
+    }
+
+    /**
+     * Unsettles all settled splits between two users in a trip.
+     *
+     * @contract
+     *   - pre: tripId, fromUserId, toUserId, currentUserId != null
+     *   - pre: current user has edit permission on trip
+     *   - post: all settled splits where toUserId paid and fromUserId owes are marked unsettled
+     *   - calledBy: ExpenseApiController#unsettleByUsers
+     *
+     * @param tripId The trip ID
+     * @param fromUserId The debtor user ID
+     * @param toUserId The creditor user ID
+     * @param currentUserId The user performing the action
+     */
+    @Transactional
+    public void unsettleAllBetweenUsers(UUID tripId, UUID fromUserId, UUID toUserId, UUID currentUserId) {
+        if (!permissionChecker.canEdit(tripId, currentUserId)) {
+            throw new ForbiddenException("No permission to unsettle");
+        }
+        List<ExpenseSplit> splits = expenseSplitRepository
+                .findSettledByTripIdAndUsers(tripId, toUserId, fromUserId);
+        splits.forEach(ExpenseSplit::markAsUnsettled);
+        expenseSplitRepository.saveAll(splits);
+        log.info("Unsettled {} splits between users {} -> {} in trip {}", splits.size(), fromUserId, toUserId, tripId);
+    }
+
+    /**
      * Calculates net balances for all users involved in expenses.
      * Converts all amounts to base currency for consistent settlement calculation.
      *
@@ -244,7 +304,8 @@ public class SettlementService {
      * @param baseCurrency The base currency to convert to
      * @return Map of user ID to net balance (positive = creditor, negative = debtor)
      */
-    private Map<UUID, BigDecimal> calculateBalances(List<Expense> expenses, List<ExpenseSplit> splits, String baseCurrency) {
+    private Map<UUID, BigDecimal> calculateBalances(List<Expense> expenses, List<ExpenseSplit> splits, String baseCurrency,
+                                                     Set<String> conversionWarnings) {
         Map<UUID, BigDecimal> balances = new HashMap<>();
 
         // Group splits by expense for easy lookup
@@ -257,7 +318,7 @@ public class SettlementService {
             BigDecimal amount = expense.getAmount();
 
             // Convert expense amount to base currency
-            BigDecimal amountInBaseCurrency = convertToBaseCurrency(amount, expenseCurrency, baseCurrency);
+            BigDecimal amountInBaseCurrency = convertToBaseCurrency(amount, expenseCurrency, baseCurrency, conversionWarnings);
 
             // Payer is owed the expense amount (in base currency)
             balances.merge(payer, amountInBaseCurrency, BigDecimal::add);
@@ -269,7 +330,7 @@ public class SettlementService {
                 if (!split.isSettled()) {
                     // Convert split amount to base currency
                     BigDecimal splitAmountInBaseCurrency = convertToBaseCurrency(
-                            split.getAmount(), expenseCurrency, baseCurrency);
+                            split.getAmount(), expenseCurrency, baseCurrency, conversionWarnings);
                     balances.merge(split.getUserId(), splitAmountInBaseCurrency.negate(), BigDecimal::add);
                 }
             }
@@ -295,13 +356,15 @@ public class SettlementService {
      * @param baseCurrency The target base currency
      * @return Amount in base currency
      */
-    private BigDecimal convertToBaseCurrency(BigDecimal amount, String fromCurrency, String baseCurrency) {
+    private BigDecimal convertToBaseCurrency(BigDecimal amount, String fromCurrency, String baseCurrency,
+                                               Set<String> conversionWarnings) {
         if (fromCurrency == null || fromCurrency.equals(baseCurrency)) {
             return amount;
         }
 
         if (exchangeRateService == null) {
             log.warn("ExchangeRateService not available, using original amount for {} -> {}", fromCurrency, baseCurrency);
+            conversionWarnings.add(String.format("%s → %s 匯率服務不可用，使用原始金額", fromCurrency, baseCurrency));
             return amount;
         }
 
@@ -309,7 +372,7 @@ public class SettlementService {
             return exchangeRateService.convert(amount, fromCurrency, baseCurrency);
         } catch (Exception e) {
             log.error("Failed to convert {} {} to {}: {}", amount, fromCurrency, baseCurrency, e.getMessage());
-            // Fallback: return original amount (may cause incorrect calculations, but service keeps running)
+            conversionWarnings.add(String.format("%s → %s 匯率取得失敗，使用原始金額", fromCurrency, baseCurrency));
             return amount;
         }
     }
@@ -321,9 +384,10 @@ public class SettlementService {
      * @param baseCurrency The base currency to convert to
      * @return Total amount in base currency
      */
-    private BigDecimal calculateTotalInBaseCurrency(List<Expense> expenses, String baseCurrency) {
+    private BigDecimal calculateTotalInBaseCurrency(List<Expense> expenses, String baseCurrency,
+                                                     Set<String> conversionWarnings) {
         return expenses.stream()
-                .map(expense -> convertToBaseCurrency(expense.getAmount(), expense.getCurrency(), baseCurrency))
+                .map(expense -> convertToBaseCurrency(expense.getAmount(), expense.getCurrency(), baseCurrency, conversionWarnings))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 

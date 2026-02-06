@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -36,6 +37,13 @@ public class SettlementResponse {
      * Value: total amount in that currency before conversion
      */
     private Map<String, BigDecimal> currencyBreakdown;
+
+    /**
+     * Warnings about failed currency conversions.
+     * Each entry describes a conversion that fell back to using the original amount.
+     */
+    @Builder.Default
+    private List<String> conversionWarnings = new ArrayList<>();
 
     /**
      * Individual settlement item showing who pays whom.

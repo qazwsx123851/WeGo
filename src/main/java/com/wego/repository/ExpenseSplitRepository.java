@@ -161,6 +161,36 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID
     List<UUID> findUnsettledTripIdsByUserId(@Param("userId") UUID userId);
 
     /**
+     * Finds unsettled splits between two users in a trip (creditor paid, debtor owes).
+     *
+     * @param tripId The trip ID
+     * @param creditorId The user who paid (expense.paidBy)
+     * @param debtorId The user who owes (split.userId)
+     * @return List of unsettled splits
+     */
+    @Query("SELECT es FROM ExpenseSplit es JOIN Expense e ON es.expenseId = e.id " +
+           "WHERE e.tripId = :tripId AND e.paidBy = :creditorId " +
+           "AND es.userId = :debtorId AND es.isSettled = false")
+    List<ExpenseSplit> findUnsettledByTripIdAndUsers(@Param("tripId") UUID tripId,
+                                                      @Param("creditorId") UUID creditorId,
+                                                      @Param("debtorId") UUID debtorId);
+
+    /**
+     * Finds settled splits between two users in a trip (creditor paid, debtor owes).
+     *
+     * @param tripId The trip ID
+     * @param creditorId The user who paid (expense.paidBy)
+     * @param debtorId The user who owes (split.userId)
+     * @return List of settled splits
+     */
+    @Query("SELECT es FROM ExpenseSplit es JOIN Expense e ON es.expenseId = e.id " +
+           "WHERE e.tripId = :tripId AND e.paidBy = :creditorId " +
+           "AND es.userId = :debtorId AND es.isSettled = true")
+    List<ExpenseSplit> findSettledByTripIdAndUsers(@Param("tripId") UUID tripId,
+                                                    @Param("creditorId") UUID creditorId,
+                                                    @Param("debtorId") UUID debtorId);
+
+    /**
      * Sums unsettled amount owed TO user in a specific trip.
      *
      * @contract

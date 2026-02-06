@@ -632,6 +632,15 @@ public class TripController {
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
 
+        // Get related expenses for this activity
+        List<com.wego.dto.response.ExpenseResponse> relatedExpenses = List.of();
+        try {
+            relatedExpenses = expenseService.getExpensesByActivity(id, activityId, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to load related expenses for activity {}: {}", activityId, e.getMessage());
+        }
+        model.addAttribute("relatedExpenses", relatedExpenses);
+
         return "activity/detail";
     }
 
@@ -735,8 +744,14 @@ public class TripController {
                 ? totalExpense.divide(BigDecimal.valueOf(memberCount), 0, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
 
-        // Calculate user balance (simplified - actual calculation would be more complex)
-        BigDecimal userBalance = BigDecimal.ZERO; // TODO: Implement proper balance calculation
+        // Calculate user balance
+        BigDecimal userBalance;
+        try {
+            userBalance = expenseService.calculateUserBalanceInTrip(user.getId(), id);
+        } catch (Exception e) {
+            log.warn("Failed to calculate user balance for trip {}: {}", id, e.getMessage());
+            userBalance = BigDecimal.ZERO;
+        }
 
         model.addAttribute("trip", trip);
         model.addAttribute("expenses", expenses);
@@ -791,6 +806,93 @@ public class TripController {
         model.addAttribute("picture", user.getAvatarUrl());
 
         return "document/list";
+    }
+
+    /**
+     * Show activity duplicate form (pre-filled create form from existing activity).
+     *
+     * @contract
+     *   - pre: id != null, activityId != null, principal != null
+     *   - pre: user has OWNER or EDITOR role on the trip
+     *   - post: Returns activity create form pre-filled with source activity data
+     *   - post: Activity id is null so form creates a new activity
+     *   - calls: TripService#getTrip, ActivityService#getActivity
+     *   - calledBy: Web browser GET /trips/{id}/activities/{activityId}/duplicate
+     */
+    @GetMapping("/{id}/activities/{activityId}/duplicate")
+    public String duplicateActivity(@PathVariable UUID id,
+                                     @PathVariable UUID activityId,
+                                     @AuthenticationPrincipal OAuth2User principal,
+                                     Model model) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        TripResponse trip;
+        try {
+            trip = tripService.getTrip(id, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get trip {}: {}", id, e.getMessage());
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        if (trip == null) {
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        // Check permission
+        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
+                .filter(m -> m.getUserId().equals(user.getId()))
+                .findFirst()
+                .orElse(null);
+
+        if (currentMember == null ||
+            (currentMember.getRole() != Role.OWNER &&
+             currentMember.getRole() != Role.EDITOR)) {
+            return "redirect:/trips/" + id + "?error=access_denied";
+        }
+
+        // Get source activity
+        ActivityResponse sourceActivity;
+        try {
+            sourceActivity = activityService.getActivity(activityId, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get activity {} for duplication: {}", activityId, e.getMessage());
+            return "redirect:/trips/" + id + "/activities/" + activityId + "?error=activity_not_found";
+        }
+
+        // Create a copy with id set to null so the form creates a new activity
+        ActivityResponse duplicated = ActivityResponse.builder()
+                .id(null)
+                .tripId(id)
+                .place(sourceActivity.getPlace())
+                .day(sourceActivity.getDay())
+                .sortOrder(0)
+                .startTime(sourceActivity.getStartTime())
+                .endTime(sourceActivity.getEndTime())
+                .durationMinutes(sourceActivity.getDurationMinutes())
+                .note(sourceActivity.getNote())
+                .transportMode(sourceActivity.getTransportMode())
+                .build();
+
+        // Generate dates from startDate to endDate
+        List<LocalDate> dates = trip.getStartDate() != null && trip.getEndDate() != null
+                ? trip.getStartDate().datesUntil(trip.getEndDate().plusDays(1)).collect(Collectors.toList())
+                : List.of(LocalDate.now());
+
+        model.addAttribute("trip", trip);
+        model.addAttribute("tripId", id);
+        model.addAttribute("dates", dates);
+        model.addAttribute("selectedDay", sourceActivity.getDay());
+        model.addAttribute("activity", duplicated);
+        model.addAttribute("canEdit", true);
+        model.addAttribute("name", user.getNickname());
+        model.addAttribute("picture", user.getAvatarUrl());
+
+        addSearchCoordinatesToModel(id, user.getId(), model);
+
+        return "activity/create";
     }
 
     /**
@@ -922,9 +1024,14 @@ public class TripController {
                         .latitude(latitude != null ? latitude : 0.0)
                         .longitude(longitude != null ? longitude : 0.0)
                         .googlePlaceId(placeId)
+                        .category(mapTypeToCategory(type))
                         .build();
                 place = placeRepository.save(place);
-                log.info("Created new place: {} with id {}", placeName, place.getId());
+                log.info("Created new place: {} with id {} category {}", placeName, place.getId(), place.getCategory());
+            } else if (mapTypeToCategory(type) != null) {
+                // Update existing place's category if user selected a non-default type
+                place.setCategory(mapTypeToCategory(type));
+                place = placeRepository.save(place);
             }
 
             // Calculate day from activityDate
@@ -1096,6 +1203,7 @@ public class TripController {
                                   @RequestParam(required = false) String notes,
                                   @RequestParam(required = false, defaultValue = "WALKING") String transportMode,
                                   @RequestParam(required = false) Integer manualTransportMinutes,
+                                  @RequestParam(required = false, defaultValue = "ATTRACTION") String type,
                                   @AuthenticationPrincipal OAuth2User principal,
                                   RedirectAttributes redirectAttributes) {
         User user = getCurrentUser(principal);
@@ -1138,9 +1246,14 @@ public class TripController {
                         .latitude(latitude != null ? latitude : 0.0)
                         .longitude(longitude != null ? longitude : 0.0)
                         .googlePlaceId(placeId)
+                        .category(mapTypeToCategory(type))
                         .build();
                 place = placeRepository.save(place);
-                log.info("Created new place for activity update: {} with id {}", placeName, place.getId());
+                log.info("Created new place for activity update: {} with id {} category {}", placeName, place.getId(), place.getCategory());
+            } else {
+                // Update existing place's category
+                place.setCategory(mapTypeToCategory(type));
+                place = placeRepository.save(place);
             }
 
             // Calculate day from activityDate
@@ -1417,6 +1530,25 @@ public class TripController {
             model.addAttribute("trip", existingTrip);
             return "trip/create";
         }
+    }
+
+    /**
+     * Maps the form activity type value to the Place category value
+     * used by the activity list template for icon rendering.
+     *
+     * @param type The form value (ATTRACTION, RESTAURANT, TRANSPORT, ACCOMMODATION)
+     * @return The Place category value, or null for ATTRACTION (uses default icon)
+     */
+    private String mapTypeToCategory(String type) {
+        if (type == null) {
+            return null;
+        }
+        return switch (type) {
+            case "RESTAURANT" -> "restaurant";
+            case "TRANSPORT" -> "transit_station";
+            case "ACCOMMODATION" -> "lodging";
+            default -> null;
+        };
     }
 
     private User getCurrentUser(OAuth2User principal) {

@@ -182,6 +182,60 @@
     </nav>
 
     <!-- Scripts -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Success toast
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('success') === 'profile_updated') {
+            var toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 z-50 pointer-events-auto animate-fade-in bg-green-500 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2';
+            toast.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span>個人檔案已更新</span>';
+            document.body.appendChild(toast);
+            setTimeout(function() {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(function() { toast.remove(); }, 300);
+            }, 3000);
+            // Clean URL
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+
+        // Nickname validation
+        var nicknameInput = document.getElementById('nickname');
+        if (nicknameInput) {
+            function validateNickname() {
+                var val = nicknameInput.value.trim();
+                var errorEl = document.getElementById('nickname-error');
+                var msg = '';
+
+                if (val.length === 0) {
+                    msg = '暱稱不可為空';
+                } else if (val.length > 50) {
+                    msg = '暱稱最多 50 個字';
+                }
+
+                if (msg) {
+                    if (!errorEl) {
+                        errorEl = document.createElement('p');
+                        errorEl.id = 'nickname-error';
+                        errorEl.className = 'text-xs text-rose-500 mt-1';
+                        nicknameInput.parentNode.insertBefore(errorEl, nicknameInput.nextSibling);
+                    }
+                    errorEl.textContent = msg;
+                    nicknameInput.classList.add('border-rose-500');
+                    nicknameInput.classList.remove('border-gray-200', 'dark:border-gray-700');
+                } else if (errorEl) {
+                    errorEl.remove();
+                    nicknameInput.classList.remove('border-rose-500');
+                    nicknameInput.classList.add('border-gray-200', 'dark:border-gray-700');
+                }
+            }
+
+            nicknameInput.addEventListener('input', validateNickname);
+            nicknameInput.addEventListener('blur', validateNickname);
+        }
+    });
+    </script>
     <script th:src="@{/js/app.js}" defer></script>
 </body>
 </html>

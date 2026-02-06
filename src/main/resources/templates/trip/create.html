@@ -319,6 +319,74 @@
     </nav>
 
     <!-- Scripts -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cover image preview
+        var fileInput = document.getElementById('coverImage');
+        var previewImage = document.getElementById('preview-image');
+        var placeholder = document.getElementById('upload-placeholder');
+
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                var file = e.target.files[0];
+                if (!file) return;
+
+                // Validate file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('檔案大小不得超過 5MB');
+                    fileInput.value = '';
+                    return;
+                }
+
+                if (file.type.startsWith('image/')) {
+                    var reader = new FileReader();
+                    reader.onload = function(ev) {
+                        previewImage.src = ev.target.result;
+                        previewImage.classList.remove('hidden');
+                        if (placeholder) placeholder.classList.add('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // Date validation
+        var startDateInput = document.getElementById('startDate');
+        var endDateInput = document.getElementById('endDate');
+
+        function validateDates() {
+            if (startDateInput.value && endDateInput.value) {
+                if (endDateInput.value < startDateInput.value) {
+                    endDateInput.setCustomValidity('結束日期必須在開始日期之後');
+                } else {
+                    endDateInput.setCustomValidity('');
+                }
+            } else {
+                endDateInput.setCustomValidity('');
+            }
+            // Set min attribute on endDate
+            if (startDateInput.value) {
+                endDateInput.min = startDateInput.value;
+            }
+        }
+
+        if (startDateInput && endDateInput) {
+            startDateInput.addEventListener('change', validateDates);
+            endDateInput.addEventListener('change', validateDates);
+            validateDates(); // Initial validation
+        }
+
+        // Description character count
+        var descInput = document.getElementById('description');
+        var descCounter = document.getElementById('desc-count');
+        if (descInput && descCounter) {
+            descCounter.textContent = descInput.value.length;
+            descInput.addEventListener('input', function() {
+                descCounter.textContent = this.value.length;
+            });
+        }
+    });
+    </script>
     <script th:src="@{/js/app.js}" defer></script>
 </body>
 </html>

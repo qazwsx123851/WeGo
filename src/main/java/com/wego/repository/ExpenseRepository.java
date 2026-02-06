@@ -95,6 +95,20 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
            "WHERE e.tripId = :tripId AND e.category IS NOT NULL")
     List<String> findDistinctCategoriesByTripId(@Param("tripId") UUID tripId);
 
+    /**
+     * Finds all expenses linked to a specific activity in a trip.
+     *
+     * @contract
+     *   - pre: tripId != null, activityId != null
+     *   - post: Returns expenses ordered by creation date descending
+     *   - calledBy: ExpenseService#getExpensesByActivity
+     *
+     * @param tripId The trip ID
+     * @param activityId The activity ID
+     * @return List of expenses
+     */
+    List<Expense> findByTripIdAndActivityIdOrderByCreatedAtDesc(UUID tripId, UUID activityId);
+
     // ========== Global Expense Methods ==========
 
     /**

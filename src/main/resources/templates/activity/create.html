@@ -51,7 +51,7 @@
                     <!-- Attraction -->
                     <label class="activity-type-option cursor-pointer">
                         <input type="radio" name="type" value="ATTRACTION"
-                               th:checked="true"
+                               th:checked="${activity?.place?.category == null or (activity?.place?.category != 'restaurant' and activity?.place?.category != 'transit_station' and activity?.place?.category != 'lodging')}"
                                class="sr-only peer">
                         <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
                                     peer-checked:border-primary-500 peer-checked:bg-primary-50 dark:peer-checked:bg-primary-900/20
@@ -73,7 +73,7 @@
                     <!-- Restaurant -->
                     <label class="activity-type-option cursor-pointer">
                         <input type="radio" name="type" value="RESTAURANT"
-                               th:checked="false"
+                               th:checked="${activity?.place?.category == 'restaurant'}"
                                class="sr-only peer">
                         <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
                                     peer-checked:border-adventure-500 peer-checked:bg-adventure-50 dark:peer-checked:bg-adventure-900/20
@@ -93,7 +93,7 @@
                     <!-- Transport -->
                     <label class="activity-type-option cursor-pointer">
                         <input type="radio" name="type" value="TRANSPORT"
-                               th:checked="false"
+                               th:checked="${activity?.place?.category == 'transit_station'}"
                                class="sr-only peer">
                         <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
                                     peer-checked:border-gray-500 peer-checked:bg-gray-50 dark:peer-checked:bg-gray-700/50
@@ -113,7 +113,7 @@
                     <!-- Accommodation -->
                     <label class="activity-type-option cursor-pointer">
                         <input type="radio" name="type" value="ACCOMMODATION"
-                               th:checked="false"
+                               th:checked="${activity?.place?.category == 'lodging'}"
                                class="sr-only peer">
                         <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700
                                     peer-checked:border-success peer-checked:bg-success-light dark:peer-checked:bg-green-900/20

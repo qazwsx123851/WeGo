@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head(title='所有行程')}"></head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Toast Container -->
+    <div th:replace="~{fragments/components :: toast-container}"></div>
+
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a th:href="@{/dashboard}"
+                   class="p-2 -ml-2 min-w-[44px] min-h-[44px] rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 cursor-pointer flex items-center justify-center"
+                   aria-label="返回首頁">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">所有行程</h1>
+            </div>
+            <a th:href="@{/trips/create}" class="btn-cta flex items-center gap-2" aria-label="建立新行程">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                新增
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Trip Grid -->
+        <section th:if="${trips != null and !trips.isEmpty()}">
+            <p class="text-body-sm text-gray-500 dark:text-gray-400 mb-4"
+               th:text="'共 ' + ${#lists.size(trips)} + ' 個行程'"></p>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <a th:each="trip : ${trips}" th:href="@{/trips/{id}(id=${trip.id})}"
+                   class="glass-card group hover:shadow-card-hover transition-all duration-200 cursor-pointer overflow-hidden">
+                    <!-- Cover Image -->
+                    <div class="relative h-40 bg-gradient-to-br from-primary-400 to-primary-600">
+                        <img th:if="${trip.coverImageUrl}" th:src="${trip.coverImageUrl}"
+                             th:alt="${trip.title + ' 封面圖片'}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                        <!-- Days Until Badge -->
+                        <div th:if="${trip.daysUntil != null and trip.daysUntil >= 0}"
+                             class="absolute top-3 right-3 bg-white/90 dark:bg-gray-800/90 rounded-lg px-2 py-1 text-caption font-medium">
+                            <span th:if="${trip.daysUntil == 0}" class="text-adventure-500">今天出發!</span>
+                            <span th:if="${trip.daysUntil == 1}" class="text-adventure-500">明天出發</span>
+                            <span th:if="${trip.daysUntil > 1}" th:text="'還有 ' + ${trip.daysUntil} + ' 天'"
+                                  class="text-gray-700 dark:text-gray-200"></span>
+                        </div>
+                    </div>
+                    <!-- Info -->
+                    <div class="p-4">
+                        <h3 class="text-body font-semibold text-gray-800 dark:text-gray-100 mb-1 group-hover:text-primary-600 transition-colors"
+                            th:text="${trip.title}">行程名稱</h3>
+                        <p class="text-body-sm text-gray-500 dark:text-gray-400"
+                           th:if="${trip.startDate != null and trip.endDate != null}"
+                           th:text="${#temporals.format(trip.startDate, 'yyyy/M/d')} + ' - ' + ${#temporals.format(trip.endDate, 'M/d')}">
+                            2024/1/15 - 1/20
+                        </p>
+                        <!-- Description -->
+                        <p th:if="${trip.description != null and trip.description.length() > 0}"
+                           class="text-caption text-gray-500 dark:text-gray-400 mt-1 line-clamp-2"
+                           th:text="${trip.description}"></p>
+                        <!-- Members -->
+                        <div th:if="${trip.members != null and !trip.members.isEmpty()}" class="flex items-center gap-2 mt-3">
+                            <div class="flex -space-x-2">
+                                <span th:each="member, iterStat : ${trip.members}" th:if="${iterStat.index < 3}"
+                                      class="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                             flex items-center justify-center text-caption text-primary-600
+                                             dark:text-primary-400 border-2 border-white dark:border-gray-800"
+                                      th:text="${member.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : 'U'}">M</span>
+                            </div>
+                            <span th:if="${#lists.size(trip.members) > 3}"
+                                  class="text-caption text-gray-400"
+                                  th:text="'+' + (${#lists.size(trip.members)} - 3)">+2</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <!-- Empty State -->
+        <section th:if="${trips == null or trips.isEmpty()}" class="glass-card p-8 text-center animate-fade-in">
+            <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <h3 class="text-h4 text-gray-700 dark:text-gray-200 mb-2 font-heading">還沒有任何行程</h3>
+            <p class="text-body-sm text-gray-500 dark:text-gray-400 mb-6">建立您的第一個行程，開始規劃下一次冒險！</p>
+            <a th:href="@{/trips/create}" class="btn-primary" aria-label="建立第一個行程">
+                開始規劃
+            </a>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav th:replace="~{fragments/components :: bottom-nav}"></nav>
+
+    <script th:src="@{/js/app.js}" defer></script>
+</body>
+</html>

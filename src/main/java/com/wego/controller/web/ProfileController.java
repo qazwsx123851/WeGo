@@ -148,8 +148,7 @@ public class ProfileController {
         userService.updateNickname(user.getId(), trimmedNickname);
         log.info("User {} updated nickname to: {}", user.getId(), trimmedNickname);
 
-        redirectAttributes.addFlashAttribute("success", "個人資料已更新");
-        return "redirect:/profile";
+        return "redirect:/profile?success=profile_updated";
     }
 
     /**

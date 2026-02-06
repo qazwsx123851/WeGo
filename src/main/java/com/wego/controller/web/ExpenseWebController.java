@@ -1,6 +1,7 @@
 package com.wego.controller.web;
 
 import com.wego.dto.request.CreateExpenseRequest;
+import com.wego.dto.request.UpdateExpenseRequest;
 import com.wego.dto.response.ExpenseResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.Role;
@@ -71,7 +72,7 @@ public class ExpenseWebController {
      * @param model The Spring MVC model
      * @return The expense create view name
      */
-    @GetMapping("/create")
+    @GetMapping({"/create", "/new"})
     public String showCreateForm(@PathVariable UUID tripId,
                                  @AuthenticationPrincipal OAuth2User principal,
                                  Model model) {
@@ -296,6 +297,163 @@ public class ExpenseWebController {
         model.addAttribute("picture", user.getAvatarUrl());
 
         return "expense/detail";
+    }
+
+    /**
+     * Shows the expense edit form.
+     *
+     * @contract
+     *   - pre: tripId != null, expenseId != null, principal != null
+     *   - pre: user has OWNER or EDITOR role on the trip
+     *   - post: Returns expense create form pre-filled with expense data
+     *   - calls: TripService#getTrip, ExpenseService#getExpensesByTrip
+     *   - calledBy: Web browser GET /trips/{tripId}/expenses/{expenseId}/edit
+     *
+     * @param tripId The trip ID
+     * @param expenseId The expense ID
+     * @param principal The authenticated user
+     * @param model The Spring MVC model
+     * @return The expense edit view name (reuses create template)
+     */
+    @GetMapping("/{expenseId}/edit")
+    public String showEditForm(@PathVariable UUID tripId,
+                               @PathVariable UUID expenseId,
+                               @AuthenticationPrincipal OAuth2User principal,
+                               Model model) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        TripResponse trip;
+        try {
+            trip = tripService.getTrip(tripId, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        if (trip == null) {
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        // Check permission
+        TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+        if (!canEdit(currentMember)) {
+            log.warn("User {} has no edit permission for trip {}", user.getId(), tripId);
+            return "redirect:/trips/" + tripId + "/expenses?error=access_denied";
+        }
+
+        // Find the expense
+        List<ExpenseResponse> expenses = expenseService.getExpensesByTrip(tripId, user.getId());
+        ExpenseResponse expense = expenses.stream()
+                .filter(e -> e.getId().equals(expenseId))
+                .findFirst()
+                .orElse(null);
+
+        if (expense == null) {
+            log.warn("Expense {} not found in trip {}", expenseId, tripId);
+            return "redirect:/trips/" + tripId + "/expenses?error=expense_not_found";
+        }
+
+        model.addAttribute("trip", trip);
+        model.addAttribute("tripId", tripId);
+        model.addAttribute("members", trip.getMembers());
+        model.addAttribute("currentUserId", user.getId());
+        model.addAttribute("expense", expense);
+        model.addAttribute("name", user.getNickname());
+        model.addAttribute("picture", user.getAvatarUrl());
+
+        return "expense/create";
+    }
+
+    /**
+     * Handles expense edit form submission.
+     *
+     * @contract
+     *   - pre: tripId != null, expenseId != null, principal != null
+     *   - pre: user has OWNER or EDITOR role on the trip
+     *   - pre: amount > 0, description not blank
+     *   - post: Expense is updated
+     *   - post: Redirects to expense list on success
+     *   - calls: ExpenseService#updateExpense
+     *   - calledBy: Web browser POST /trips/{tripId}/expenses/{expenseId}
+     *
+     * @param tripId The trip ID
+     * @param expenseId The expense ID
+     * @param amount The expense amount
+     * @param currency The currency code
+     * @param description The expense description
+     * @param category The expense category
+     * @param expenseDate The expense date
+     * @param payerId The payer's user ID
+     * @param splitMethod The split method
+     * @param notes Optional notes
+     * @param principal The authenticated user
+     * @param redirectAttributes For flash messages
+     * @return Redirect to expense list or back to form
+     */
+    @PostMapping("/{expenseId}")
+    public String updateExpense(@PathVariable UUID tripId,
+                                @PathVariable UUID expenseId,
+                                @RequestParam BigDecimal amount,
+                                @RequestParam(defaultValue = "TWD") String currency,
+                                @RequestParam String description,
+                                @RequestParam(required = false) String category,
+                                @RequestParam(required = false) String expenseDate,
+                                @RequestParam UUID payerId,
+                                @RequestParam(defaultValue = "EQUAL") String splitMethod,
+                                @RequestParam(required = false) String notes,
+                                @AuthenticationPrincipal OAuth2User principal,
+                                RedirectAttributes redirectAttributes) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        try {
+            // Parse expense date
+            LocalDate parsedExpenseDate = null;
+            if (expenseDate != null && !expenseDate.isEmpty()) {
+                try {
+                    parsedExpenseDate = LocalDate.parse(expenseDate);
+                } catch (Exception e) {
+                    log.warn("Invalid expense date format: {}", expenseDate);
+                }
+            }
+
+            SplitType splitType = parseSplitType(splitMethod);
+
+            UpdateExpenseRequest request = UpdateExpenseRequest.builder()
+                    .description(description)
+                    .amount(amount)
+                    .currency(currency)
+                    .paidBy(payerId)
+                    .splitType(splitType)
+                    .category(category)
+                    .expenseDate(parsedExpenseDate)
+                    .note(notes)
+                    .build();
+
+            expenseService.updateExpense(expenseId, request, user.getId());
+            log.info("Updated expense {} for trip {} by user {}", expenseId, tripId, user.getId());
+
+            redirectAttributes.addFlashAttribute("success", "支出更新成功");
+            return "redirect:/trips/" + tripId + "/expenses";
+
+        } catch (ForbiddenException e) {
+            log.warn("Permission denied updating expense {} for trip {}: {}", expenseId, tripId, e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "您沒有權限編輯支出");
+            return "redirect:/trips/" + tripId + "/expenses";
+        } catch (ResourceNotFoundException e) {
+            log.warn("Resource not found updating expense {}: {}", expenseId, e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "找不到支出");
+            return "redirect:/trips/" + tripId + "/expenses";
+        } catch (Exception e) {
+            log.error("Failed to update expense {} for trip {}: {}", expenseId, tripId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "更新支出失敗，請稍後再試");
+            return "redirect:/trips/" + tripId + "/expenses/" + expenseId + "/edit";
+        }
     }
 
     /**

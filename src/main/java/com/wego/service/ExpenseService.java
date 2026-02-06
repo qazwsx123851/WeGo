@@ -89,6 +89,15 @@ public class ExpenseService {
         var trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip", tripId.toString()));
 
+        // Validate paidBy is a trip member
+        List<TripMember> members = tripMemberRepository.findByTripId(tripId);
+        Set<UUID> memberUserIds = members.stream()
+                .map(TripMember::getUserId)
+                .collect(Collectors.toSet());
+        if (!memberUserIds.contains(request.getPaidBy())) {
+            throw new ValidationException("INVALID_PAYER", "付款人不是行程成員");
+        }
+
         // Validate custom splits if applicable
         if (request.getSplitType() == SplitType.CUSTOM) {
             validateCustomSplits(request);
@@ -226,6 +235,21 @@ public class ExpenseService {
             CreateExpenseRequest createRequest = CreateExpenseRequest.builder()
                     .amount(expense.getAmount())
                     .splitType(SplitType.EQUAL)
+                    .build();
+
+            List<ExpenseSplit> newSplits = createExpenseSplits(expense, createRequest, expense.getTripId());
+            expenseSplitRepository.saveAll(newSplits);
+        } else if (request.getAmount() != null && request.getSplits() != null
+                   && (expense.getSplitType() == SplitType.CUSTOM
+                       || expense.getSplitType() == SplitType.PERCENTAGE
+                       || expense.getSplitType() == SplitType.SHARES)) {
+            // Recalculate non-EQUAL splits when amount changes and new splits provided
+            expenseSplitRepository.deleteByExpenseId(expenseId);
+
+            CreateExpenseRequest createRequest = CreateExpenseRequest.builder()
+                    .amount(expense.getAmount())
+                    .splitType(expense.getSplitType())
+                    .splits(request.getSplits())
                     .build();
 
             List<ExpenseSplit> newSplits = createExpenseSplits(expense, createRequest, expense.getTripId());
@@ -554,5 +578,59 @@ public class ExpenseService {
             throw new ForbiddenException("您沒有權限查看此行程");
         }
         return expenseRepository.sumAmountByTripIdAndCurrency(tripId, currency);
+    }
+
+    /**
+     * Calculates user's balance in a specific trip.
+     *
+     * @contract
+     *   - pre: userId != null, tripId != null
+     *   - pre: user has view permission on trip
+     *   - post: Returns positive if owed to user, negative if user owes
+     *   - calls: ExpenseSplitRepository queries
+     *   - calledBy: TripController#showExpenses
+     *
+     * @param userId The user to calculate balance for
+     * @param tripId The trip to calculate balance in
+     * @return Balance amount (positive = owed to user, negative = user owes)
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal calculateUserBalanceInTrip(UUID userId, UUID tripId) {
+        if (!permissionChecker.canView(tripId, userId)) {
+            throw new ForbiddenException("您沒有權限查看此行程");
+        }
+        BigDecimal owedToUser = java.util.Optional.ofNullable(
+                expenseSplitRepository.sumUnsettledAmountOwedToUserInTrip(userId, tripId))
+                .orElse(BigDecimal.ZERO);
+        BigDecimal owedByUser = java.util.Optional.ofNullable(
+                expenseSplitRepository.sumUnsettledAmountByUserIdAndTripId(userId, tripId))
+                .orElse(BigDecimal.ZERO);
+        return owedToUser.subtract(owedByUser);
+    }
+
+    /**
+     * Gets expenses linked to a specific activity.
+     *
+     * @contract
+     *   - pre: tripId != null, activityId != null, userId != null
+     *   - pre: user has view permission on trip
+     *   - post: returns list of expenses for the activity
+     *   - calls: ExpenseRepository#findByTripIdAndActivityId
+     *   - calledBy: TripController#showActivityDetail
+     *
+     * @param tripId The trip ID
+     * @param activityId The activity ID
+     * @param userId The user requesting
+     * @return List of expense responses linked to the activity
+     */
+    @Transactional(readOnly = true)
+    public List<ExpenseResponse> getExpensesByActivity(UUID tripId, UUID activityId, UUID userId) {
+        if (!permissionChecker.canView(tripId, userId)) {
+            throw new ForbiddenException("您沒有權限查看此行程");
+        }
+        List<Expense> expenses = expenseRepository.findByTripIdAndActivityIdOrderByCreatedAtDesc(tripId, activityId);
+        return expenses.stream()
+                .map(this::buildExpenseResponse)
+                .collect(Collectors.toList());
     }
 }
