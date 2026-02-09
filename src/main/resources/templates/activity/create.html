@@ -288,7 +288,7 @@
                                name="durationMinutes"
                                th:value="${activity?.durationMinutes}"
                                min="0"
-                               step="15"
+                               step="1"
                                placeholder="例: 90"
                                class="flex-1 px-4 py-3
                                       bg-white dark:bg-gray-800
@@ -578,9 +578,8 @@
                     取消
                 </button>
                 <form th:if="${activity?.id != null}"
-                      th:action="@{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})}"
+                      th:action="@{/trips/{tripId}/activities/{activityId}/delete(tripId=${trip.id}, activityId=${activity.id})}"
                       method="post">
-                    <input type="hidden" name="_method" value="delete">
                     <button type="submit"
                             class="flex-1 px-4 py-2.5 rounded-xl
                                    bg-error hover:bg-red-600

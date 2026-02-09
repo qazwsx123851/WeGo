@@ -31,6 +31,7 @@ public class PlaceResponse {
     private String category;
     private Double rating;
     private Integer priceLevel;
+    private String googlePlaceId;
     private String photoReference;
 
     /**
@@ -54,6 +55,7 @@ public class PlaceResponse {
                 .latitude(place.getLatitude())
                 .longitude(place.getLongitude())
                 .category(place.getCategory())
+                .googlePlaceId(place.getGooglePlaceId())
                 .rating(place.getRating())
                 .priceLevel(place.getPriceLevel())
                 .photoReference(place.getPhotoReference())

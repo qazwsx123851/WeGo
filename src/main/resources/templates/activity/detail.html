@@ -511,9 +511,8 @@
                                transition-colors duration-200 cursor-pointer">
                     取消
                 </button>
-                <form th:action="@{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})}"
+                <form th:action="@{/trips/{tripId}/activities/{activityId}/delete(tripId=${trip.id}, activityId=${activity.id})}"
                       method="post">
-                    <input type="hidden" name="_method" value="delete">
                     <button type="submit"
                             class="flex-1 px-4 py-2.5 rounded-xl
                                    bg-error hover:bg-red-600
