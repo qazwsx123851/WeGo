@@ -46,6 +46,8 @@ import java.util.stream.Collectors;
 @Service
 public class SettlementService {
 
+    private static final String UNKNOWN_USER_NAME = "Unknown";
+
     private final ExpenseRepository expenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
     private final TripRepository tripRepository;
@@ -151,10 +153,10 @@ public class SettlementService {
 
                     return SettlementResponse.SettlementItemResponse.builder()
                             .fromUserId(settlement.getFromUserId())
-                            .fromUserName(fromUser != null ? fromUser.getNickname() : "Unknown")
+                            .fromUserName(fromUser != null ? fromUser.getNickname() : UNKNOWN_USER_NAME)
                             .fromUserAvatarUrl(fromUser != null ? fromUser.getAvatarUrl() : null)
                             .toUserId(settlement.getToUserId())
-                            .toUserName(toUser != null ? toUser.getNickname() : "Unknown")
+                            .toUserName(toUser != null ? toUser.getNickname() : UNKNOWN_USER_NAME)
                             .toUserAvatarUrl(toUser != null ? toUser.getAvatarUrl() : null)
                             .amount(settlement.getAmount())
                             .build();

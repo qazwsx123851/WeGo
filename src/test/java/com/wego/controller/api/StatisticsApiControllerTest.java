@@ -3,8 +3,10 @@ package com.wego.controller.api;
 import com.wego.dto.response.CategoryBreakdownResponse;
 import com.wego.dto.response.MemberStatisticsResponse;
 import com.wego.dto.response.TrendResponse;
+import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
+import com.wego.security.UserPrincipal;
 import com.wego.service.StatisticsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,6 +28,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oauth2Login;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(StatisticsApiController.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(TestSecurityConfig.class)
 class StatisticsApiControllerTest {
 
     @Autowired
@@ -50,6 +54,7 @@ class StatisticsApiControllerTest {
     private StatisticsService statisticsService;
 
     private UUID tripId;
+    private UserPrincipal userPrincipal;
     private CategoryBreakdownResponse categoryResponse;
     private TrendResponse trendResponse;
     private MemberStatisticsResponse memberResponse;
@@ -57,6 +62,15 @@ class StatisticsApiControllerTest {
     @BeforeEach
     void setUp() {
         tripId = UUID.randomUUID();
+
+        User testUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("test@example.com")
+                .nickname("Test User")
+                .provider("test")
+                .providerId("test-id")
+                .build();
+        userPrincipal = new UserPrincipal(testUser);
 
         // Setup category breakdown response
         CategoryBreakdownResponse.CategoryItem foodItem = CategoryBreakdownResponse.CategoryItem.builder()
@@ -113,14 +127,12 @@ class StatisticsApiControllerTest {
     class GetCategoryBreakdown {
 
         @Test
-        @WithMockUser
         @DisplayName("should return category breakdown when authorized")
         void shouldReturnCategoryBreakdownWhenAuthorized() throws Exception {
-            // Arrange
             when(statisticsService.getCategoryBreakdown(any(), any())).thenReturn(categoryResponse);
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.categories").isArray())
@@ -131,38 +143,32 @@ class StatisticsApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 403 when user has no permission")
         void shouldReturn403WhenNoPermission() throws Exception {
-            // Arrange
             when(statisticsService.getCategoryBreakdown(any(), any()))
                     .thenThrow(new ForbiddenException("No permission to view this trip"));
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 404 when trip not found")
         void shouldReturn404WhenTripNotFound() throws Exception {
-            // Arrange
             when(statisticsService.getCategoryBreakdown(any(), any()))
                     .thenThrow(new ResourceNotFoundException("Trip", tripId.toString()));
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.success").value(false));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return empty categories when no expenses")
         void shouldReturnEmptyCategoriesWhenNoExpenses() throws Exception {
-            // Arrange
             CategoryBreakdownResponse emptyResponse = CategoryBreakdownResponse.builder()
                     .categories(Collections.emptyList())
                     .totalAmount(BigDecimal.ZERO)
@@ -171,8 +177,8 @@ class StatisticsApiControllerTest {
                     .build();
             when(statisticsService.getCategoryBreakdown(any(), any())).thenReturn(emptyResponse);
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.categories").isEmpty())
@@ -180,11 +186,10 @@ class StatisticsApiControllerTest {
         }
 
         @Test
-        @DisplayName("should redirect when not authenticated")
-        void shouldRedirectWhenNotAuthenticated() throws Exception {
-            // Act & Assert - Spring Security redirects to login page
+        @DisplayName("should return 403 when not authenticated")
+        void shouldReturn403WhenNotAuthenticated() throws Exception {
             mockMvc.perform(get("/api/trips/{tripId}/statistics/category", tripId))
-                    .andExpect(status().is3xxRedirection());
+                    .andExpect(status().isForbidden());
         }
     }
 
@@ -193,14 +198,12 @@ class StatisticsApiControllerTest {
     class GetTrend {
 
         @Test
-        @WithMockUser
         @DisplayName("should return trend data when authorized")
         void shouldReturnTrendDataWhenAuthorized() throws Exception {
-            // Arrange
             when(statisticsService.getTrend(any(), any())).thenReturn(trendResponse);
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/trend", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/trend", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.dataPoints").isArray())
@@ -209,24 +212,20 @@ class StatisticsApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 403 when user has no permission")
         void shouldReturn403WhenNoPermission() throws Exception {
-            // Arrange
             when(statisticsService.getTrend(any(), any()))
                     .thenThrow(new ForbiddenException("No permission to view this trip"));
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/trend", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/trend", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return empty data points when no expenses")
         void shouldReturnEmptyDataPointsWhenNoExpenses() throws Exception {
-            // Arrange
             TrendResponse emptyResponse = TrendResponse.builder()
                     .dataPoints(Collections.emptyList())
                     .currency("TWD")
@@ -235,19 +234,18 @@ class StatisticsApiControllerTest {
                     .build();
             when(statisticsService.getTrend(any(), any())).thenReturn(emptyResponse);
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/trend", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/trend", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.dataPoints").isEmpty());
         }
 
         @Test
-        @DisplayName("should redirect when not authenticated")
-        void shouldRedirectWhenNotAuthenticated() throws Exception {
-            // Act & Assert - Spring Security redirects to login page
+        @DisplayName("should return 403 when not authenticated")
+        void shouldReturn403WhenNotAuthenticated_trend() throws Exception {
             mockMvc.perform(get("/api/trips/{tripId}/statistics/trend", tripId))
-                    .andExpect(status().is3xxRedirection());
+                    .andExpect(status().isForbidden());
         }
     }
 
@@ -256,14 +254,12 @@ class StatisticsApiControllerTest {
     class GetMemberStatistics {
 
         @Test
-        @WithMockUser
         @DisplayName("should return member statistics when authorized")
         void shouldReturnMemberStatisticsWhenAuthorized() throws Exception {
-            // Arrange
             when(statisticsService.getMemberStatistics(any(), any())).thenReturn(memberResponse);
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/members", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/members", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.members").isArray())
@@ -273,43 +269,38 @@ class StatisticsApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 403 when user has no permission")
         void shouldReturn403WhenNoPermission() throws Exception {
-            // Arrange
             when(statisticsService.getMemberStatistics(any(), any()))
                     .thenThrow(new ForbiddenException("No permission to view this trip"));
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/members", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/members", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.success").value(false));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return empty members when no trip members")
         void shouldReturnEmptyMembersWhenNoTripMembers() throws Exception {
-            // Arrange
             MemberStatisticsResponse emptyResponse = MemberStatisticsResponse.builder()
                     .members(Collections.emptyList())
                     .currency("TWD")
                     .build();
             when(statisticsService.getMemberStatistics(any(), any())).thenReturn(emptyResponse);
 
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/members", tripId))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/members", tripId)
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.members").isEmpty());
         }
 
         @Test
-        @DisplayName("should redirect when not authenticated")
-        void shouldRedirectWhenNotAuthenticated() throws Exception {
-            // Act & Assert - Spring Security redirects to login page
+        @DisplayName("should return 403 when not authenticated")
+        void shouldReturn403WhenNotAuthenticated_members() throws Exception {
             mockMvc.perform(get("/api/trips/{tripId}/statistics/members", tripId))
-                    .andExpect(status().is3xxRedirection());
+                    .andExpect(status().isForbidden());
         }
     }
 
@@ -318,11 +309,10 @@ class StatisticsApiControllerTest {
     class InvalidTripId {
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when trip ID is invalid")
         void shouldReturn400WhenTripIdIsInvalid() throws Exception {
-            // Act & Assert
-            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", "invalid-uuid"))
+            mockMvc.perform(get("/api/trips/{tripId}/statistics/category", "invalid-uuid")
+                            .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadRequest());
         }
     }

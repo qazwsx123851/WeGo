@@ -4,6 +4,8 @@ import com.wego.dto.ApiResponse;
 import com.wego.dto.response.DirectionResult;
 import com.wego.entity.TransportMode;
 import com.wego.exception.ValidationException;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import com.wego.service.CacheService;
 import com.wego.service.RateLimitService;
 import com.wego.service.external.GoogleMapsClient;
@@ -76,7 +78,8 @@ public class DirectionApiController {
             @RequestParam double originLng,
             @RequestParam double destLat,
             @RequestParam double destLng,
-            @RequestParam(required = false) String mode) {
+            @RequestParam(required = false) String mode,
+            @CurrentUser UserPrincipal principal) {
 
         log.debug("GET /api/directions?originLat={}&originLng={}&destLat={}&destLng={}&mode={}",
                 originLat, originLng, destLat, destLng, mode);
@@ -91,7 +94,7 @@ public class DirectionApiController {
         TransportMode transportMode = parseTransportMode(mode);
 
         // Check rate limit
-        String rateLimitKey = "directions";
+        String rateLimitKey = "directions:" + principal.getId();
         if (!rateLimitService.isAllowed(rateLimitKey, RATE_LIMIT_DIRECTIONS)) {
             log.warn("Rate limit exceeded for directions");
             return ResponseEntity

@@ -8,8 +8,6 @@
 const ExpenseStatistics = {
     /** Trip ID */
     tripId: '',
-    /** CSRF token */
-    csrfToken: '',
     /** Chart instances */
     charts: {
         category: null,
@@ -42,7 +40,6 @@ const ExpenseStatistics = {
         if (!tripIdEl) return;
 
         this.tripId = tripIdEl.value;
-        this.csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
 
         // Configure Chart.js defaults for dark mode support
         this.configureChartDefaults();

@@ -4,6 +4,8 @@ import com.wego.dto.ApiResponse;
 import com.wego.dto.response.PlaceDetails;
 import com.wego.dto.response.PlaceSearchResult;
 import com.wego.exception.ValidationException;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import com.wego.service.CacheService;
 import com.wego.service.RateLimitService;
 import com.wego.service.external.GoogleMapsClient;
@@ -82,7 +84,8 @@ public class PlaceApiController {
             @RequestParam String query,
             @RequestParam double lat,
             @RequestParam double lng,
-            @RequestParam(defaultValue = "1500") int radius) {
+            @RequestParam(defaultValue = "1500") int radius,
+            @CurrentUser UserPrincipal principal) {
 
         log.debug("GET /api/places/search?query={}&lat={}&lng={}&radius={}", query, lat, lng, radius);
 
@@ -96,7 +99,7 @@ public class PlaceApiController {
         validateRadius(radius);
 
         // Check rate limit
-        String rateLimitKey = "places:search";
+        String rateLimitKey = "places:search:" + principal.getId();
         if (!rateLimitService.isAllowed(rateLimitKey, RATE_LIMIT_SEARCH)) {
             log.warn("Rate limit exceeded for place search");
             return ResponseEntity
@@ -146,7 +149,8 @@ public class PlaceApiController {
      */
     @GetMapping("/{placeId}")
     public ResponseEntity<ApiResponse<PlaceDetails>> getPlaceDetails(
-            @PathVariable String placeId) {
+            @PathVariable String placeId,
+            @CurrentUser UserPrincipal principal) {
 
         log.debug("GET /api/places/{}", placeId);
 
@@ -154,7 +158,7 @@ public class PlaceApiController {
         String sanitizedPlaceId = validateAndSanitizePlaceId(placeId);
 
         // Check rate limit
-        String rateLimitKey = "places:details";
+        String rateLimitKey = "places:details:" + principal.getId();
         if (!rateLimitService.isAllowed(rateLimitKey, RATE_LIMIT_DETAILS)) {
             log.warn("Rate limit exceeded for place details");
             return ResponseEntity

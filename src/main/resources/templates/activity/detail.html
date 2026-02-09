@@ -81,7 +81,7 @@
         <!-- Map Preview -->
         <section class="relative">
             <!-- No location data -->
-            <div th:if="${activity.place?.latitude == null}"
+            <div th:if="${activity.place == null}"
                  class="w-full h-48 sm:h-64 bg-gray-200 dark:bg-gray-700
                         flex items-center justify-center">
                 <div class="text-center">
@@ -94,23 +94,23 @@
             </div>
 
             <!-- Has location - show interactive map embed -->
-            <div th:if="${activity.place?.latitude != null}" class="relative">
+            <div th:if="${activity.place != null}" class="relative">
                 <!-- Map Container with aspect ratio -->
                 <div class="w-full aspect-video sm:aspect-[16/9] min-h-[200px] max-h-[300px] bg-gray-200 dark:bg-gray-700 overflow-hidden">
                     <!-- Google Maps Embed iframe -->
                     <iframe th:if="${googleMapsApiKey != null and googleMapsApiKey != ''}"
-                            th:src="'https://www.google.com/maps/embed/v1/place?key=' + ${googleMapsApiKey} + '&q=' + ${activity.place.latitude} + ',' + ${activity.place.longitude} + '&zoom=15'"
+                            th:src="'https://www.google.com/maps/embed/v1/place?key=' + ${googleMapsApiKey} + '&q=' + ${activity.place?.latitude} + ',' + ${activity.place?.longitude} + '&zoom=15'"
                             class="w-full h-full border-0"
                             loading="lazy"
                             referrerpolicy="no-referrer-when-downgrade"
                             allowfullscreen
-                            th:title="${activity.place?.name != null ? activity.place.name + ' 位置地圖' : '景點位置地圖'}"
+                            th:title="${activity.place?.name != null ? activity.place?.name + ' 位置地圖' : '景點位置地圖'}"
                             aria-label="地圖顯示位置">
                     </iframe>
 
                     <!-- Fallback: No API key - show clickable placeholder -->
                     <a th:if="${googleMapsApiKey == null or googleMapsApiKey == ''}"
-                       th:href="'https://www.google.com/maps/search/?api=1&query=' + ${activity.place.latitude} + ',' + ${activity.place.longitude}"
+                       th:href="'https://www.google.com/maps/search/?api=1&query=' + ${activity.place?.latitude} + ',' + ${activity.place?.longitude}"
                        target="_blank"
                        rel="noopener noreferrer"
                        class="w-full h-full flex flex-col items-center justify-center
@@ -127,7 +127,7 @@
                 </div>
 
                 <!-- Open in Maps Button (floating overlay) -->
-                <a th:href="'https://www.google.com/maps/search/?api=1&query=' + ${activity.place.latitude} + ',' + ${activity.place.longitude}"
+                <a th:href="'https://www.google.com/maps/search/?api=1&query=' + ${activity.place?.latitude} + ',' + ${activity.place?.longitude}"
                    target="_blank"
                    rel="noopener noreferrer"
                    class="absolute bottom-3 right-3 px-3 py-2
@@ -166,7 +166,7 @@
                     <!-- Category (if available) -->
                     <span th:if="${activity.place?.category}"
                           class="text-sm text-gray-500 dark:text-gray-400"
-                          th:text="${activity.place.category}">景點</span>
+                          th:text="${activity.place?.category}">景點</span>
                 </div>
 
                 <!-- Place Name -->
@@ -208,7 +208,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    <span th:text="${activity.place.address}">東京都台東區淺草2-3-1</span>
+                    <span th:text="${activity.place?.address}">東京都台東區淺草2-3-1</span>
                 </div>
             </section>
 
@@ -296,7 +296,7 @@
                         </div>
                     </div>
                     <a th:if="${activity.place?.latitude != null and nextActivity?.place?.latitude != null}"
-                       th:href="'https://www.google.com/maps/dir/?api=1&origin=' + ${activity.place.latitude} + ',' + ${activity.place.longitude} + '&destination=' + ${nextActivity.place.latitude} + ',' + ${nextActivity.place.longitude}"
+                       th:href="'https://www.google.com/maps/dir/?api=1&origin=' + ${activity.place?.latitude} + ',' + ${activity.place?.longitude} + '&destination=' + ${nextActivity.place?.latitude} + ',' + ${nextActivity.place?.longitude}"
                        target="_blank"
                        rel="noopener noreferrer"
                        class="text-sm text-primary-600 dark:text-primary-400 font-medium

@@ -143,8 +143,7 @@
                          th:data-expense-category="${expense.category}"
                          th:data-expense-payer-name="${expense.paidByName}"
                          th:data-expense-split-type="${expense.splitType}"
-                         th:data-expense-note="${expense.note}"
-                         th:onclick="'openExpenseModal(this)'">
+                         th:data-expense-note="${expense.note}">
                         <div class="flex items-start gap-3">
                             <!-- Category Icon -->
                             <div class="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
@@ -328,6 +327,13 @@
         let currentExpenseId = null;
         let currentExpenseData = null;
 
+        // Event delegation for expense cards (replaces inline th:onclick)
+        document.querySelectorAll('.expense-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+                openExpenseModal(this);
+            });
+        });
+
         // =====================
         // Expense Detail Modal
         // =====================
@@ -361,11 +367,7 @@
         async function fetchExpenseDetail(expenseId) {
             try {
                 // Fetch all expenses and find the one we need (since there's no single expense endpoint)
-                const response = await fetch(`/api/trips/${tripId}/expenses`, {
-                    headers: {
-                        [csrfHeader]: csrfToken
-                    }
-                });
+                const response = await fetch(`/api/trips/${tripId}/expenses`);
 
                 if (response.ok) {
                     const result = await response.json();

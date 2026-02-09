@@ -5,14 +5,14 @@ import com.wego.dto.request.CreateTodoRequest;
 import com.wego.dto.request.UpdateTodoRequest;
 import com.wego.dto.response.TodoResponse;
 import com.wego.entity.TodoStatus;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import com.wego.service.TodoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,8 +21,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.wego.exception.UnauthorizedException;
 
 import java.util.List;
 import java.util.Map;
@@ -61,9 +59,9 @@ public class TodoApiController {
     public ResponseEntity<ApiResponse<TodoResponse>> createTodo(
             @PathVariable UUID tripId,
             @Valid @RequestBody CreateTodoRequest request,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("POST /api/trips/{}/todos by user {}", tripId, userId);
 
         TodoResponse response = todoService.createTodo(tripId, request, userId);
@@ -90,9 +88,9 @@ public class TodoApiController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<TodoResponse>>> getTodosByTrip(
             @PathVariable UUID tripId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/todos by user {}", tripId, userId);
 
         List<TodoResponse> todos = todoService.getTodosByTrip(tripId, userId);
@@ -114,9 +112,9 @@ public class TodoApiController {
     public ResponseEntity<ApiResponse<TodoResponse>> getTodo(
             @PathVariable UUID tripId,
             @PathVariable UUID todoId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/todos/{} by user {}", tripId, todoId, userId);
 
         TodoResponse todo = todoService.getTodo(tripId, todoId, userId);
@@ -140,9 +138,9 @@ public class TodoApiController {
             @PathVariable UUID tripId,
             @PathVariable UUID todoId,
             @Valid @RequestBody UpdateTodoRequest request,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("PUT /api/trips/{}/todos/{} by user {}", tripId, todoId, userId);
 
         TodoResponse response = todoService.updateTodo(tripId, todoId, request, userId);
@@ -164,9 +162,9 @@ public class TodoApiController {
     public ResponseEntity<ApiResponse<Void>> deleteTodo(
             @PathVariable UUID tripId,
             @PathVariable UUID todoId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("DELETE /api/trips/{}/todos/{} by user {}", tripId, todoId, userId);
 
         todoService.deleteTodo(tripId, todoId, userId);
@@ -187,9 +185,9 @@ public class TodoApiController {
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<Map<TodoStatus, Long>>> getTodoStats(
             @PathVariable UUID tripId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/todos/stats by user {}", tripId, userId);
 
         Map<TodoStatus, Long> stats = todoService.getTodoStats(tripId, userId);
@@ -197,28 +195,4 @@ public class TodoApiController {
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
-    /**
-     * Extracts user ID from the OAuth2 principal or throws UnauthorizedException if not authenticated.
-     *
-     * @contract
-     *   - pre: principal != null
-     *   - post: returns valid user UUID
-     *   - throws: UnauthorizedException if principal is null
-     */
-    private UUID getCurrentUserId(OAuth2User principal) {
-        if (principal == null) {
-            throw new UnauthorizedException("認證已過期，請重新登入");
-        }
-        // Extract the user ID from the principal
-        String sub = principal.getAttribute("sub");
-        if (sub != null) {
-            try {
-                return UUID.fromString(sub);
-            } catch (IllegalArgumentException e) {
-                // If sub is not a valid UUID, generate one based on the sub hash
-                return UUID.nameUUIDFromBytes(sub.getBytes());
-            }
-        }
-        throw new UnauthorizedException("無法取得用戶身份");
-    }
 }

@@ -6,6 +6,8 @@ import com.wego.service.CacheService;
 import com.wego.service.RateLimitService;
 import com.wego.service.external.GoogleMapsClient;
 import com.wego.service.external.GoogleMapsException;
+import com.wego.entity.User;
+import com.wego.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,7 +17,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -23,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
@@ -30,6 +32,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oauth2Login;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -65,8 +68,19 @@ class PlaceApiControllerTest {
     private PlaceSearchResult testPlace2;
     private PlaceDetails testPlaceDetails;
 
+    private UserPrincipal userPrincipal;
+
     @BeforeEach
     void setUp() {
+        User testUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("test@example.com")
+                .nickname("Test User")
+                .provider("test")
+                .providerId("test-id")
+                .build();
+        userPrincipal = new UserPrincipal(testUser);
+
         testPlace1 = PlaceSearchResult.builder()
                 .placeId("ChIJN1t_tDeuEmsRUsoyG83frY4")
                 .name("Sydney Opera House")
@@ -129,7 +143,6 @@ class PlaceApiControllerTest {
     class SearchPlacesTests {
 
         @Test
-        @WithMockUser
         @DisplayName("should return places list with 200 when valid query provided")
         void searchPlaces_withValidQuery_shouldReturn200() throws Exception {
             // Given
@@ -142,7 +155,8 @@ class PlaceApiControllerTest {
                             .param("query", "opera house")
                             .param("lat", "-33.8568")
                             .param("lng", "151.2153")
-                            .param("radius", "5000"))
+                            .param("radius", "5000")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data").isArray())
@@ -153,7 +167,6 @@ class PlaceApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should use default radius when not provided")
         void searchPlaces_withoutRadius_shouldUseDefaultRadius() throws Exception {
             // Given
@@ -164,14 +177,14 @@ class PlaceApiControllerTest {
             mockMvc.perform(get("/api/places/search")
                             .param("query", "restaurant")
                             .param("lat", "-33.8568")
-                            .param("lng", "151.2153"))
+                            .param("lng", "151.2153")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data").isArray());
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return empty list when no places found")
         void searchPlaces_noResults_shouldReturnEmptyList() throws Exception {
             // Given
@@ -182,7 +195,8 @@ class PlaceApiControllerTest {
             mockMvc.perform(get("/api/places/search")
                             .param("query", "nonexistent place xyz")
                             .param("lat", "-33.8568")
-                            .param("lng", "151.2153"))
+                            .param("lng", "151.2153")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data").isArray())
@@ -190,68 +204,67 @@ class PlaceApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when query is missing")
         void searchPlaces_missingQuery_shouldReturn400() throws Exception {
             // When & Then
             mockMvc.perform(get("/api/places/search")
                             .param("lat", "-33.8568")
-                            .param("lng", "151.2153"))
+                            .param("lng", "151.2153")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadRequest());
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when latitude is missing")
         void searchPlaces_missingLatitude_shouldReturn400() throws Exception {
             // When & Then
             mockMvc.perform(get("/api/places/search")
                             .param("query", "restaurant")
-                            .param("lng", "151.2153"))
+                            .param("lng", "151.2153")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadRequest());
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when longitude is missing")
         void searchPlaces_missingLongitude_shouldReturn400() throws Exception {
             // When & Then
             mockMvc.perform(get("/api/places/search")
                             .param("query", "restaurant")
-                            .param("lat", "-33.8568"))
+                            .param("lat", "-33.8568")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadRequest());
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when latitude is out of range")
         void searchPlaces_invalidLatitude_shouldReturn400() throws Exception {
             // When & Then
             mockMvc.perform(get("/api/places/search")
                             .param("query", "restaurant")
                             .param("lat", "91.0")
-                            .param("lng", "151.2153"))
+                            .param("lng", "151.2153")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when longitude is out of range")
         void searchPlaces_invalidLongitude_shouldReturn400() throws Exception {
             // When & Then
             mockMvc.perform(get("/api/places/search")
                             .param("query", "restaurant")
                             .param("lat", "-33.8568")
-                            .param("lng", "181.0"))
+                            .param("lng", "181.0")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when radius is negative")
         void searchPlaces_negativeRadius_shouldReturn400() throws Exception {
             // When & Then
@@ -259,14 +272,14 @@ class PlaceApiControllerTest {
                             .param("query", "restaurant")
                             .param("lat", "-33.8568")
                             .param("lng", "151.2153")
-                            .param("radius", "-100"))
+                            .param("radius", "-100")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when radius exceeds maximum")
         void searchPlaces_radiusTooLarge_shouldReturn400() throws Exception {
             // When & Then
@@ -274,14 +287,14 @@ class PlaceApiControllerTest {
                             .param("query", "restaurant")
                             .param("lat", "-33.8568")
                             .param("lng", "151.2153")
-                            .param("radius", "60000"))
+                            .param("radius", "60000")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 502 when Google Maps API fails")
         void searchPlaces_googleMapsApiError_shouldReturn502() throws Exception {
             // Given
@@ -292,7 +305,8 @@ class PlaceApiControllerTest {
             mockMvc.perform(get("/api/places/search")
                             .param("query", "restaurant")
                             .param("lat", "-33.8568")
-                            .param("lng", "151.2153"))
+                            .param("lng", "151.2153")
+                                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadGateway())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.errorCode").value("GOOGLE_MAPS_ERROR"));
@@ -315,7 +329,6 @@ class PlaceApiControllerTest {
     class GetPlaceDetailsTests {
 
         @Test
-        @WithMockUser
         @DisplayName("should return place details with 200")
         void getPlaceDetails_withValidPlaceId_shouldReturn200() throws Exception {
             // Given
@@ -323,7 +336,8 @@ class PlaceApiControllerTest {
                     .thenReturn(testPlaceDetails);
 
             // When & Then
-            mockMvc.perform(get("/api/places/{placeId}", "ChIJN1t_tDeuEmsRUsoyG83frY4"))
+            mockMvc.perform(get("/api/places/{placeId}", "ChIJN1t_tDeuEmsRUsoyG83frY4")
+                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.placeId").value("ChIJN1t_tDeuEmsRUsoyG83frY4"))
@@ -336,7 +350,6 @@ class PlaceApiControllerTest {
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 404 when place not found")
         void getPlaceDetails_placeNotFound_shouldReturn404() throws Exception {
             // Given
@@ -344,23 +357,23 @@ class PlaceApiControllerTest {
                     .thenThrow(new GoogleMapsException("PLACE_NOT_FOUND", "Place not found"));
 
             // When & Then
-            mockMvc.perform(get("/api/places/{placeId}", "invalid-place-id"))
+            mockMvc.perform(get("/api/places/{placeId}", "invalid-place-id")
+                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.errorCode").value("PLACE_NOT_FOUND"));
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 400 when placeId is empty")
         void getPlaceDetails_emptyPlaceId_shouldReturn400() throws Exception {
             // When & Then
-            mockMvc.perform(get("/api/places/{placeId}", " "))
+            mockMvc.perform(get("/api/places/{placeId}", " ")
+                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadRequest());
         }
 
         @Test
-        @WithMockUser
         @DisplayName("should return 502 when Google Maps API fails")
         void getPlaceDetails_googleMapsApiError_shouldReturn502() throws Exception {
             // Given
@@ -368,7 +381,8 @@ class PlaceApiControllerTest {
                     .thenThrow(new GoogleMapsException("GOOGLE_MAPS_ERROR", "Google Maps API is unavailable"));
 
             // When & Then
-            mockMvc.perform(get("/api/places/{placeId}", "ChIJN1t_tDeuEmsRUsoyG83frY4"))
+            mockMvc.perform(get("/api/places/{placeId}", "ChIJN1t_tDeuEmsRUsoyG83frY4")
+                                    .with(oauth2Login().oauth2User(userPrincipal)))
                     .andExpect(status().isBadGateway())
                     .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.errorCode").value("GOOGLE_MAPS_ERROR"));

@@ -2,9 +2,12 @@ package com.wego.controller.api;
 
 import com.wego.dto.ApiResponse;
 import com.wego.dto.request.CreateExpenseRequest;
+import com.wego.dto.request.SettleUsersRequest;
 import com.wego.dto.request.UpdateExpenseRequest;
 import com.wego.dto.response.ExpenseResponse;
 import com.wego.dto.response.SettlementResponse;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import com.wego.service.ExpenseService;
 import com.wego.service.SettlementService;
 import jakarta.validation.Valid;
@@ -12,8 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,10 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.wego.exception.UnauthorizedException;
-
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -64,9 +62,9 @@ public class ExpenseApiController {
     public ResponseEntity<ApiResponse<ExpenseResponse>> createExpense(
             @PathVariable UUID tripId,
             @Valid @RequestBody CreateExpenseRequest request,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("POST /api/trips/{}/expenses by user {}", tripId, userId);
 
         ExpenseResponse response = expenseService.createExpense(tripId, request, userId);
@@ -89,9 +87,9 @@ public class ExpenseApiController {
     @GetMapping("/trips/{tripId}/expenses")
     public ResponseEntity<ApiResponse<List<ExpenseResponse>>> getExpensesByTrip(
             @PathVariable UUID tripId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/expenses by user {}", tripId, userId);
 
         List<ExpenseResponse> expenses = expenseService.getExpensesByTrip(tripId, userId);
@@ -114,9 +112,9 @@ public class ExpenseApiController {
     public ResponseEntity<ApiResponse<ExpenseResponse>> updateExpense(
             @PathVariable UUID expenseId,
             @Valid @RequestBody UpdateExpenseRequest request,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("PUT /api/expenses/{} by user {}", expenseId, userId);
 
         ExpenseResponse response = expenseService.updateExpense(expenseId, request, userId);
@@ -137,9 +135,9 @@ public class ExpenseApiController {
     @DeleteMapping("/expenses/{expenseId}")
     public ResponseEntity<ApiResponse<Void>> deleteExpense(
             @PathVariable UUID expenseId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("DELETE /api/expenses/{} by user {}", expenseId, userId);
 
         expenseService.deleteExpense(expenseId, userId);
@@ -160,9 +158,9 @@ public class ExpenseApiController {
     @GetMapping("/trips/{tripId}/settlement")
     public ResponseEntity<ApiResponse<SettlementResponse>> getSettlement(
             @PathVariable UUID tripId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/settlement by user {}", tripId, userId);
 
         SettlementResponse response = settlementService.calculateSettlement(tripId, userId);
@@ -183,9 +181,9 @@ public class ExpenseApiController {
     @PutMapping("/expense-splits/{splitId}/settle")
     public ResponseEntity<ApiResponse<Void>> markAsSettled(
             @PathVariable UUID splitId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("PUT /api/expense-splits/{}/settle by user {}", splitId, userId);
 
         settlementService.markAsSettled(splitId, userId);
@@ -206,9 +204,9 @@ public class ExpenseApiController {
     @PutMapping("/expense-splits/{splitId}/unsettle")
     public ResponseEntity<ApiResponse<Void>> markAsUnsettled(
             @PathVariable UUID splitId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("PUT /api/expense-splits/{}/unsettle by user {}", splitId, userId);
 
         settlementService.markAsUnsettled(splitId, userId);
@@ -230,15 +228,13 @@ public class ExpenseApiController {
     @PutMapping("/trips/{tripId}/settlement/settle")
     public ResponseEntity<ApiResponse<Void>> settleByUsers(
             @PathVariable UUID tripId,
-            @RequestBody Map<String, String> body,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @Valid @RequestBody SettleUsersRequest request,
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
-        UUID fromUserId = UUID.fromString(body.get("fromUserId"));
-        UUID toUserId = UUID.fromString(body.get("toUserId"));
-        log.debug("PUT /api/trips/{}/settlement/settle from={} to={} by user {}", tripId, fromUserId, toUserId, userId);
+        UUID userId = principal.getId();
+        log.debug("PUT /api/trips/{}/settlement/settle from={} to={} by user {}", tripId, request.getFromUserId(), request.getToUserId(), userId);
 
-        settlementService.settleAllBetweenUsers(tripId, fromUserId, toUserId, userId);
+        settlementService.settleAllBetweenUsers(tripId, request.getFromUserId(), request.getToUserId(), userId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "已結清"));
     }
@@ -257,41 +253,15 @@ public class ExpenseApiController {
     @PutMapping("/trips/{tripId}/settlement/unsettle")
     public ResponseEntity<ApiResponse<Void>> unsettleByUsers(
             @PathVariable UUID tripId,
-            @RequestBody Map<String, String> body,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @Valid @RequestBody SettleUsersRequest request,
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
-        UUID fromUserId = UUID.fromString(body.get("fromUserId"));
-        UUID toUserId = UUID.fromString(body.get("toUserId"));
-        log.debug("PUT /api/trips/{}/settlement/unsettle from={} to={} by user {}", tripId, fromUserId, toUserId, userId);
+        UUID userId = principal.getId();
+        log.debug("PUT /api/trips/{}/settlement/unsettle from={} to={} by user {}", tripId, request.getFromUserId(), request.getToUserId(), userId);
 
-        settlementService.unsettleAllBetweenUsers(tripId, fromUserId, toUserId, userId);
+        settlementService.unsettleAllBetweenUsers(tripId, request.getFromUserId(), request.getToUserId(), userId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "已取消結清"));
     }
 
-    /**
-     * Extracts user ID from the OAuth2 principal or throws UnauthorizedException if not authenticated.
-     *
-     * @contract
-     *   - pre: principal != null
-     *   - post: returns valid user UUID
-     *   - throws: UnauthorizedException if principal is null
-     */
-    private UUID getCurrentUserId(OAuth2User principal) {
-        if (principal == null) {
-            throw new UnauthorizedException("認證已過期，請重新登入");
-        }
-        // Extract the user ID from the principal
-        String sub = principal.getAttribute("sub");
-        if (sub != null) {
-            try {
-                return UUID.fromString(sub);
-            } catch (IllegalArgumentException e) {
-                // If sub is not a valid UUID, generate one based on the sub hash
-                return UUID.nameUUIDFromBytes(sub.getBytes());
-            }
-        }
-        throw new UnauthorizedException("無法取得用戶身份");
-    }
 }

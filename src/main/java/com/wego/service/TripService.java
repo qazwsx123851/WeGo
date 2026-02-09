@@ -402,10 +402,6 @@ public class TripService {
      */
     @Transactional
     public void removeMember(UUID tripId, UUID targetUserId, UUID requesterId) {
-        if (!permissionChecker.canManageMembers(tripId, requesterId)) {
-            throw new ForbiddenException("只有行程建立者可以移除成員");
-        }
-
         TripMember member = tripMemberRepository.findByTripIdAndUserId(tripId, targetUserId)
                 .orElseThrow(() -> ResourceNotFoundException.withCode("MEMBER_NOT_FOUND", "找不到此成員"));
 
@@ -413,9 +409,18 @@ public class TripService {
             throw new ForbiddenException("無法移除行程建立者");
         }
 
-        tripMemberRepository.delete(member);
-
-        log.info("Removed user: {} from trip: {} by: {}", targetUserId, tripId, requesterId);
+        if (targetUserId.equals(requesterId)) {
+            // Self-removal (leaving the trip) - any non-owner can leave
+            tripMemberRepository.delete(member);
+            log.info("User {} left trip {}", targetUserId, tripId);
+        } else {
+            // Removing another member - requires manage permission
+            if (!permissionChecker.canManageMembers(tripId, requesterId)) {
+                throw new ForbiddenException("只有行程建立者可以移除成員");
+            }
+            tripMemberRepository.delete(member);
+            log.info("Removed user: {} from trip: {} by: {}", targetUserId, tripId, requesterId);
+        }
     }
 
     /**
@@ -479,15 +484,23 @@ public class TripService {
         }
     }
 
+    private static final String UNKNOWN_USER_NAME = "Unknown";
+
     private List<TripResponse.MemberSummary> getMemberSummaries(UUID tripId) {
         List<TripMember> members = tripMemberRepository.findByTripId(tripId);
 
+        List<UUID> userIds = members.stream()
+                .map(TripMember::getUserId)
+                .toList();
+        Map<UUID, User> userMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, java.util.function.Function.identity()));
+
         return members.stream()
                 .map(member -> {
-                    User user = userRepository.findById(member.getUserId()).orElse(null);
+                    User user = userMap.get(member.getUserId());
                     return TripResponse.MemberSummary.builder()
                             .userId(member.getUserId())
-                            .nickname(user != null ? user.getNickname() : "Unknown")
+                            .nickname(user != null ? user.getNickname() : UNKNOWN_USER_NAME)
                             .avatarUrl(user != null ? user.getAvatarUrl() : null)
                             .role(member.getRole())
                             .build();

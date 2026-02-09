@@ -4,14 +4,14 @@ import com.wego.dto.ApiResponse;
 import com.wego.dto.request.CreateDocumentRequest;
 import com.wego.dto.response.DocumentResponse;
 import com.wego.entity.Document;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import com.wego.service.DocumentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,8 +20,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.wego.exception.UnauthorizedException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -62,9 +60,9 @@ public class DocumentApiController {
             @PathVariable UUID tripId,
             @RequestPart("file") MultipartFile file,
             @RequestPart(value = "metadata", required = false) @Valid CreateDocumentRequest request,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("POST /api/trips/{}/documents by user {}", tripId, userId);
 
         if (request == null) {
@@ -91,9 +89,9 @@ public class DocumentApiController {
     @GetMapping("/trips/{tripId}/documents")
     public ResponseEntity<ApiResponse<List<DocumentResponse>>> getDocumentsByTrip(
             @PathVariable UUID tripId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/documents by user {}", tripId, userId);
 
         List<DocumentResponse> documents = documentService.getDocumentsByTrip(tripId, userId);
@@ -115,9 +113,9 @@ public class DocumentApiController {
     public ResponseEntity<ApiResponse<DocumentResponse>> getDocument(
             @PathVariable UUID tripId,
             @PathVariable UUID documentId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/documents/{} by user {}", tripId, documentId, userId);
 
         DocumentResponse document = documentService.getDocument(tripId, documentId, userId);
@@ -139,9 +137,9 @@ public class DocumentApiController {
     public ResponseEntity<ApiResponse<Map<String, String>>> getDownloadUrl(
             @PathVariable UUID tripId,
             @PathVariable UUID documentId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/documents/{}/download by user {}", tripId, documentId, userId);
 
         String downloadUrl = documentService.getDownloadUrl(tripId, documentId, userId);
@@ -167,9 +165,9 @@ public class DocumentApiController {
     public ResponseEntity<ApiResponse<Void>> deleteDocument(
             @PathVariable UUID tripId,
             @PathVariable UUID documentId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("DELETE /api/trips/{}/documents/{} by user {}", tripId, documentId, userId);
 
         documentService.deleteDocument(tripId, documentId, userId);
@@ -190,9 +188,9 @@ public class DocumentApiController {
     @GetMapping("/trips/{tripId}/documents/storage")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTripStorageUsage(
             @PathVariable UUID tripId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/documents/storage by user {}", tripId, userId);
 
         long usedBytes = documentService.getTripStorageUsage(tripId, userId);
@@ -221,9 +219,9 @@ public class DocumentApiController {
     public ResponseEntity<ApiResponse<List<DocumentResponse>>> getDocumentsByActivity(
             @PathVariable UUID tripId,
             @PathVariable UUID activityId,
-            @AuthenticationPrincipal OAuth2User principal) {
+            @CurrentUser UserPrincipal principal) {
 
-        UUID userId = getCurrentUserId(principal);
+        UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/activities/{}/documents by user {}", tripId, activityId, userId);
 
         List<DocumentResponse> documents = documentService.getDocumentsByActivity(activityId, tripId, userId);
@@ -231,28 +229,4 @@ public class DocumentApiController {
         return ResponseEntity.ok(ApiResponse.success(documents));
     }
 
-    /**
-     * Extracts user ID from the OAuth2 principal or throws UnauthorizedException if not authenticated.
-     *
-     * @contract
-     *   - pre: principal != null
-     *   - post: returns valid user UUID
-     *   - throws: UnauthorizedException if principal is null
-     */
-    private UUID getCurrentUserId(OAuth2User principal) {
-        if (principal == null) {
-            throw new UnauthorizedException("認證已過期，請重新登入");
-        }
-        // Extract user ID from the principal
-        String sub = principal.getAttribute("sub");
-        if (sub != null) {
-            try {
-                return UUID.fromString(sub);
-            } catch (IllegalArgumentException e) {
-                // If sub is not a valid UUID, generate one based on the sub hash
-                return UUID.nameUUIDFromBytes(sub.getBytes());
-            }
-        }
-        throw new UnauthorizedException("無法取得用戶身份");
-    }
 }

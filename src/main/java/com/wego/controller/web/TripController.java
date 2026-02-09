@@ -11,9 +11,11 @@ import com.wego.entity.User;
 import com.wego.dto.response.TodoResponse;
 import com.wego.entity.TodoStatus;
 import com.wego.repository.PlaceRepository;
+import com.wego.dto.response.InviteLinkResponse;
 import com.wego.service.ActivityService;
 import com.wego.service.DocumentService;
 import com.wego.service.ExpenseService;
+import com.wego.service.InviteLinkService;
 import com.wego.service.TodoService;
 import com.wego.service.TripService;
 import com.wego.service.UserService;
@@ -67,6 +69,7 @@ public class TripController {
     private final TodoService todoService;
     private final ExpenseService expenseService;
     private final DocumentService documentService;
+    private final InviteLinkService inviteLinkService;
     private final PlaceRepository placeRepository;
 
     /**
@@ -678,15 +681,36 @@ public class TripController {
         boolean isOwner = currentMember != null &&
                 currentMember.getRole() == Role.OWNER;
 
+        boolean canEdit = isOwner ||
+                (currentMember != null && currentMember.getRole() == Role.EDITOR);
+
         model.addAttribute("trip", trip);
         model.addAttribute("members", members);
         model.addAttribute("currentMember", currentMember);
         model.addAttribute("currentUserId", user.getId());
         model.addAttribute("isOwner", isOwner);
-        model.addAttribute("canEdit", isOwner ||
-                (currentMember != null && currentMember.getRole() == Role.EDITOR));
+        model.addAttribute("canEdit", canEdit);
+        model.addAttribute("memberCount", members.size());
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
+
+        // Invite link attributes
+        model.addAttribute("canInvite", canEdit);
+        try {
+            List<InviteLinkResponse> activeLinks = inviteLinkService.getActiveInviteLinks(id, user.getId());
+            if (activeLinks != null && !activeLinks.isEmpty()) {
+                InviteLinkResponse link = activeLinks.get(0);
+                model.addAttribute("inviteLink", link.getInviteUrl());
+                model.addAttribute("inviteLinkExpiry", link.getExpiresAt());
+            } else {
+                model.addAttribute("inviteLink", null);
+                model.addAttribute("inviteLinkExpiry", null);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load invite links for trip {}: {}", id, e.getMessage());
+            model.addAttribute("inviteLink", null);
+            model.addAttribute("inviteLinkExpiry", null);
+        }
 
         return "trip/members";
     }

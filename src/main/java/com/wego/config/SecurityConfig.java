@@ -47,7 +47,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 // Disable CSRF for public API endpoints
-                .ignoringRequestMatchers("/api/health", "/api/weather/**", "/api/test/auth/**")
+                .ignoringRequestMatchers("/api/health", "/api/test/auth/**")
             )
             // Security Headers
             .headers(headers -> headers

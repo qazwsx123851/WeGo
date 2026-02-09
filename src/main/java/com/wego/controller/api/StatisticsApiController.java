@@ -5,6 +5,7 @@ import com.wego.dto.response.CategoryBreakdownResponse;
 import com.wego.dto.response.MemberStatisticsResponse;
 import com.wego.dto.response.TrendResponse;
 import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import com.wego.service.StatisticsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,8 +46,9 @@ public class StatisticsApiController {
     @GetMapping("/category")
     public ResponseEntity<ApiResponse<CategoryBreakdownResponse>> getCategoryBreakdown(
             @PathVariable UUID tripId,
-            @CurrentUser UUID currentUser) {
+            @CurrentUser UserPrincipal principal) {
 
+        UUID currentUser = principal.getId();
         log.debug("GET /api/trips/{}/statistics/category by user {}", tripId, currentUser);
 
         CategoryBreakdownResponse response = statisticsService.getCategoryBreakdown(tripId, currentUser);
@@ -70,8 +72,9 @@ public class StatisticsApiController {
     @GetMapping("/trend")
     public ResponseEntity<ApiResponse<TrendResponse>> getTrend(
             @PathVariable UUID tripId,
-            @CurrentUser UUID currentUser) {
+            @CurrentUser UserPrincipal principal) {
 
+        UUID currentUser = principal.getId();
         log.debug("GET /api/trips/{}/statistics/trend by user {}", tripId, currentUser);
 
         TrendResponse response = statisticsService.getTrend(tripId, currentUser);
@@ -95,8 +98,9 @@ public class StatisticsApiController {
     @GetMapping("/members")
     public ResponseEntity<ApiResponse<MemberStatisticsResponse>> getMemberStatistics(
             @PathVariable UUID tripId,
-            @CurrentUser UUID currentUser) {
+            @CurrentUser UserPrincipal principal) {
 
+        UUID currentUser = principal.getId();
         log.debug("GET /api/trips/{}/statistics/members by user {}", tripId, currentUser);
 
         MemberStatisticsResponse response = statisticsService.getMemberStatistics(tripId, currentUser);

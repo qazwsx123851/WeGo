@@ -202,6 +202,30 @@ public class TripApiController {
     }
 
     /**
+     * Current user leaves a trip (self-removal).
+     *
+     * @contract
+     *   - pre: tripId is valid, user is a member but not OWNER
+     *   - post: User is removed from trip
+     *   - calls: TripService#removeMember
+     *
+     * @param tripId The trip ID
+     * @param principal The authenticated user
+     * @return 204 No Content on success
+     */
+    @DeleteMapping("/trips/{tripId}/members/me")
+    public ResponseEntity<Void> leaveTrip(
+            @PathVariable UUID tripId,
+            @CurrentUser UserPrincipal principal) {
+
+        log.info("User {} leaving trip {}", principal.getId(), tripId);
+
+        tripService.removeMember(tripId, principal.getId(), principal.getId());
+
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Removes a member from a trip (owner only).
      *
      * @contract

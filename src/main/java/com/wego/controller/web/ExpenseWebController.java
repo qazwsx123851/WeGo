@@ -272,15 +272,12 @@ public class ExpenseWebController {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
-        // Get all expenses and find the target one
-        List<ExpenseResponse> expenses = expenseService.getExpensesByTrip(tripId, user.getId());
-        ExpenseResponse expense = expenses.stream()
-                .filter(e -> e.getId().equals(expenseId))
-                .findFirst()
-                .orElse(null);
-
-        if (expense == null) {
-            log.warn("Expense {} not found in trip {}", expenseId, tripId);
+        // Get the specific expense directly
+        ExpenseResponse expense;
+        try {
+            expense = expenseService.getExpense(expenseId, user.getId());
+        } catch (Exception e) {
+            log.warn("Expense {} not found in trip {}: {}", expenseId, tripId, e.getMessage());
             return "redirect:/trips/" + tripId + "/expenses?error=expense_not_found";
         }
 
@@ -345,14 +342,11 @@ public class ExpenseWebController {
         }
 
         // Find the expense
-        List<ExpenseResponse> expenses = expenseService.getExpensesByTrip(tripId, user.getId());
-        ExpenseResponse expense = expenses.stream()
-                .filter(e -> e.getId().equals(expenseId))
-                .findFirst()
-                .orElse(null);
-
-        if (expense == null) {
-            log.warn("Expense {} not found in trip {}", expenseId, tripId);
+        ExpenseResponse expense;
+        try {
+            expense = expenseService.getExpense(expenseId, user.getId());
+        } catch (Exception e) {
+            log.warn("Expense {} not found in trip {}: {}", expenseId, tripId, e.getMessage());
             return "redirect:/trips/" + tripId + "/expenses?error=expense_not_found";
         }
 

@@ -2,6 +2,8 @@ package com.wego.controller.api;
 
 import com.wego.dto.ApiResponse;
 import com.wego.dto.response.ExchangeRateResponse;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import com.wego.service.ExchangeRateService;
 import com.wego.service.RateLimitService;
 import lombok.RequiredArgsConstructor;
@@ -53,11 +55,12 @@ public class ExchangeRateApiController {
     @GetMapping
     public ResponseEntity<ApiResponse<ExchangeRateResponse>> getRate(
             @RequestParam String from,
-            @RequestParam String to) {
+            @RequestParam String to,
+            @CurrentUser UserPrincipal principal) {
 
         log.debug("GET /api/exchange-rates?from={}&to={}", from, to);
 
-        if (!rateLimitService.isAllowed("exchange-rates", RATE_LIMIT_EXCHANGE)) {
+        if (!rateLimitService.isAllowed("exchange-rates:" + principal.getId(), RATE_LIMIT_EXCHANGE)) {
             log.warn("Rate limit exceeded for exchange rates");
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(ApiResponse.error("RATE_LIMIT_EXCEEDED", "Too many requests. Please try again later."));

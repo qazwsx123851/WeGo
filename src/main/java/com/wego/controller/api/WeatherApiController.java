@@ -89,32 +89,4 @@ public class WeatherApiController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    /**
-     * Evicts cached weather data for a location.
-     * Admin endpoint for cache management.
-     *
-     * @contract
-     *   - pre: lat between -90 and 90
-     *   - pre: lng between -180 and 180
-     *   - post: Cache entry for location is removed
-     *   - calls: WeatherService#evictCache
-     *
-     * @param lat Latitude of the location
-     * @param lng Longitude of the location
-     * @return Success message
-     */
-    @DeleteMapping("/cache")
-    public ResponseEntity<ApiResponse<Void>> evictCache(
-            @RequestParam double lat,
-            @RequestParam double lng) {
-
-        log.info("Cache eviction request: lat={}, lng={}", lat, lng);
-
-        weatherService.evictCache(lat, lng);
-
-        return ResponseEntity.ok(ApiResponse.<Void>builder()
-                .success(true)
-                .message("Cache evicted successfully")
-                .build());
-    }
 }

@@ -406,10 +406,18 @@ class TripServiceTest {
         @Test
         @DisplayName("T-048: Editor cannot remove member")
         void removeMember_asEditor_shouldThrowForbiddenException() {
+            UUID targetUserId = UUID.randomUUID();
+            TripMember targetMember = TripMember.builder()
+                    .tripId(tripId)
+                    .userId(targetUserId)
+                    .role(Role.EDITOR)
+                    .build();
+            when(tripMemberRepository.findByTripIdAndUserId(tripId, targetUserId))
+                    .thenReturn(Optional.of(targetMember));
             when(permissionChecker.canManageMembers(tripId, testUser.getId())).thenReturn(false);
 
             assertThrows(ForbiddenException.class,
-                    () -> tripService.removeMember(tripId, UUID.randomUUID(), testUser.getId()));
+                    () -> tripService.removeMember(tripId, targetUserId, testUser.getId()));
         }
 
         @Test

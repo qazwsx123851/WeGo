@@ -140,11 +140,21 @@ public class UserService {
      * @param nickname The new nickname
      * @throws ResourceNotFoundException if user not found
      */
+    private static final int MAX_NICKNAME_LENGTH = 50;
+
     @Transactional
     public void updateNickname(UUID userId, String nickname) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
-        user.setNickname(nickname);
+
+        String sanitized = nickname != null
+                ? nickname.replaceAll("<[^>]*>", "").trim()
+                : "";
+        if (sanitized.length() > MAX_NICKNAME_LENGTH) {
+            sanitized = sanitized.substring(0, MAX_NICKNAME_LENGTH);
+        }
+
+        user.setNickname(sanitized);
         userRepository.save(user);
         log.info("Updated nickname for user {}", userId);
     }

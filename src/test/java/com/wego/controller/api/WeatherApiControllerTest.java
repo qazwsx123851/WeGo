@@ -198,34 +198,6 @@ class WeatherApiControllerTest {
     }
 
     @Nested
-    @DisplayName("DELETE /api/weather/cache")
-    class EvictCache {
-
-        @Test
-        @DisplayName("should evict cache successfully")
-        void shouldEvictCacheSuccessfully() throws Exception {
-            doNothing().when(weatherService).evictCache(TEST_LAT, TEST_LNG);
-
-            mockMvc.perform(delete("/api/weather/cache")
-                            .param("lat", String.valueOf(TEST_LAT))
-                            .param("lng", String.valueOf(TEST_LNG)))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.message").value("Cache evicted successfully"));
-
-            verify(weatherService).evictCache(TEST_LAT, TEST_LNG);
-        }
-
-        @Test
-        @DisplayName("should return 400 for missing parameters")
-        void shouldReturn400ForMissingParameters() throws Exception {
-            mockMvc.perform(delete("/api/weather/cache")
-                            .param("lat", String.valueOf(TEST_LAT)))
-                    .andExpect(status().isBadRequest());
-        }
-    }
-
-    @Nested
     @DisplayName("Error handling")
     class ErrorHandling {
 

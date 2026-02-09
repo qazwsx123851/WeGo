@@ -159,6 +159,33 @@ public class ExpenseService {
     }
 
     /**
+     * Gets a single expense by ID with permission check.
+     *
+     * @contract
+     *   - pre: expenseId != null, userId != null
+     *   - pre: user has view permission on the expense's trip
+     *   - post: Returns expense response
+     *   - calledBy: ExpenseWebController#showExpenseDetail, ExpenseWebController#showEditForm
+     *
+     * @param expenseId The expense ID
+     * @param userId The ID of the requesting user
+     * @return The expense response
+     * @throws ResourceNotFoundException if expense not found
+     * @throws ForbiddenException if user has no view permission
+     */
+    @Transactional(readOnly = true)
+    public ExpenseResponse getExpense(UUID expenseId, UUID userId) {
+        Expense expense = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Expense", expenseId.toString()));
+
+        if (!permissionChecker.canView(expense.getTripId(), userId)) {
+            throw new ForbiddenException("No permission to view this expense");
+        }
+
+        return buildExpenseResponse(expense);
+    }
+
+    /**
      * Updates an expense.
      *
      * @contract

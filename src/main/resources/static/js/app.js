@@ -401,12 +401,8 @@ const WeatherUI = {
      *   - post: Sets lat/lng and calls loadWeather
      */
     tryGeolocation() {
-        console.log('[Weather] Starting geolocation request...');
-        console.log('[Weather] Fallback coordinates:', this.fallbackLat, this.fallbackLng);
-
         // Check if geolocation is supported
         if (!navigator.geolocation) {
-            console.log('[Weather] Geolocation not supported, using fallback');
             this.useFallbackLocation();
             return;
         }
@@ -417,13 +413,10 @@ const WeatherUI = {
             (position) => {
                 this.lat = position.coords.latitude;
                 this.lng = position.coords.longitude;
-                console.log('[Weather] ✅ User allowed geolocation');
-                console.log('[Weather] Using USER location:', this.lat, this.lng);
                 this.loadWeather();
             },
             // Error callback (denied or failed)
             (error) => {
-                console.log('[Weather] ❌ Geolocation denied or failed:', error.code, error.message);
                 this.useFallbackLocation();
             },
             // Options
@@ -443,7 +436,6 @@ const WeatherUI = {
         this.lng = this.fallbackLng;
 
         if (this.lat && this.lng) {
-            console.log('[Weather] Using FALLBACK location:', this.lat, this.lng);
             this.loadWeather();
         } else {
             // No fallback available, show error
