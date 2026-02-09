@@ -198,9 +198,9 @@
                     <!-- Actions (Owner only, cannot remove self) -->
                     <div th:if="${isOwner && member.userId != currentUserId}" class="flex items-center gap-2">
                         <!-- Change Role Dropdown -->
-                        <div class="relative" x-data="{ open: false }">
+                        <div class="relative">
                             <button type="button"
-                                    @click="open = !open"
+                                    onclick="toggleRoleDropdown(this)"
                                     class="p-2 rounded-lg text-gray-500 dark:text-gray-400
                                            hover:bg-gray-100 dark:hover:bg-gray-800
                                            transition-colors duration-200 cursor-pointer"
@@ -214,14 +214,12 @@
                             </button>
 
                             <!-- Role Dropdown Menu -->
-                            <div x-show="open"
-                                 @click.away="open = false"
-                                 x-transition
-                                 class="absolute right-0 mt-2 w-36
+                            <div class="role-dropdown hidden absolute right-0 w-36
                                         bg-white dark:bg-gray-800
                                         rounded-xl shadow-lg
                                         border border-gray-100 dark:border-gray-700
-                                        py-1 z-10">
+                                        py-1 z-10"
+                                 style="bottom: 100%; margin-bottom: 0.5rem;">
                                 <button type="button"
                                         th:data-trip-id="${trip.id}"
                                         th:data-user-id="${member.userId}"
@@ -565,11 +563,36 @@
             document.getElementById('leaveTripDialog').classList.add('hidden');
         }
 
+        /**
+         * Toggle role dropdown visibility
+         * @param {HTMLElement} btn - The gear button element
+         */
+        function toggleRoleDropdown(btn) {
+            const dropdown = btn.parentElement.querySelector('.role-dropdown');
+            // Close all other dropdowns first
+            document.querySelectorAll('.role-dropdown').forEach(function(d) {
+                if (d !== dropdown) d.classList.add('hidden');
+            });
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close role dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.relative')) {
+                document.querySelectorAll('.role-dropdown').forEach(function(d) {
+                    d.classList.add('hidden');
+                });
+            }
+        });
+
         // Close dialogs on escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeRemoveDialog();
                 closeLeaveDialog();
+                document.querySelectorAll('.role-dropdown').forEach(function(d) {
+                    d.classList.add('hidden');
+                });
             }
         });
 
