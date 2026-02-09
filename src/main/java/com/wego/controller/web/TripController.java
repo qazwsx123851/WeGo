@@ -1347,6 +1347,38 @@ public class TripController {
     }
 
     /**
+     * Delete an activity from a trip.
+     *
+     * @contract
+     *   - pre: id != null, activityId != null, principal != null
+     *   - pre: user has OWNER or EDITOR role
+     *   - post: Activity is deleted
+     *   - post: Redirects to activities list with success message
+     *   - calls: ActivityService#deleteActivity
+     *   - calledBy: Web browser form submission (delete confirmation dialog)
+     */
+    @PostMapping("/{id}/activities/{activityId}/delete")
+    public String deleteActivity(@PathVariable UUID id,
+                                 @PathVariable UUID activityId,
+                                 @AuthenticationPrincipal OAuth2User principal,
+                                 RedirectAttributes redirectAttributes) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        try {
+            activityService.deleteActivity(activityId, user.getId());
+            redirectAttributes.addFlashAttribute("successMessage", "景點已刪除");
+        } catch (Exception e) {
+            log.error("Failed to delete activity: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("errorMessage", "刪除失敗：" + e.getMessage());
+        }
+
+        return "redirect:/trips/" + id + "/activities";
+    }
+
+    /**
      * Recalculate all transport times for a trip.
      *
      * Uses Google Maps API with rate limiting. Falls back to Haversine when API fails.
