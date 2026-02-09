@@ -273,33 +273,90 @@
    * Styles for activity card reordering via drag-and-drop
    * ===================================================== */
 
-  /* Dragging state - the card being dragged */
-  .activity-card.dragging {
-    @apply opacity-50 scale-[1.02] shadow-lg;
+  /* Base transition for smooth FLIP animation */
+  .sortable-activities .activity-card {
+    @apply relative;
+    transition: transform 200ms ease, opacity 200ms ease, box-shadow 200ms ease;
+    will-change: transform;
   }
 
-  /* Touch dragging state - more pronounced for mobile */
-  .activity-card.touch-dragging {
-    @apply opacity-80 shadow-xl;
+  /* Desktop dragging - original card becomes muted placeholder slot */
+  .activity-card.dragging {
+    @apply opacity-30 bg-gray-100 dark:bg-gray-800/50;
+    border: 2px dashed theme('colors.gray.300');
     transition: none;
   }
 
-  /* Drop target indicator */
-  .activity-card.drag-over {
-    @apply border-primary-500 border-2 bg-primary-50;
+  .dark .activity-card.dragging {
+    border-color: theme('colors.gray.600');
   }
 
-  .dark .activity-card.drag-over {
-    @apply border-primary-400 bg-primary-900/30;
+  /* Touch dragging - card IS the visual proxy, needs "lifted" look */
+  .activity-card.touch-dragging {
+    @apply opacity-95 shadow-2xl;
+    z-index: 1000;
+    transition: box-shadow 150ms ease, opacity 150ms ease;
+    filter: brightness(1.02);
+  }
+
+  /* Insertion line indicator - shows WHERE the item will land */
+  .activity-card.drag-insert-above::before {
+    content: '';
+    @apply absolute rounded-full bg-primary-500;
+    top: -5px;
+    left: 8px;
+    right: 8px;
+    height: 3px;
+    z-index: 10;
+  }
+
+  .activity-card.drag-insert-below::after {
+    content: '';
+    @apply absolute rounded-full bg-primary-500;
+    bottom: -5px;
+    left: 8px;
+    right: 8px;
+    height: 3px;
+    z-index: 10;
+  }
+
+  /* Ensure insertion line parent creates stacking context */
+  .activity-card.drag-insert-above,
+  .activity-card.drag-insert-below {
+    z-index: 1;
+  }
+
+  /* Dot endpoints on insertion line */
+  .activity-card.drag-insert-above::before {
+    box-shadow: -3px 0 0 2px theme('colors.primary.500'),
+                calc(100%) 0 0 2px theme('colors.primary.500');
+  }
+
+  .activity-card.drag-insert-below::after {
+    box-shadow: -3px 0 0 2px theme('colors.primary.500'),
+                calc(100%) 0 0 2px theme('colors.primary.500');
+  }
+
+  /* Dark mode insertion line dots */
+  .dark .activity-card.drag-insert-above::before {
+    box-shadow: -3px 0 0 2px theme('colors.primary.400'),
+                calc(100%) 0 0 2px theme('colors.primary.400');
+  }
+
+  .dark .activity-card.drag-insert-below::after {
+    box-shadow: -3px 0 0 2px theme('colors.primary.400'),
+                calc(100%) 0 0 2px theme('colors.primary.400');
   }
 
   /* Placeholder for touch drag */
   .drag-placeholder {
-    @apply bg-gray-200 rounded-xl border-2 border-dashed border-gray-300;
+    @apply rounded-xl border-2 border-dashed border-primary-300 dark:border-primary-600;
+    background: theme('colors.primary.50');
+    transition: height 200ms ease;
   }
 
   .dark .drag-placeholder {
-    @apply bg-gray-700 border-gray-600;
+    background: rgba(99, 102, 241, 0.1);
   }
 
   /* Prevent text selection during drag */
@@ -316,6 +373,11 @@
 
   .dark .drag-handle:hover {
     @apply text-gray-400;
+  }
+
+  /* Drag handle keyboard focus */
+  .drag-handle:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-500 rounded;
   }
 
   /* Saving state for sortable container */
@@ -532,5 +594,13 @@ html.dark .flatpickr-day.today:not(.selected) {
   .flatpickr-calendar * {
     transition: none !important;
     animation: none !important;
+  }
+
+  .sortable-activities .activity-card {
+    transition: none !important;
+  }
+
+  .drag-placeholder {
+    transition: none !important;
   }
 }
