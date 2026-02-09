@@ -117,7 +117,8 @@
         <div class="space-y-6">
             <!-- Day Group -->
             <th:block th:each="dayGroup : ${activitiesByDate}">
-                <section th:id="'day-' + ${#temporals.format(dayGroup.key, 'yyyy-MM-dd')}">
+                <section th:id="'day-' + ${#temporals.format(dayGroup.key, 'yyyy-MM-dd')}"
+                         style="scroll-margin-top: 80px;">
                     <!-- Day Header -->
                     <div class="flex items-center gap-3 mb-4">
                         <div class="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30
@@ -640,6 +641,32 @@
     <script th:src="@{/js/app.js}" defer></script>
     <script th:src="@{/js/route-optimizer.js}" defer></script>
     <script th:src="@{/js/drag-reorder.js}" defer></script>
+
+    <!-- Date Tab Navigation Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateTabs = document.querySelectorAll('button[data-date]');
+            const activeClasses = ['bg-primary-500', 'text-white'];
+            const inactiveClasses = ['bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-200'];
+
+            dateTabs.forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    var date = this.getAttribute('data-date');
+                    var section = document.getElementById('day-' + date);
+                    if (!section) return;
+
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                    dateTabs.forEach(function(t) {
+                        activeClasses.forEach(function(c) { t.classList.remove(c); });
+                        inactiveClasses.forEach(function(c) { t.classList.add(c); });
+                    });
+                    inactiveClasses.forEach(function(c) { this.classList.remove(c); }.bind(this));
+                    activeClasses.forEach(function(c) { this.classList.add(c); }.bind(this));
+                });
+            });
+        });
+    </script>
 
     <!-- Recalculate Transport Script -->
     <script th:inline="javascript">
