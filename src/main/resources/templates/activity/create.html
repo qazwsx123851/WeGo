@@ -133,7 +133,7 @@
             </section>
 
             <!-- Place Search -->
-            <section class="glass-card p-4 space-y-4">
+            <section class="glass-card p-4 space-y-4 relative z-30 overflow-visible">
                 <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100">地點資訊</h2>
 
                 <!-- Place Name Input with Search -->
@@ -170,8 +170,10 @@
                         </button>
                         <!-- Search Results Dropdown (hidden by default) -->
                         <div id="place-search-results"
-                             class="hidden absolute z-10 w-full mt-1 top-full left-0 bg-white dark:bg-gray-800
-                                    border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg
+                             class="hidden absolute z-50 w-full mt-1 top-full left-0
+                                    bg-white dark:bg-gray-800
+                                    border border-gray-200 dark:border-gray-700 rounded-xl
+                                    shadow-xl ring-1 ring-black/5 dark:ring-white/10
                                     max-h-60 overflow-y-auto">
                             <!-- Results populated by JS -->
                         </div>
@@ -487,7 +489,7 @@
                                    th:value="${activity?.transportDurationMinutes}"
                                    min="1"
                                    max="2880"
-                                   step="5"
+                                   step="1"
                                    placeholder="例: 180 (3小時)"
                                    class="flex-1 px-4 py-3
                                           bg-white dark:bg-gray-800

@@ -109,10 +109,10 @@
                             th:data-todo-id="${todo.id}"
                             th:data-todo-status="${todo.status}"
                             onclick="TodoUI.toggleStatus(this.dataset.todoId, this.dataset.todoStatus)"
-                            th:class="'flex-shrink-0 w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all duration-200 ' +
-                                      (${todo.status.name() == 'COMPLETED'} ? 'bg-success border-success text-white' :
-                                       ${todo.status.name() == 'IN_PROGRESS'} ? 'bg-primary-500 border-primary-500 text-white' :
-                                       'border-gray-300 dark:border-gray-600 hover:border-primary-500')"
+                            th:class="${'flex-shrink-0 w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all duration-200 ' +
+                                      (todo.status.name() == 'COMPLETED' ? 'bg-success border-success text-white' :
+                                       (todo.status.name() == 'IN_PROGRESS' ? 'bg-primary-500 border-primary-500 text-white' :
+                                        'border-gray-300 dark:border-gray-600 hover:border-primary-500'))}"
                             th:aria-label="'切換狀態: ' + ${todo.title}">
                         <svg th:if="${todo.status.name() == 'COMPLETED'}" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -120,10 +120,10 @@
                         <div th:if="${todo.status.name() == 'IN_PROGRESS'}" class="w-2 h-2 bg-white rounded-full"></div>
                     </button>
                     <div th:unless="${canEdit}"
-                         th:class="'flex-shrink-0 w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center ' +
-                                   (${todo.status.name() == 'COMPLETED'} ? 'bg-success border-success text-white' :
-                                    ${todo.status.name() == 'IN_PROGRESS'} ? 'bg-primary-500 border-primary-500 text-white' :
-                                    'border-gray-300 dark:border-gray-600')">
+                         th:class="${'flex-shrink-0 w-6 h-6 mt-0.5 rounded-full border-2 flex items-center justify-center ' +
+                                   (todo.status.name() == 'COMPLETED' ? 'bg-success border-success text-white' :
+                                    (todo.status.name() == 'IN_PROGRESS' ? 'bg-primary-500 border-primary-500 text-white' :
+                                     'border-gray-300 dark:border-gray-600'))}">
                         <svg th:if="${todo.status.name() == 'COMPLETED'}" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                         </svg>
@@ -135,7 +135,7 @@
                          th:if="${canEdit}"
                          th:data-todo-id="${todo.id}"
                          onclick="TodoUI.showEditModal(this.dataset.todoId)">
-                        <h3 th:class="'font-medium truncate ' + (${todo.status.name() == 'COMPLETED'} ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')"
+                        <h3 th:class="${'font-medium truncate ' + (todo.status.name() == 'COMPLETED' ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')}"
                             th:text="${todo.title}">待辦事項標題</h3>
                         <p th:if="${todo.description}"
                            class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2"
@@ -170,7 +170,7 @@
                         </div>
                     </div>
                     <div class="flex-1 min-w-0" th:unless="${canEdit}">
-                        <h3 th:class="'font-medium truncate ' + (${todo.status.name() == 'COMPLETED'} ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')"
+                        <h3 th:class="${'font-medium truncate ' + (todo.status.name() == 'COMPLETED' ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')}"
                             th:text="${todo.title}">待辦事項標題</h3>
                         <p th:if="${todo.description}"
                            class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2"

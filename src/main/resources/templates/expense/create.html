@@ -186,7 +186,7 @@
                         <option th:each="member : ${members}"
                                 th:value="${member.userId}"
                                 th:text="${member.nickname}"
-                                th:selected="${expense?.payer?.id == member.userId or (expense?.payer == null and member.userId == currentUserId)}">
+                                th:selected="${expense?.paidBy == member.userId or (expense?.paidBy == null and member.userId == currentUserId)}">
                             成員名稱
                         </option>
                     </select>
@@ -202,24 +202,24 @@
                     <button type="button"
                             data-split-method="EQUAL"
                             class="split-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 active"
-                            th:classappend="${expense?.splitMethod == 'EQUAL' or expense?.splitMethod == null ? 'active' : ''}">
+                            th:classappend="${expense?.splitType?.name() == 'EQUAL' or expense?.splitType == null ? 'active' : ''}">
                         均分
                     </button>
                     <button type="button"
                             data-split-method="PERCENTAGE"
                             class="split-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200"
-                            th:classappend="${expense?.splitMethod == 'PERCENTAGE' ? 'active' : ''}">
+                            th:classappend="${expense?.splitType?.name() == 'PERCENTAGE' ? 'active' : ''}">
                         百分比
                     </button>
                     <button type="button"
                             data-split-method="CUSTOM"
                             class="split-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200"
-                            th:classappend="${expense?.splitMethod == 'CUSTOM' ? 'active' : ''}">
+                            th:classappend="${expense?.splitType?.name() == 'CUSTOM' ? 'active' : ''}">
                         自訂金額
                     </button>
                 </div>
                 <input type="hidden" id="splitMethod" name="splitMethod"
-                       th:value="${expense?.splitMethod != null ? expense.splitMethod : 'EQUAL'}">
+                       th:value="${expense?.splitType != null ? expense.splitType.name() : 'EQUAL'}">
 
                 <!-- Participants -->
                 <div class="space-y-3">
@@ -321,7 +321,7 @@
                 <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">備註</h2>
                 <textarea id="notes"
                           name="notes"
-                          th:text="${expense?.notes}"
+                          th:text="${expense?.note}"
                           rows="3"
                           maxlength="500"
                           placeholder="可選填的備註資訊..."

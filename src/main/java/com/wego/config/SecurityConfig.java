@@ -61,7 +61,7 @@ public class SecurityConfig {
                         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; " +
                         "font-src 'self' https://fonts.gstatic.com data:; " +
                         "img-src 'self' https: data: blob:; " +
-                        "connect-src 'self' https://unpkg.com https://lottie.host; " +
+                        "connect-src 'self' https://unpkg.com https://lottie.host https://cdn.jsdelivr.net; " +
                         "frame-src 'self' https://www.google.com https://maps.google.com; " +
                         "frame-ancestors 'none'"
                     )
