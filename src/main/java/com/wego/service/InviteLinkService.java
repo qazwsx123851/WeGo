@@ -47,7 +47,7 @@ public class InviteLinkService {
     private final TripService tripService;
     private final PermissionChecker permissionChecker;
 
-    @Value("${wego.base-url:http://localhost:8080}")
+    @Value("${wego.base-url}")
     private String baseUrl;
 
     /**

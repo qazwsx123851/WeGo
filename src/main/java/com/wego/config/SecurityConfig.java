@@ -98,7 +98,7 @@ public class SecurityConfig {
             // OAuth2 Login
             .oauth2Login(oauth2 -> oauth2
                 .loginPage("/login")
-                .defaultSuccessUrl("/dashboard", true)
+                .defaultSuccessUrl("/dashboard")
                 .failureUrl("/login?error=true")
                 .userInfoEndpoint(userInfo -> userInfo
                     .userService(customOAuth2UserService)
