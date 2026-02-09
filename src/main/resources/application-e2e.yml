@@ -1,0 +1,56 @@
+spring:
+  # H2 In-Memory Database for E2E Testing
+  datasource:
+    url: jdbc:h2:mem:e2edb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  # JPA Configuration for E2E
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # Disable real OAuth2 (use TestAuthController instead)
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: e2e-client-id
+            client-secret: e2e-client-secret
+
+  # Thymeleaf - Disable caching
+  thymeleaf:
+    cache: false
+
+# Fixed port for Playwright baseURL
+server:
+  port: 8080
+
+# Logging
+logging:
+  level:
+    root: WARN
+    com.wego: INFO
+
+# Application Properties
+wego:
+  supabase:
+    url: ""
+    service-key: ""
+
+  external-api:
+    google-maps:
+      api-key: e2e-api-key
+      enabled: false
+    openweathermap:
+      api-key: e2e-api-key
+      enabled: false
+    exchangerate:
+      api-key: e2e-api-key
+      enabled: false

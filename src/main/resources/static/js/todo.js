@@ -361,6 +361,12 @@ const TodoUI = {
             submitBtn.textContent = '新增';
         }
 
+        // Clear flatpickr due date
+        const dueDateInput = document.getElementById('todo-due-date');
+        if (dueDateInput && dueDateInput._flatpickr) {
+            dueDateInput._flatpickr.clear();
+        }
+
         // Open modal
         Modal.open('todo-modal');
 
@@ -396,7 +402,12 @@ const TodoUI = {
                 document.getElementById('todo-title').value = todo.title || '';
                 document.getElementById('todo-description').value = todo.description || '';
                 document.getElementById('todo-assignee').value = todo.assigneeId || '';
-                document.getElementById('todo-due-date').value = todo.dueDate || '';
+                const dueDateInput = document.getElementById('todo-due-date');
+                if (dueDateInput._flatpickr) {
+                    dueDateInput._flatpickr.setDate(todo.dueDate || '', false);
+                } else {
+                    dueDateInput.value = todo.dueDate || '';
+                }
                 document.getElementById('todo-status').value = todo.status || 'PENDING';
             }
 

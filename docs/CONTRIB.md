@@ -1,11 +1,12 @@
 # WeGo 開發貢獻指南
 
-> 最後更新: 2026-02-02 | 自動生成自 pom.xml 和 .env.example
+> 最後更新: 2026-02-04 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-04: Phase 4 完成 - 安全強化、深色模式、E2E 測試 (89 tests)、無障礙支援
+> - 2026-02-03: Phase 3 完成 - 多幣別匯率、統計圖表、債務簡化
 > - 2026-02-02: 遷移至 Google Routes API、修復 CI 測試、暫停自動部署
-> - 2026-02-01: 新增 Transport Mode 系統 (Phase 0-3)、全域概覽頁面、Profile 頁面、統一錯誤處理
-> - 2026-02-01: 新增 Phase 2 功能 (天氣、路線優化、交通計算、代辦事項)
+> - 2026-02-01: 新增 Transport Mode 系統、全域概覽頁面、Profile 頁面、統一錯誤處理
 > - 2026-01-28: 新增 spring-dotenv 自動載入環境變數
 
 ## 技術棧
@@ -24,6 +25,20 @@
 | 環境變數 | spring-dotenv | 4.0.0 |
 | Rate Limiting | Bucket4j | 8.7.0 |
 | 覆蓋率 | JaCoCo | 0.8.11 |
+| E2E 測試 | Playwright | 1.40+ |
+
+---
+
+## 開發進度
+
+| Phase | 狀態 | 功能 | 測試 |
+|-------|:----:|------|------|
+| Phase 1 | ✅ | OAuth 登入、行程 CRUD、景點管理、交通預估 | Unit |
+| Phase 2 | ✅ | 權限模型、代辦事項、智慧排序、天氣預報 | Unit |
+| Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 | Unit |
+| Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙 | Unit + E2E |
+
+**測試統計**: 786 單元測試 + 89 E2E 測試 (Playwright)
 
 ---
 
@@ -88,6 +103,17 @@ cp .env.example .env
 | `./mvnw jacoco:report` | 產生測試覆蓋率報告 |
 | `./mvnw compile -Dskip.frontend=true` | 編譯 (略過前端建置) |
 | `./mvnw checkstyle:check` | 程式碼風格檢查 |
+
+### E2E 測試指令
+
+```bash
+cd e2e
+npm install                     # 安裝 Playwright
+npx playwright test             # 執行所有 E2E 測試
+npx playwright test --ui        # 開啟測試 UI
+npx playwright test auth.spec   # 執行特定測試檔
+npx playwright show-report      # 查看測試報告
+```
 
 ### 覆蓋率報告位置
 
@@ -272,6 +298,8 @@ public String profile(@CurrentUser UserPrincipal principal) {
 | `TransportCalculationService` | 交通時間/距離計算、批次重算 | GoogleMapsClient, PlaceRepository |
 | `GlobalExpenseService` | 跨行程支出統計 | ExpenseRepository, TripMemberRepository |
 | `GlobalDocumentService` | 跨行程文件管理 | DocumentRepository, TripMemberRepository |
+| `ExchangeRateService` | 匯率查詢與轉換 (8 種貨幣) | ExchangeRateClient, CacheService |
+| `StatisticsService` | 支出統計分析 (分類/趨勢/成員) | ExpenseRepository |
 
 ### Domain 層級 (核心演算法)
 
@@ -289,6 +317,7 @@ public String profile(@CurrentUser UserPrincipal principal) {
 | `GoogleMapsClientImpl` | Google Places API (New) - searchText/details | MockGoogleMapsClient |
 | `OpenWeatherMapClient` | OpenWeatherMap 5-day | MockWeatherClient |
 | `SupabaseStorageClient` | Supabase Storage | MockStorageClient |
+| `ExchangeRateApiClient` | ExchangeRate-API | MockExchangeRateClient (固定匯率) |
 
 #### Google Routes API 遷移 (2026-02-02)
 
@@ -391,6 +420,48 @@ GOOGLE_MAPS_USE_ROUTES_API=false # 使用舊 Distance Matrix API
 - Google Maps API Rate Limiting (100ms 間隔)
 - 超過限額自動降級為 Haversine 估算
 - 返回詳細統計 (API 成功數、估算數、跳過數)
+
+### 深色模式
+
+支援深色模式切換：
+- Navbar 右上角切換按鈕 (太陽/月亮圖示)
+- 自動偵測系統偏好設定
+- FOUC (Flash of Unstyled Content) 防護
+- Chart.js 圖表主題自動響應
+- localStorage 記住使用者偏好
+
+**技術實作**:
+- Tailwind CSS `darkMode: 'class'`
+- `head` 內嵌同步腳本避免閃爍
+- `themechange` 自訂事件通知圖表重繪
+
+### 安全強化 (Phase 4)
+
+Phase 4 完成的安全修復：
+
+| 類別 | 修復項目 |
+|------|----------|
+| 認證 | API Controllers 認證檢查 |
+| 授權 | IDOR 跨行程資料洩漏防護 |
+| XSS | DOM XSS (innerHTML) 修復 |
+| 驗證 | 分帳金額/百分比驗證 |
+| Rate Limiting | Caffeine cache 防止記憶體耗盡 |
+| 資料清理 | 刪除行程時級聯刪除相關資料 |
+
+### E2E 測試架構
+
+Playwright E2E 測試覆蓋以下流程：
+
+| 測試檔 | 測試數 | 覆蓋範圍 |
+|--------|:------:|----------|
+| `auth.spec.ts` | 26 | 登入/登出、OAuth Mock |
+| `trip.spec.ts` | 18 | 行程 CRUD、邀請連結 |
+| `activity.spec.ts` | 18 | 景點管理、拖曳重排 |
+| `expense.spec.ts` | 12 | 支出記錄、分帳、統計 |
+| `document.spec.ts` | 15 | 文件上傳、搜尋 |
+| `todo.spec.ts` | 14 | 代辦事項管理 |
+| `dark-mode.spec.ts` | 28 | 深色模式切換、持久化 |
+| **總計** | **89** | - |
 
 ---
 

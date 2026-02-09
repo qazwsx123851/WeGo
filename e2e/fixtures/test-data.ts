@@ -201,6 +201,30 @@ export function generateRandomExpense(amount?: number): TestExpense {
 }
 
 /**
+ * Generate a random activity with a date within a trip's date range
+ */
+export function generateRandomActivity(tripStartDate: string): TestActivity {
+  const startDate = new Date(tripStartDate);
+  const types: TestActivity['type'][] = ['ATTRACTION', 'RESTAURANT', 'HOTEL', 'TRANSPORT', 'OTHER'];
+  const randomType = types[Math.floor(Math.random() * types.length)];
+
+  return {
+    title: `測試景點 ${Date.now()}`,
+    type: randomType,
+    date: startDate.toISOString().split('T')[0],
+    startTime: '10:00',
+    endTime: '12:00',
+    notes: '自動產生的測試景點',
+    place: {
+      name: `測試地點 ${Date.now()}`,
+      address: '台北市中正區忠孝東路一段1號',
+      latitude: 25.0418,
+      longitude: 121.5199,
+    },
+  };
+}
+
+/**
  * Format date for input fields (YYYY-MM-DD)
  */
 export function formatDateForInput(date: Date): string {

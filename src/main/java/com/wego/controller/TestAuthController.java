@@ -85,7 +85,7 @@ public class TestAuthController {
 
         // Create OAuth2 attributes
         Map<String, Object> attributes = new HashMap<>();
-        attributes.put("sub", user.getProviderId());
+        attributes.put("sub", user.getId().toString());
         attributes.put("email", user.getEmail());
         attributes.put("name", user.getNickname());
         attributes.put("picture", user.getAvatarUrl());

@@ -58,7 +58,7 @@ public class SecurityConfig {
                     .policyDirectives(
                         "default-src 'self'; " +
                         "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; " +
-                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; " +
                         "font-src 'self' https://fonts.gstatic.com data:; " +
                         "img-src 'self' https: data: blob:; " +
                         "connect-src 'self' https://unpkg.com https://lottie.host; " +

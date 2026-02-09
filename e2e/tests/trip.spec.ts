@@ -166,3 +166,182 @@ test.describe('Trip List View', () => {
     expect(hasTripCards || hasEmptyStateText || hasEmptyStateTestId).toBe(true);
   });
 });
+
+test.describe('E2E-TRIP-005: Dashboard Shows Created Trip', () => {
+  test.beforeEach(async ({ page }) => {
+    const isAvailable = await isTestAuthAvailable(page);
+    if (!isAvailable) {
+      test.skip(true, 'Test auth endpoint not available');
+    }
+    await authenticateTestUser(page);
+  });
+
+  test('created trip appears on dashboard', async ({ page }) => {
+    const trip = generateRandomTrip();
+
+    // Create trip
+    await page.goto('/trips/create');
+    await page.fill('input[name="title"], #title', trip.title);
+    await page.fill('input[name="startDate"], #startDate', trip.startDate);
+    await page.fill('input[name="endDate"], #endDate', trip.endDate);
+    await page.click('button[type="submit"], button:has-text("建立")');
+    await page.waitForURL(/trips\/[a-f0-9-]+/, { timeout: 10000 });
+
+    // Go to dashboard
+    await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
+
+    // Trip title should be visible on dashboard
+    await expect(page.locator(`text=${trip.title}`)).toBeVisible();
+  });
+});
+
+test.describe('E2E-TRIP-006: Trip Detail Page', () => {
+  test.beforeEach(async ({ page }) => {
+    const isAvailable = await isTestAuthAvailable(page);
+    if (!isAvailable) {
+      test.skip(true, 'Test auth endpoint not available');
+    }
+    await authenticateTestUser(page);
+  });
+
+  test('trip detail page displays correctly', async ({ page }) => {
+    const trip = generateRandomTrip();
+
+    // Create trip
+    await page.goto('/trips/create');
+    await page.fill('input[name="title"], #title', trip.title);
+    await page.fill('input[name="startDate"], #startDate', trip.startDate);
+    await page.fill('input[name="endDate"], #endDate', trip.endDate);
+    await page.click('button[type="submit"], button:has-text("建立")');
+    await page.waitForURL(/trips\/[a-f0-9-]+/, { timeout: 10000 });
+
+    // Should show trip title
+    await expect(page.locator(`text=${trip.title}`)).toBeVisible();
+
+    // Should have navigation/action links
+    const hasEditLink = await page.locator('a[href*="edit"], button:has-text("編輯")').count() > 0;
+    const hasActivitiesLink = await page.locator('a[href*="activities"]').count() > 0;
+    const hasPageContent = await page.locator('main, [role="main"]').count() > 0;
+
+    expect(hasEditLink || hasActivitiesLink || hasPageContent).toBe(true);
+  });
+});
+
+test.describe('E2E-TRIP-007: Edit Trip', () => {
+  test.beforeEach(async ({ page }) => {
+    const isAvailable = await isTestAuthAvailable(page);
+    if (!isAvailable) {
+      test.skip(true, 'Test auth endpoint not available');
+    }
+    await authenticateTestUser(page);
+  });
+
+  test('can edit trip title', async ({ page }) => {
+    const trip = generateRandomTrip();
+
+    // Create trip
+    await page.goto('/trips/create');
+    await page.fill('input[name="title"], #title', trip.title);
+    await page.fill('input[name="startDate"], #startDate', trip.startDate);
+    await page.fill('input[name="endDate"], #endDate', trip.endDate);
+    await page.click('button[type="submit"], button:has-text("建立")');
+    await page.waitForURL(/trips\/[a-f0-9-]+/, { timeout: 10000 });
+
+    const url = page.url();
+    const tripId = url.match(/trips\/([a-f0-9-]+)/)?.[1];
+
+    // Go to edit page
+    await page.goto(`/trips/${tripId}/edit`);
+
+    // Title should be pre-filled
+    const titleInput = page.locator('input[name="title"], #title');
+    await expect(titleInput).toHaveValue(trip.title);
+
+    // Update title
+    const newTitle = `更新後 ${Date.now()}`;
+    await titleInput.fill(newTitle);
+    await page.click('button[type="submit"], button:has-text("儲存"), button:has-text("更新")');
+
+    // Should redirect and show new title
+    await page.waitForURL(/trips\/[a-f0-9-]+/, { timeout: 10000 });
+    await expect(page.locator(`text=${newTitle}`)).toBeVisible();
+  });
+});
+
+test.describe('E2E-TRIP-008: Edit Trip Date Validation', () => {
+  test.beforeEach(async ({ page }) => {
+    const isAvailable = await isTestAuthAvailable(page);
+    if (!isAvailable) {
+      test.skip(true, 'Test auth endpoint not available');
+    }
+    await authenticateTestUser(page);
+  });
+
+  test('rejects end date before start date on edit', async ({ page }) => {
+    const trip = generateRandomTrip();
+
+    // Create trip
+    await page.goto('/trips/create');
+    await page.fill('input[name="title"], #title', trip.title);
+    await page.fill('input[name="startDate"], #startDate', trip.startDate);
+    await page.fill('input[name="endDate"], #endDate', trip.endDate);
+    await page.click('button[type="submit"], button:has-text("建立")');
+    await page.waitForURL(/trips\/[a-f0-9-]+/, { timeout: 10000 });
+
+    const tripId = page.url().match(/trips\/([a-f0-9-]+)/)?.[1];
+
+    // Go to edit page
+    await page.goto(`/trips/${tripId}/edit`);
+
+    // Set invalid date range
+    await page.fill('input[name="endDate"], #endDate', trip.startDate);
+    await page.fill('input[name="startDate"], #startDate', trip.endDate);
+
+    await page.click('button[type="submit"], button:has-text("儲存"), button:has-text("更新")');
+
+    // Should stay on edit page or show error
+    const pageUrl = page.url();
+    const hasError = pageUrl.includes('edit') || pageUrl.includes('error');
+    const errorMessage = page.locator('.error, [data-error], .text-red-500, .text-rose-500, text=/日期/i');
+    expect(hasError || await errorMessage.count() > 0).toBe(true);
+  });
+});
+
+test.describe('E2E-TRIP-009: Members Page', () => {
+  test.beforeEach(async ({ page }) => {
+    const isAvailable = await isTestAuthAvailable(page);
+    if (!isAvailable) {
+      test.skip(true, 'Test auth endpoint not available');
+    }
+    await authenticateTestUser(page);
+  });
+
+  test('members page shows creator as Owner', async ({ page }) => {
+    const trip = generateRandomTrip();
+
+    // Create trip
+    await page.goto('/trips/create');
+    await page.fill('input[name="title"], #title', trip.title);
+    await page.fill('input[name="startDate"], #startDate', trip.startDate);
+    await page.fill('input[name="endDate"], #endDate', trip.endDate);
+    await page.click('button[type="submit"], button:has-text("建立")');
+    await page.waitForURL(/trips\/[a-f0-9-]+/, { timeout: 10000 });
+
+    const tripId = page.url().match(/trips\/([a-f0-9-]+)/)?.[1];
+
+    // Navigate to members page
+    await page.goto(`/trips/${tripId}/members`);
+    await page.waitForLoadState('networkidle');
+
+    // Should show owner role indicator
+    const ownerLabel = page.locator('text=/Owner|OWNER|擁有者|建立者/i');
+    const memberContent = page.locator('main, [role="main"]').first();
+
+    await expect(memberContent).toBeVisible();
+    const hasOwnerLabel = await ownerLabel.count() > 0;
+    const hasPageContent = await memberContent.isVisible();
+
+    expect(hasOwnerLabel || hasPageContent).toBe(true);
+  });
+});

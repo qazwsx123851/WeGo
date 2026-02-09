@@ -208,6 +208,69 @@ test.describe('Authentication Flow', () => {
   });
 });
 
+test.describe('E2E-AUTH-004: Multi-User Isolation', () => {
+  test('User B cannot see User A trip', async ({ browser }) => {
+    // Create context for User A
+    const contextA = await browser.newContext();
+    const pageA = await contextA.newPage();
+
+    const isAvailable = await isTestAuthAvailable(pageA);
+    if (!isAvailable) {
+      test.skip(true, 'Test auth endpoint not available');
+      await contextA.close();
+      return;
+    }
+
+    // Authenticate User A
+    await authenticateTestUser(pageA, {
+      email: 'user-a-isolation@wego.test',
+      name: 'User A',
+    });
+
+    // User A creates a trip
+    const tripTitle = `隔離測試 ${Date.now()}`;
+    await pageA.goto('/trips/create');
+    await pageA.fill('input[name="title"], #title', tripTitle);
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() + 7);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 3);
+
+    await pageA.fill('input[name="startDate"], #startDate', startDate.toISOString().split('T')[0]);
+    await pageA.fill('input[name="endDate"], #endDate', endDate.toISOString().split('T')[0]);
+    await pageA.click('button[type="submit"], button:has-text("建立")');
+    await pageA.waitForURL(/trips\/[a-f0-9-]+/, { timeout: 10000 });
+
+    // Verify User A can see the trip on dashboard
+    await pageA.goto('/dashboard');
+    await pageA.waitForLoadState('networkidle');
+    await expect(pageA.locator(`text=${tripTitle}`)).toBeVisible();
+
+    // Create context for User B
+    const contextB = await browser.newContext();
+    const pageB = await contextB.newPage();
+
+    // Authenticate User B
+    await authenticateTestUser(pageB, {
+      email: 'user-b-isolation@wego.test',
+      name: 'User B',
+    });
+
+    // User B goes to dashboard
+    await pageB.goto('/dashboard');
+    await pageB.waitForLoadState('networkidle');
+
+    // User B should NOT see User A's trip
+    const userBSeesTrip = await pageB.locator(`text=${tripTitle}`).count();
+    expect(userBSeesTrip).toBe(0);
+
+    // Cleanup
+    await contextA.close();
+    await contextB.close();
+  });
+});
+
 test.describe('Security Headers', () => {
   test('response includes security headers', async ({ request }) => {
     const response = await request.get('/');

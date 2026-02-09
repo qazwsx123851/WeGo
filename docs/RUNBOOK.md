@@ -1,11 +1,12 @@
 # WeGo 維運手冊 (Runbook)
 
-> 最後更新: 2026-02-02 | 部署平台: Railway
+> 最後更新: 2026-02-04 | 部署平台: Railway
 >
 > **變更日誌**:
+> - 2026-02-04: Phase 4 完成 - 新增深色模式、E2E 測試、安全強化、無障礙支援
+> - 2026-02-03: Phase 3 完成 - 新增匯率 API、統計功能問題排查
 > - 2026-02-02: 遷移至 Google Routes API、新增 API 問題排查、部署流程暫停
 > - 2026-02-01: 新增 Transport Mode 系統、統一錯誤處理、全域概覽頁面
-> - 2026-02-01: 新增 Phase 2 功能相關問題排查 (天氣 API、路線優化、CSP)
 > - 2026-01-28: 初始版本
 
 ## 部署架構
@@ -434,6 +435,110 @@ railway logs | grep -i "reorder"
 
 **權限需求**: 需要 OWNER 或 EDITOR 角色才能重排景點
 
+### 15. 匯率 API 失敗
+
+**症狀**: 支出頁面匯率顯示錯誤或無法轉換
+
+**可能原因**:
+- ExchangeRate API Key 未設定
+- API 配額用盡
+- 不支援的貨幣代碼
+
+**檢查**:
+```bash
+# 驗證 API Key
+curl "https://v6.exchangerate-api.com/v6/$EXCHANGERATE_API_KEY/latest/TWD"
+
+# 查看應用程式日誌
+railway logs | grep -i "ExchangeRate"
+```
+
+**修復**:
+1. 確認 `EXCHANGERATE_API_KEY` 已設定
+2. 確認 `EXCHANGERATE_ENABLED=true`
+3. 若 API 配額用盡，系統會 fallback 到 MockExchangeRateClient (固定匯率)
+
+**支援貨幣**: TWD, USD, JPY, EUR, GBP, CNY, KRW, HKD
+
+### 16. 深色模式問題
+
+**症狀**: 切換深色模式後頁面閃爍 (FOUC)
+
+**可能原因**:
+- head 內嵌腳本未載入
+- localStorage 被清除
+- CSP 阻擋 inline script
+
+**檢查**:
+```javascript
+// 瀏覽器 Console
+localStorage.getItem('theme')
+document.documentElement.classList.contains('dark')
+```
+
+**修復**:
+1. 確認 `fragments/head.html` 包含 FOUC 防護腳本
+2. 確認 CSP 允許 `'unsafe-inline'` for script-src (必要)
+3. 清除 localStorage 後重新選擇主題
+
+**症狀**: Chart.js 圖表顏色未隨主題變化
+
+**修復**:
+1. 確認 `expense-statistics.js` 監聽 `themechange` 事件
+2. 手動觸發: `window.dispatchEvent(new Event('themechange'))`
+
+### 17. E2E 測試失敗
+
+**症狀**: Playwright 測試無法通過
+
+**可能原因**:
+- 應用程式未啟動
+- OAuth Mock 未正確設定
+- 瀏覽器驅動過期
+
+**檢查**:
+```bash
+# 確認應用程式在 8080 運行
+curl http://localhost:8080/api/health
+
+# 更新 Playwright 瀏覽器
+npx playwright install
+```
+
+**修復**:
+```bash
+cd e2e
+npm install
+npx playwright install chromium
+npx playwright test --debug  # 除錯模式
+```
+
+**OAuth Mock 機制**:
+- E2E 測試使用 `/test/auth/mock-login` 端點
+- 需在 `application-test.yml` 啟用測試 profile
+- 測試用戶: `testuser@wego.test`
+
+### 18. Rate Limiting 觸發
+
+**症狀**: API 回傳 `429 Too Many Requests`
+
+**預設限制**:
+- 100 requests/minute per IP
+- Bucket 使用 Caffeine cache (TTL: 5 分鐘)
+- 最大追蹤 IP 數: 100,000
+
+**檢查**:
+```bash
+railway logs | grep -i "rate limit\|too many"
+```
+
+**調整** (需修改 `RateLimitConfig.java`):
+```java
+private static final int REQUESTS_PER_MINUTE = 100;  // 調整此值
+private static final int MAX_CACHE_SIZE = 100_000;
+private static final int CACHE_TTL_MINUTES = 5;
+```
+
 ---
 
 ## 回滾程序
@@ -544,6 +649,18 @@ spring:
 - [ ] 確認使用者是行程成員
 - [ ] 檢查 GlobalExpenseService/GlobalDocumentService 日誌
 
+### 深色模式問題
+- [ ] 檢查 localStorage 中 `theme` 值
+- [ ] 確認 `<html>` 標籤有 `dark` class
+- [ ] 檢查 CSP 是否允許 inline script
+- [ ] 驗證 Chart.js 是否監聽 `themechange` 事件
+
+### E2E 測試問題
+- [ ] 確認應用程式在 localhost:8080 運行
+- [ ] 確認 Playwright 瀏覽器已安裝
+- [ ] 檢查 OAuth Mock 端點是否可存取
+- [ ] 執行 `npx playwright test --debug` 除錯
+
 ---
 
 ## 緊急聯絡
@@ -555,8 +672,7 @@ spring:
 | 部署 | Railway Support |
 | 地圖 API | Google Cloud Support |
 | 天氣 API | OpenWeatherMap Support |
-
----
+| 匯率 API | ExchangeRate-API Support |
 
 ---
 
@@ -671,3 +787,98 @@ WebExceptionHandler ──▶ error/error.html ──▶ HTML Response
 | [software-design-document.md](./software-design-document.md) | 軟體設計文件 |
 | [ui-design-guide.md](./ui-design-guide.md) | UI 設計指南 |
 | [../CLAUDE.md](../CLAUDE.md) | AI 開發指南與錯誤模式 |
+
+---
+
+## Phase 4 新增維運項目
+
+### 深色模式監控
+
+**關鍵檔案**:
+| 檔案 | 說明 |
+|------|------|
+| `app.js` | DarkMode 控制器 |
+| `fragments/head.html` | FOUC 防護腳本 |
+| `expense-statistics.js` | Chart.js 主題響應 |
+
+**localStorage 鍵**:
+- `theme`: 使用者偏好 (`light` / `dark` / `system`)
+
+### E2E 測試維運
+
+**測試檔案位置**: `e2e/tests/`
+
+| 測試 | 說明 | 執行時間 |
+|------|------|----------|
+| `auth.spec.ts` | 登入/登出流程 | ~30s |
+| `trip.spec.ts` | 行程 CRUD | ~45s |
+| `activity.spec.ts` | 景點管理 | ~40s |
+| `expense.spec.ts` | 分帳功能 | ~35s |
+| `document.spec.ts` | 文件上傳 | ~30s |
+| `todo.spec.ts` | 代辦事項 | ~25s |
+| `dark-mode.spec.ts` | 深色模式 | ~40s |
+
+**執行 E2E 測試**:
+```bash
+# 本地執行 (需先啟動應用程式)
+cd e2e
+npm install
+npx playwright test
+
+# 僅執行特定測試
+npx playwright test auth.spec.ts
+
+# 除錯模式
+npx playwright test --debug
+
+# 查看報告
+npx playwright show-report
+```
+
+**CI 整合** (待完成):
+```yaml
+# .github/workflows/e2e.yml
+- name: Run E2E tests
+  run: |
+    cd e2e
+    npm ci
+    npx playwright install chromium
+    npx playwright test
+```
+
+### 安全監控
+
+**Rate Limiting 監控**:
+```bash
+# 查看 Rate Limit 觸發
+railway logs | grep -i "rate limit\|429"
+
+# 查看 IP bucket 狀態 (需在程式碼中加入 logging)
+railway logs | grep -i "RateLimitConfig"
+```
+
+**安全相關日誌**:
+```bash
+# 認證失敗
+railway logs | grep -i "unauthorized\|authentication"
+
+# 授權失敗 (IDOR 嘗試)
+railway logs | grep -i "forbidden\|access denied"
+
+# 驗證失敗
+railway logs | grep -i "validation\|invalid"
+```
+
+### 效能監控 (Phase 4 優化)
+
+**N+1 查詢優化**:
+- `DocumentRepository.findByTripIdWithUser()` - Batch fetch
+- `ExpenseSplitRepository.findByExpenseIds()` - Batch fetch
+- `TripService.getTripWithMemberNames()` - Join fetch
+
+**快取設定** (Caffeine):
+| 快取名稱 | TTL | 最大條目 |
+|----------|-----|---------|
+| `exchangeRates` | 1 小時 | 100 |
+| `weather` | 30 分鐘 | 500 |
+| `rateLimitBuckets` | 5 分鐘 | 100,000 |

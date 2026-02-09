@@ -159,10 +159,12 @@
                     <!-- Date -->
                     <div class="space-y-1.5">
                         <label for="expenseDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">日期</label>
-                        <input type="date"
+                        <input type="text"
                                id="expenseDate"
                                name="expenseDate"
+                               data-datepicker
                                th:value="${expense?.expenseDate != null ? #temporals.format(expense.expenseDate, 'yyyy-MM-dd') : #temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}"
+                               placeholder="選擇日期"
                                class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 cursor-pointer">
                     </div>
                 </div>

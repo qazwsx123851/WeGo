@@ -686,22 +686,325 @@ const TripForm = {
             });
         }
 
-        // Date validation
-        const startDate = document.getElementById('startDate');
-        const endDate = document.getElementById('endDate');
-        if (startDate && endDate) {
-            startDate.addEventListener('change', () => {
-                endDate.min = startDate.value;
-                if (endDate.value && endDate.value < startDate.value) {
-                    endDate.value = startDate.value;
-                }
-            });
-
-            // Set min date to today
-            const today = new Date().toISOString().split('T')[0];
-            startDate.min = today;
-        }
     }
+};
+
+// Custom Time Picker
+const TimePicker = {
+    activePopup: null,
+    activeInput: null,
+    activeDisplay: null,
+
+    init() {
+        document.querySelectorAll('[data-timepicker]').forEach(el => {
+            if (el.dataset.timepickerInit) return;
+            el.dataset.timepickerInit = 'true';
+            this.attachToInput(el);
+        });
+        document.addEventListener('click', (e) => {
+            if (this.activePopup && !this.activePopup.contains(e.target) && e.target !== this.activeDisplay) {
+                this.close();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.activePopup) this.close();
+        });
+    },
+
+    attachToInput(hiddenInput) {
+        hiddenInput.type = 'hidden';
+
+        const display = document.createElement('input');
+        display.type = 'text';
+        display.readOnly = true;
+        display.placeholder = hiddenInput.placeholder || '選擇時間';
+        // Copy classes but ensure cursor-pointer
+        const classes = hiddenInput.className.replace('cursor-pointer', '').trim();
+        display.className = classes + ' cursor-pointer';
+        hiddenInput.parentNode.insertBefore(display, hiddenInput.nextSibling);
+
+        if (hiddenInput.value) {
+            display.value = this.format24to12(hiddenInput.value);
+        }
+
+        display.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.open(hiddenInput, display);
+        });
+    },
+
+    open(hiddenInput, displayInput) {
+        this.close();
+        this.activeInput = hiddenInput;
+        this.activeDisplay = displayInput;
+
+        const { hour, minute, period } = hiddenInput.value
+            ? this.parse24(hiddenInput.value)
+            : { hour: 9, minute: 0, period: 'AM' };
+
+        const popup = this.createPopup(hour, minute, period);
+        document.body.appendChild(popup);
+        this.positionPopup(popup, displayInput.getBoundingClientRect());
+        this.activePopup = popup;
+    },
+
+    close() {
+        if (this.activePopup) {
+            this.activePopup.remove();
+            this.activePopup = null;
+        }
+        this.activeInput = null;
+        this.activeDisplay = null;
+    },
+
+    apply() {
+        if (!this.activePopup || !this.activeInput) return;
+        const h12 = parseInt(this.activePopup.querySelector('[data-hour]').value);
+        const m = parseInt(this.activePopup.querySelector('[data-minute]').value);
+        const activeBtn = this.activePopup.querySelector('[data-period-active]');
+        const period = activeBtn ? activeBtn.dataset.period : 'AM';
+
+        const h24 = this.to24(h12, period);
+        this.activeInput.value = `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        this.activeDisplay.value = this.format12(h12, m, period);
+        this.activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+        this.close();
+    },
+
+    createPopup(hour, minute, period) {
+        const popup = document.createElement('div');
+        popup.className = 'timepicker-popup bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-5 w-64 animate-scale-in';
+        popup.style.position = 'fixed';
+        popup.style.zIndex = '9999';
+
+        // Title
+        const title = document.createElement('div');
+        title.className = 'text-sm font-semibold text-gray-800 dark:text-gray-100 mb-4';
+        title.textContent = '選擇時間';
+        popup.appendChild(title);
+
+        // Hour : Minute row
+        const timeRow = document.createElement('div');
+        timeRow.className = 'flex items-center justify-center gap-2 mb-4';
+
+        // Hour select
+        const hourSelect = document.createElement('select');
+        hourSelect.dataset.hour = '';
+        hourSelect.className = 'timepicker-select bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-semibold text-lg rounded-xl px-3 py-2 border-none cursor-pointer w-16';
+        for (let h = 1; h <= 12; h++) {
+            const opt = document.createElement('option');
+            opt.value = h;
+            opt.textContent = h;
+            if (h === hour) opt.selected = true;
+            hourSelect.appendChild(opt);
+        }
+        timeRow.appendChild(hourSelect);
+
+        // Colon
+        const colon = document.createElement('span');
+        colon.className = 'text-lg font-bold text-gray-400 dark:text-gray-500';
+        colon.textContent = ':';
+        timeRow.appendChild(colon);
+
+        // Minute select
+        const minuteSelect = document.createElement('select');
+        minuteSelect.dataset.minute = '';
+        minuteSelect.className = 'timepicker-select bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-semibold text-lg rounded-xl px-3 py-2 border-none cursor-pointer w-16';
+        for (let m = 0; m < 60; m += 5) {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = String(m).padStart(2, '0');
+            if (m === minute) opt.selected = true;
+            minuteSelect.appendChild(opt);
+        }
+        // If minute is not a multiple of 5, add it as an option
+        if (minute % 5 !== 0) {
+            const opt = document.createElement('option');
+            opt.value = minute;
+            opt.textContent = String(minute).padStart(2, '0');
+            opt.selected = true;
+            minuteSelect.appendChild(opt);
+        }
+        timeRow.appendChild(minuteSelect);
+
+        popup.appendChild(timeRow);
+
+        // AM/PM toggle
+        const periodRow = document.createElement('div');
+        periodRow.className = 'flex justify-center gap-3 mb-5';
+
+        const createPeriodBtn = (label, value, isActive) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.dataset.period = value;
+            if (isActive) btn.dataset.periodActive = '';
+            btn.className = isActive
+                ? 'text-sm font-bold text-primary-600 dark:text-primary-400 px-3 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 cursor-pointer transition-colors'
+                : 'text-sm font-normal text-gray-400 dark:text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors';
+            btn.textContent = label;
+            btn.addEventListener('click', () => {
+                periodRow.querySelectorAll('[data-period]').forEach(b => {
+                    const active = b === btn;
+                    b.className = active
+                        ? 'text-sm font-bold text-primary-600 dark:text-primary-400 px-3 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 cursor-pointer transition-colors'
+                        : 'text-sm font-normal text-gray-400 dark:text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors';
+                    if (active) b.dataset.periodActive = '';
+                    else delete b.dataset.periodActive;
+                });
+            });
+            return btn;
+        };
+
+        periodRow.appendChild(createPeriodBtn('上午', 'AM', period === 'AM'));
+        periodRow.appendChild(createPeriodBtn('下午', 'PM', period === 'PM'));
+        popup.appendChild(periodRow);
+
+        // Action buttons
+        const actions = document.createElement('div');
+        actions.className = 'flex justify-between items-center';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium px-3 py-1.5 cursor-pointer transition-colors';
+        cancelBtn.textContent = '取消';
+        cancelBtn.addEventListener('click', () => this.close());
+        actions.appendChild(cancelBtn);
+
+        const applyBtn = document.createElement('button');
+        applyBtn.type = 'button';
+        applyBtn.className = 'text-sm text-white bg-primary-500 hover:bg-primary-600 font-semibold px-5 py-2 rounded-full cursor-pointer transition-colors';
+        applyBtn.textContent = '套用';
+        applyBtn.addEventListener('click', () => this.apply());
+        actions.appendChild(applyBtn);
+
+        popup.appendChild(actions);
+        return popup;
+    },
+
+    positionPopup(popup, rect) {
+        const popupH = popup.offsetHeight;
+        const popupW = popup.offsetWidth;
+
+        let top = rect.bottom + 8;
+        let left = rect.left + (rect.width / 2) - (popupW / 2);
+
+        if (top + popupH > window.innerHeight - 16) {
+            top = rect.top - popupH - 8;
+        }
+        left = Math.max(8, Math.min(left, window.innerWidth - popupW - 8));
+
+        popup.style.top = `${top}px`;
+        popup.style.left = `${left}px`;
+    },
+
+    // === Conversion helpers ===
+    parse24(val) {
+        const [h, m] = val.split(':').map(Number);
+        const period = h >= 12 ? 'PM' : 'AM';
+        let hour12 = h % 12;
+        if (hour12 === 0) hour12 = 12;
+        return { hour: hour12, minute: m, period };
+    },
+
+    to24(h12, period) {
+        if (period === 'AM') return h12 === 12 ? 0 : h12;
+        return h12 === 12 ? 12 : h12 + 12;
+    },
+
+    format12(h12, m, period) {
+        const label = period === 'AM' ? '上午' : '下午';
+        return `${label} ${h12}:${String(m).padStart(2, '0')}`;
+    },
+
+    format24to12(val) {
+        const { hour, minute, period } = this.parse24(val);
+        return this.format12(hour, minute, period);
+    },
+};
+
+// Flatpickr Date Picker Initialization
+const DatePicker = {
+    instances: [],
+
+    init() {
+        if (typeof flatpickr === 'undefined') return;
+
+        // 全域設定繁體中文
+        if (flatpickr.l10ns && flatpickr.l10ns.zh_tw) {
+            flatpickr.localize(flatpickr.l10ns.zh_tw);
+        }
+
+        this.initLinkedDateRange();
+        this.initDateInputs();
+        this.initTimeInputs();
+    },
+
+    /** 單一日期選取：expense date, todo due date */
+    initDateInputs() {
+        document.querySelectorAll('[data-datepicker]:not([data-datepicker="trip-start"]):not([data-datepicker="trip-end"])').forEach(el => {
+            if (el._flatpickr) return;
+            const fp = flatpickr(el, {
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'Y年m月d日',
+                allowInput: true,
+                disableMobile: true,
+                defaultDate: el.value || null,
+            });
+            this.instances.push(fp);
+        });
+    },
+
+    /** 時間選取：委派給 TimePicker 模組 */
+    initTimeInputs() {
+        TimePicker.init();
+    },
+
+    /** Trip 開始/結束日期連動 */
+    initLinkedDateRange() {
+        const startEl = document.querySelector('[data-datepicker="trip-start"]');
+        const endEl = document.querySelector('[data-datepicker="trip-end"]');
+        if (!startEl || !endEl) return;
+        if (startEl._flatpickr) return;
+
+        const today = new Date().toISOString().split('T')[0];
+
+        const endPicker = flatpickr(endEl, {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'Y年m月d日',
+            allowInput: true,
+            disableMobile: true,
+            minDate: startEl.value || today,
+            defaultDate: endEl.value || null,
+        });
+
+        const startPicker = flatpickr(startEl, {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'Y年m月d日',
+            allowInput: true,
+            disableMobile: true,
+            minDate: today,
+            defaultDate: startEl.value || null,
+            onChange(selectedDates) {
+                if (selectedDates.length > 0) {
+                    endPicker.set('minDate', selectedDates[0]);
+                    const endDate = endPicker.selectedDates[0];
+                    if (endDate && endDate < selectedDates[0]) {
+                        endPicker.setDate(selectedDates[0]);
+                    }
+                }
+            },
+        });
+
+        this.instances.push(startPicker, endPicker);
+    },
+
+    destroy() {
+        this.instances.forEach(fp => fp.destroy());
+        this.instances = [];
+    },
 };
 
 // Initialize on DOM ready
@@ -714,12 +1017,15 @@ document.addEventListener('DOMContentLoaded', () => {
     WeatherUI.init();
     CoverImagePreview.init();
     TripForm.init();
+    DatePicker.init();
 
     // Expose to global scope for inline handlers
     window.Toast = Toast;
     window.DarkMode = DarkMode;
     window.Loading = Loading;
     window.FormValidation = FormValidation;
+    window.DatePicker = DatePicker;
+    window.TimePicker = TimePicker;
     window.Modal = Modal;
     window.WeatherUI = WeatherUI;
     window.CoverImagePreview = CoverImagePreview;

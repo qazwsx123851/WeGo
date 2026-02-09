@@ -2,6 +2,12 @@
 
 > 旅遊規劃協作平台 | Spring Boot 3.x + Thymeleaf + Tailwind CSS + Supabase
 
+## Context7 MCP 使用規則
+
+當需要函式庫/API 文件、程式碼產生、設定或設定步驟時，始終使用 Context7 MCP，無需使用者明確要求。
+
+---
+
 ## 快速參考
 
 | 指令 | 說明 |

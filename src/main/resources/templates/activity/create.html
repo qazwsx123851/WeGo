@@ -241,10 +241,12 @@
                         <label for="startTime" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             開始時間
                         </label>
-                        <input type="time"
+                        <input type="text"
                                id="startTime"
                                name="startTime"
+                               data-timepicker
                                th:value="${activity?.startTime != null ? #temporals.format(activity.startTime, 'HH:mm') : ''}"
+                               placeholder="選擇開始時間"
                                class="w-full px-4 py-3
                                       bg-white dark:bg-gray-800
                                       border border-gray-200 dark:border-gray-700
@@ -257,10 +259,12 @@
                         <label for="endTime" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             結束時間
                         </label>
-                        <input type="time"
+                        <input type="text"
                                id="endTime"
                                name="endTime"
+                               data-timepicker
                                th:value="${activity?.endTime != null ? #temporals.format(activity.endTime, 'HH:mm') : ''}"
+                               placeholder="選擇結束時間"
                                class="w-full px-4 py-3
                                       bg-white dark:bg-gray-800
                                       border border-gray-200 dark:border-gray-700
