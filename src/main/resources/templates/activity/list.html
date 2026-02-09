@@ -143,13 +143,13 @@
                          th:data-trip-id="${trip.id}">
                         <th:block th:each="activity, activityStat : ${dayGroup.value}">
                             <!-- Activity Card -->
-                            <div class="activity-card bg-white dark:bg-gray-800 rounded-xl
+                            <div class="activity-card relative bg-white dark:bg-gray-800 rounded-xl
                                       border border-gray-100 dark:border-gray-700
                                       p-3 flex gap-3
                                       hover:bg-gray-50 dark:hover:bg-gray-750
                                       active:bg-gray-100 dark:active:bg-gray-700
                                       transition-colors duration-200
-                                      touch-action-manipulation"
+                                      touch-manipulation"
                                  th:data-activity-id="${activity.id}"
                                  th:attr="draggable=${canEdit ? 'true' : 'false'}">
                                 <a th:href="@{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})}"
@@ -624,6 +624,15 @@
         </div>
     </div>
 
+    <!-- Drag Reorder Loading Overlay -->
+    <div id="reorder-loading-overlay" class="fixed inset-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200 motion-reduce:duration-0">
+        <div id="reorder-lottie" class="size-36 mb-4"></div>
+        <div id="reorder-css-spinner" class="hidden size-36 mb-4 flex items-center justify-center">
+            <div class="animate-spin rounded-full size-24 border-[5px] border-primary-500 border-t-transparent"></div>
+        </div>
+        <p class="text-gray-600 dark:text-gray-300 font-medium">正在更新行程順序...</p>
+    </div>
+
     <!-- Activity data for JS (hidden) -->
     <script th:inline="javascript">
         /*<![CDATA[*/
@@ -636,6 +645,56 @@
 
     <!-- Lottie Animation Library -->
     <script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
+
+    <!-- Reorder Loading Overlay Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var reorderLottie = document.getElementById('reorder-lottie');
+            var reorderSpinner = document.getElementById('reorder-css-spinner');
+            var reorderAnimation;
+
+            try {
+                if (typeof lottie !== 'undefined' && reorderLottie) {
+                    reorderAnimation = lottie.loadAnimation({
+                        container: reorderLottie,
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: false,
+                        path: '/animations/route-loading.json'
+                    });
+                    reorderAnimation.addEventListener('error', function() {
+                        reorderLottie.classList.add('hidden');
+                        if (reorderSpinner) reorderSpinner.classList.remove('hidden');
+                    });
+                } else {
+                    if (reorderLottie) reorderLottie.classList.add('hidden');
+                    if (reorderSpinner) reorderSpinner.classList.remove('hidden');
+                }
+            } catch (e) {
+                if (reorderLottie) reorderLottie.classList.add('hidden');
+                if (reorderSpinner) reorderSpinner.classList.remove('hidden');
+            }
+
+            window.ReorderLoading = {
+                show: function() {
+                    var overlay = document.getElementById('reorder-loading-overlay');
+                    if (overlay) {
+                        overlay.classList.remove('opacity-0', 'pointer-events-none');
+                        overlay.classList.add('opacity-100');
+                        if (reorderAnimation) reorderAnimation.play();
+                    }
+                },
+                hide: function() {
+                    var overlay = document.getElementById('reorder-loading-overlay');
+                    if (overlay) {
+                        overlay.classList.add('opacity-0', 'pointer-events-none');
+                        overlay.classList.remove('opacity-100');
+                        if (reorderAnimation) reorderAnimation.stop();
+                    }
+                }
+            };
+        });
+    </script>
 
     <!-- Scripts -->
     <script th:src="@{/js/app.js}" defer></script>

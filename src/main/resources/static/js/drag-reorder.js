@@ -4,6 +4,8 @@
  * @contract
  *   - Handles drag-and-drop reordering of activity cards
  *   - Supports both mouse and touch interactions
+ *   - Uses FLIP animation for smooth reordering transitions
+ *   - Shows insertion line indicators for precise drop targeting
  *   - Calls API to persist order changes
  *   - calledBy: activity/list.html
  *   - calls: PUT /api/trips/{tripId}/activities/reorder
@@ -14,6 +16,7 @@ const DragReorder = {
     TOUCH_HOLD_DELAY: 150,         // Delay before starting touch drag (prevents accidental drags)
     TOUCH_CANCEL_THRESHOLD: 10,    // Pixels moved to cancel touch-hold
     TOUCH_THROTTLE_MS: 50,         // Throttle interval for touch move events
+    ANIMATION_DURATION_MS: 200,    // FLIP animation duration
 
     // State
     draggedElement: null,
@@ -26,6 +29,8 @@ const DragReorder = {
     touchTimeout: null,
     originalOrder: [],             // Store for rollback on failure
     initializedContainers: new WeakSet(),
+    reducedMotion: false,
+    _mouseDownTarget: null,        // Track mousedown target for drag handle check
 
     /**
      * Initialize drag-and-drop functionality.
@@ -35,6 +40,8 @@ const DragReorder = {
      *   - post: Event listeners attached to sortable containers
      */
     init() {
+        this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
         const sortableContainers = document.querySelectorAll('.sortable-activities');
         if (sortableContainers.length === 0) return;
 
@@ -56,10 +63,15 @@ const DragReorder = {
         const cards = container.querySelectorAll('.activity-card');
 
         cards.forEach((card, index) => {
+            // Track mousedown target so dragstart can verify it came from the drag handle
+            card.addEventListener('mousedown', (e) => {
+                this._mouseDownTarget = e.target;
+            });
+
             // Mouse drag events
             card.addEventListener('dragstart', (e) => this.handleDragStart(e, card, container));
             card.addEventListener('dragend', (e) => this.handleDragEnd(e, container));
-            card.addEventListener('dragover', (e) => this.handleDragOver(e, card));
+            card.addEventListener('dragover', (e) => this.handleDragOver(e, card, container));
             card.addEventListener('dragleave', (e) => this.handleDragLeave(e, card));
             card.addEventListener('drop', (e) => this.handleDrop(e, card, container));
 
@@ -69,11 +81,22 @@ const DragReorder = {
                 dragHandle.addEventListener('touchstart', (e) => this.handleTouchStart(e, card, container), { passive: false });
                 dragHandle.addEventListener('touchmove', (e) => this.handleTouchMove(e, card, container), { passive: false });
                 dragHandle.addEventListener('touchend', (e) => this.handleTouchEnd(e, container), { passive: false });
+                dragHandle.addEventListener('touchcancel', (e) => this.handleTouchCancel(e, container), { passive: false });
             }
         });
 
         // Container events
         container.addEventListener('dragover', (e) => e.preventDefault());
+    },
+
+    /**
+     * Get only activity card elements from a container (excludes transit connectors).
+     *
+     * @param {HTMLElement} container - The sortable container
+     * @returns {HTMLElement[]} Array of activity card elements
+     */
+    getActivityCards(container) {
+        return Array.from(container.querySelectorAll('.activity-card'));
     },
 
     /**
@@ -84,8 +107,9 @@ const DragReorder = {
      * @param {HTMLElement} container - The sortable container
      */
     handleDragStart(e, card, container) {
-        // Only allow drag from drag handle
-        if (!e.target.closest('.drag-handle')) {
+        // Only allow drag from drag handle (e.target is always the draggable element,
+        // so we check the mousedown target saved earlier)
+        if (!this._mouseDownTarget || !this._mouseDownTarget.closest('.drag-handle')) {
             e.preventDefault();
             return;
         }
@@ -95,13 +119,13 @@ const DragReorder = {
         this.isDragging = true;
 
         // Store original order for potential rollback
-        this.originalOrder = Array.from(container.querySelectorAll('.activity-card'));
+        this.originalOrder = this.getActivityCards(container);
 
         // Set drag image
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', card.dataset.activityId);
 
-        // Add dragging styles after a short delay
+        // Add dragging styles after a short delay (so browser captures drag image first)
         requestAnimationFrame(() => {
             card.classList.add('dragging');
         });
@@ -126,17 +150,32 @@ const DragReorder = {
     },
 
     /**
-     * Handle drag over event.
+     * Handle drag over event - shows insertion line indicator.
      *
      * @param {DragEvent} e - The drag event
      * @param {HTMLElement} card - The activity card being dragged over
+     * @param {HTMLElement} container - The sortable container
      */
-    handleDragOver(e, card) {
+    handleDragOver(e, card, container) {
         e.preventDefault();
         if (!this.draggedElement || card === this.draggedElement) return;
 
         e.dataTransfer.dropEffect = 'move';
-        card.classList.add('drag-over');
+
+        // Determine insertion position based on cursor Y relative to card midpoint
+        const rect = card.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const insertAbove = e.clientY < midY;
+
+        // Remove all existing indicators in the container
+        this.removeDropIndicators(container);
+
+        // Add directional indicator
+        if (insertAbove) {
+            card.classList.add('drag-insert-above');
+        } else {
+            card.classList.add('drag-insert-below');
+        }
     },
 
     /**
@@ -146,11 +185,11 @@ const DragReorder = {
      * @param {HTMLElement} card - The activity card
      */
     handleDragLeave(e, card) {
-        card.classList.remove('drag-over');
+        card.classList.remove('drag-insert-above', 'drag-insert-below');
     },
 
     /**
-     * Handle drop event.
+     * Handle drop event with FLIP animation.
      *
      * @param {DragEvent} e - The drag event
      * @param {HTMLElement} targetCard - The drop target card
@@ -160,19 +199,24 @@ const DragReorder = {
         e.preventDefault();
         if (!this.draggedElement || targetCard === this.draggedElement) return;
 
-        targetCard.classList.remove('drag-over');
+        this.removeDropIndicators(container);
 
-        // Determine insert position
         const targetRect = targetCard.getBoundingClientRect();
         const mouseY = e.clientY;
         const insertBefore = mouseY < targetRect.top + targetRect.height / 2;
 
-        // Reorder in DOM
+        // FLIP: capture positions before DOM change
+        const firstPositions = this.capturePositions(container);
+
+        // Perform DOM reorder
         if (insertBefore) {
             container.insertBefore(this.draggedElement, targetCard);
         } else {
             container.insertBefore(this.draggedElement, targetCard.nextSibling);
         }
+
+        // FLIP: animate to new positions
+        this.animateFLIP(container, firstPositions);
 
         // Save new order to server
         this.saveOrder(container);
@@ -199,13 +243,19 @@ const DragReorder = {
         this.draggedIndex = this.getCardIndex(card, container);
 
         // Store original order for potential rollback
-        this.originalOrder = Array.from(container.querySelectorAll('.activity-card'));
+        this.originalOrder = this.getActivityCards(container);
 
         // Add a small delay before starting drag
         this.touchTimeout = setTimeout(() => {
             this.isDragging = true;
             card.classList.add('dragging', 'touch-dragging');
             document.body.classList.add('dragging-active');
+
+            // Animate the lift effect
+            if (!this.reducedMotion) {
+                card.style.transition = 'transform 150ms ease, box-shadow 150ms ease';
+                card.style.transform = 'scale(1.03)';
+            }
 
             // Create placeholder
             this.createPlaceholder(card, container);
@@ -237,7 +287,8 @@ const DragReorder = {
 
         // Move the card visually
         const deltaY = this.touchCurrentY - this.touchStartY;
-        card.style.transform = `translateY(${deltaY}px)`;
+        card.style.transition = 'none';
+        card.style.transform = `translateY(${deltaY}px) scale(1.03)`;
         card.style.zIndex = '1000';
 
         // Throttle touch move handling
@@ -257,13 +308,33 @@ const DragReorder = {
         if (elementAtPoint) {
             const targetCard = elementAtPoint.closest('.activity-card');
             if (targetCard && targetCard !== card && container.contains(targetCard)) {
-                this.highlightDropTarget(targetCard, touchY, container);
+                // Calculate insertion position
+                const targetRect = targetCard.getBoundingClientRect();
+                const insertAbove = touchY < targetRect.top + targetRect.height / 2;
+
+                this.removeDropIndicators(container);
+                if (insertAbove) {
+                    targetCard.classList.add('drag-insert-above');
+                } else {
+                    targetCard.classList.add('drag-insert-below');
+                }
+
+                // Move placeholder to indicate drop position
+                if (this.placeholder) {
+                    if (insertAbove) {
+                        container.insertBefore(this.placeholder, targetCard);
+                    } else if (targetCard.nextSibling) {
+                        container.insertBefore(this.placeholder, targetCard.nextSibling);
+                    } else {
+                        container.appendChild(this.placeholder);
+                    }
+                }
             }
         }
     },
 
     /**
-     * Handle touch end event for mobile drag.
+     * Handle touch end event for mobile drag with FLIP animation.
      *
      * @param {TouchEvent} e - The touch event
      * @param {HTMLElement} container - The sortable container
@@ -279,17 +350,23 @@ const DragReorder = {
             return;
         }
 
+        // Capture final touch position (throttling may have skipped it)
+        if (e.changedTouches && e.changedTouches[0]) {
+            this.touchCurrentY = e.changedTouches[0].clientY;
+        }
+
         const card = this.draggedElement;
 
         // Reset styles
         card.classList.remove('dragging', 'touch-dragging');
         card.style.transform = '';
+        card.style.transition = '';
         card.style.zIndex = '';
         document.body.classList.remove('dragging-active');
 
         // Find where to insert
         const touchY = this.touchCurrentY || this.touchStartY;
-        const cards = Array.from(container.querySelectorAll('.activity-card:not(.dragging)'));
+        const cards = this.getActivityCards(container).filter(c => c !== card);
 
         let insertBeforeCard = null;
         for (const targetCard of cards) {
@@ -300,9 +377,12 @@ const DragReorder = {
             }
         }
 
-        // Remove placeholder first
+        // Remove placeholder and indicators
         this.removePlaceholder();
         this.removeDropIndicators(container);
+
+        // FLIP: capture positions before DOM change
+        const firstPositions = this.capturePositions(container);
 
         // Reorder in DOM
         if (insertBeforeCard) {
@@ -310,6 +390,9 @@ const DragReorder = {
         } else {
             container.appendChild(card);
         }
+
+        // FLIP: animate to new positions
+        this.animateFLIP(container, firstPositions);
 
         // Save new order
         this.saveOrder(container);
@@ -323,7 +406,109 @@ const DragReorder = {
     },
 
     /**
-     * Create a placeholder element for touch drag.
+     * Handle touch cancel event (system interruption like incoming call).
+     *
+     * @param {TouchEvent} e - The touch event
+     * @param {HTMLElement} container - The sortable container
+     */
+    handleTouchCancel(e, container) {
+        if (this.touchTimeout) {
+            clearTimeout(this.touchTimeout);
+            this.touchTimeout = null;
+        }
+
+        if (this.draggedElement) {
+            this.draggedElement.classList.remove('dragging', 'touch-dragging');
+            this.draggedElement.style.transform = '';
+            this.draggedElement.style.transition = '';
+            this.draggedElement.style.zIndex = '';
+        }
+
+        document.body.classList.remove('dragging-active');
+        this.removePlaceholder();
+        this.removeDropIndicators(container);
+
+        // Rollback to original order if we were mid-drag
+        if (this.isDragging && this.originalOrder.length > 0) {
+            this.rollbackOrder(container);
+        }
+
+        // Reset all state
+        this.draggedElement = null;
+        this.draggedIndex = null;
+        this.touchStartY = null;
+        this.touchCurrentY = null;
+        this.isDragging = false;
+    },
+
+    /**
+     * Capture current positions of all activity cards for FLIP animation.
+     *
+     * @param {HTMLElement} container - The sortable container
+     * @returns {Map<HTMLElement, DOMRect>} Map of cards to their current positions
+     */
+    capturePositions(container) {
+        const positions = new Map();
+        this.getActivityCards(container).forEach(card => {
+            positions.set(card, card.getBoundingClientRect());
+        });
+        return positions;
+    },
+
+    /**
+     * Animate cards from their old positions to new positions using FLIP technique.
+     * First, Last, Invert, Play.
+     *
+     * @param {HTMLElement} container - The sortable container
+     * @param {Map<HTMLElement, DOMRect>} firstPositions - Positions captured before DOM change
+     */
+    animateFLIP(container, firstPositions) {
+        if (this.reducedMotion) return;
+
+        const cards = this.getActivityCards(container);
+        cards.forEach(card => {
+            const first = firstPositions.get(card);
+            if (!first) return;
+
+            const last = card.getBoundingClientRect();
+            const deltaY = first.top - last.top;
+
+            if (Math.abs(deltaY) < 1) return; // no movement needed
+
+            // Invert: set card to old position
+            card.style.transition = 'none';
+            card.style.transform = `translateY(${deltaY}px)`;
+
+            // Force reflow to ensure the inverted position is applied
+            card.offsetHeight; // eslint-disable-line no-unused-expressions
+
+            // Play: animate to new (correct) position
+            card.style.transition = `transform ${this.ANIMATION_DURATION_MS}ms ease`;
+            card.style.transform = '';
+
+            // Cleanup after animation completes (with safety timeout)
+            let safetyTimeout = null;
+            const cleanup = () => {
+                card.style.transition = '';
+                card.style.transform = '';
+                if (safetyTimeout) {
+                    clearTimeout(safetyTimeout);
+                    safetyTimeout = null;
+                }
+            };
+            card.addEventListener('transitionend', cleanup, { once: true });
+
+            // Safety cleanup in case transitionend doesn't fire
+            safetyTimeout = setTimeout(() => {
+                card.removeEventListener('transitionend', cleanup);
+                card.style.transition = '';
+                card.style.transform = '';
+            }, this.ANIMATION_DURATION_MS + 50);
+        });
+    },
+
+    /**
+     * Create a placeholder element for touch drag with expand animation.
      *
      * @param {HTMLElement} card - The dragged card
      * @param {HTMLElement} container - The sortable container
@@ -331,8 +516,19 @@ const DragReorder = {
     createPlaceholder(card, container) {
         this.placeholder = document.createElement('div');
         this.placeholder.className = 'drag-placeholder';
-        this.placeholder.style.height = `${card.offsetHeight}px`;
-        container.insertBefore(this.placeholder, card);
+        const cardHeight = card.offsetHeight;
+
+        if (!this.reducedMotion) {
+            // Start at 0 height and animate open
+            this.placeholder.style.height = '0px';
+            container.insertBefore(this.placeholder, card);
+            requestAnimationFrame(() => {
+                this.placeholder.style.height = `${cardHeight}px`;
+            });
+        } else {
+            this.placeholder.style.height = `${cardHeight}px`;
+            container.insertBefore(this.placeholder, card);
+        }
     },
 
     /**
@@ -346,25 +542,13 @@ const DragReorder = {
     },
 
     /**
-     * Highlight the drop target during touch drag.
-     *
-     * @param {HTMLElement} targetCard - The potential drop target
-     * @param {number} touchY - Current touch Y position
-     * @param {HTMLElement} container - The sortable container
-     */
-    highlightDropTarget(targetCard, touchY, container) {
-        this.removeDropIndicators(container);
-        targetCard.classList.add('drag-over');
-    },
-
-    /**
-     * Remove all drop indicators.
+     * Remove all drop indicators (insertion lines).
      *
      * @param {HTMLElement} container - The sortable container
      */
     removeDropIndicators(container) {
-        container.querySelectorAll('.drag-over').forEach(el => {
-            el.classList.remove('drag-over');
+        container.querySelectorAll('.drag-insert-above, .drag-insert-below, .drag-over').forEach(el => {
+            el.classList.remove('drag-insert-above', 'drag-insert-below', 'drag-over');
         });
     },
 
@@ -376,8 +560,7 @@ const DragReorder = {
      * @returns {number} The card index
      */
     getCardIndex(card, container) {
-        const cards = Array.from(container.querySelectorAll('.activity-card'));
-        return cards.indexOf(card);
+        return this.getActivityCards(container).indexOf(card);
     },
 
     /**
@@ -434,6 +617,11 @@ const DragReorder = {
         // Add saving indicator
         container.classList.add('saving');
 
+        // Show loading overlay immediately
+        if (window.ReorderLoading) {
+            window.ReorderLoading.show();
+        }
+
         try {
             const csrfToken = this.getCsrfToken();
             const csrfHeader = this.getCsrfHeader();
@@ -458,15 +646,18 @@ const DragReorder = {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                if (window.Toast) {
-                    Toast.success('景點順序已更新');
-                }
                 // Clear original order after successful save
                 this.originalOrder = [];
+                // Reload page to reflect updated transit connectors and transport data
+                window.location.reload();
             } else {
                 throw new Error(data.message || '更新失敗');
             }
         } catch (error) {
+            // Hide loading overlay on failure
+            if (window.ReorderLoading) {
+                window.ReorderLoading.hide();
+            }
             // Rollback to original order on failure
             this.rollbackOrder(container);
 
