@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<!--
+    Invite Acceptance Page
+    Displays trip invite details and accept/decline actions.
+    States: normal (accept), error (invalid/expired), already-member (redirect).
+-->
+<head th:replace="~{fragments/head :: head(title='行程邀請')}"></head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-8">
+
+    <!-- Error State -->
+    <div th:if="${error != null}" class="max-w-md w-full">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 sm:p-8 text-center">
+            <!-- Error Icon -->
+            <div class="inline-flex items-center justify-center w-16 h-16
+                        bg-red-100 dark:bg-red-900/30 rounded-full mb-4">
+                <svg class="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor"
+                     viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </div>
+
+            <h1 class="text-xl font-bold text-gray-900 dark:text-white mb-2"
+                th:text="${error}">邀請連結無效或已過期</h1>
+
+            <p class="text-gray-600 dark:text-gray-300 mb-6">
+                請向行程擁有者索取新的邀請連結
+            </p>
+
+            <a th:href="@{/dashboard}"
+               class="inline-block bg-gray-200 dark:bg-gray-700
+                      hover:bg-gray-300 dark:hover:bg-gray-600
+                      text-gray-900 dark:text-white font-medium
+                      py-2.5 px-6 rounded-xl transition-colors">
+                返回我的行程
+            </a>
+        </div>
+    </div>
+
+    <!-- Normal State: Accept Invite -->
+    <div th:if="${error == null}" class="max-w-md w-full">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 sm:p-8">
+
+            <!-- Header Icon -->
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16
+                            bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4">
+                    <svg class="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor"
+                         viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                    您收到了行程邀請
+                </h1>
+            </div>
+
+            <!-- Trip Info Card -->
+            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6
+                        border border-gray-200 dark:border-gray-600">
+
+                <!-- Trip Name -->
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3"
+                    th:text="${trip?.title}">東京五日遊</h2>
+
+                <!-- Trip Details -->
+                <div class="space-y-2 text-sm">
+                    <!-- Dates -->
+                    <div th:if="${trip?.startDate != null and trip?.endDate != null}" class="flex items-center text-gray-600 dark:text-gray-300">
+                        <svg class="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor"
+                             viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span th:text="${#temporals.format(trip.startDate, 'yyyy/MM/dd')} + ' - ' + ${#temporals.format(trip.endDate, 'yyyy/MM/dd')}">
+                            2026/03/25 - 2026/03/30
+                        </span>
+                    </div>
+
+                    <!-- Member Count -->
+                    <div class="flex items-center text-gray-600 dark:text-gray-300">
+                        <svg class="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor"
+                             viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span th:text="${memberCount} + ' 位成員'">3 位成員</span>
+                    </div>
+
+                    <!-- Invite Role -->
+                    <div class="flex items-center text-gray-600 dark:text-gray-300">
+                        <svg class="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor"
+                             viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                        <span>
+                            加入身份：
+                            <span th:if="${inviteRole == 'EDITOR'}"
+                                  class="font-medium text-gray-900 dark:text-white">編輯者</span>
+                            <span th:if="${inviteRole == 'VIEWER'}"
+                                  class="font-medium text-gray-900 dark:text-white">檢視者</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-3">
+                <!-- Accept Button -->
+                <form method="post" th:action="@{/invite/{token}/accept(token=${token})}">
+                    <button type="submit"
+                            class="w-full bg-blue-600 hover:bg-blue-700
+                                   dark:bg-blue-500 dark:hover:bg-blue-600
+                                   text-white font-semibold py-3 px-4 rounded-xl
+                                   transition-colors shadow-sm cursor-pointer
+                                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                                   dark:focus:ring-offset-gray-800">
+                        接受邀請並加入行程
+                    </button>
+                </form>
+
+                <!-- Decline Link -->
+                <div class="text-center">
+                    <a th:href="@{/dashboard}"
+                       class="inline-block text-sm text-gray-600 dark:text-gray-400
+                              hover:text-gray-900 dark:hover:text-gray-200 hover:underline">
+                        暫不加入，返回我的行程
+                    </a>
+                </div>
+            </div>
+
+            <!-- Expiry Warning -->
+            <div th:if="${expiresWithin24h}"
+                 class="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400
+                        bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 mt-6">
+                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor"
+                     viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>此邀請連結即將過期，請盡快接受</span>
+            </div>
+
+            <!-- Expiry Info -->
+            <p th:if="${expiresAt != null}" class="text-xs text-center text-gray-500 dark:text-gray-400 mt-4">
+                邀請連結有效至
+                <span th:text="${#temporals.format(expiresAt, 'yyyy/MM/dd HH:mm')}">2026/02/10 23:59</span>
+            </p>
+        </div>
+    </div>
+
+</body>
+</html>
