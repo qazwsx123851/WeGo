@@ -96,6 +96,7 @@ logging:
 
 # Custom Application Properties
 wego:
+  base-url: ${WEGO_BASE_URL:http://localhost:8080}
   supabase:
     url: ${SUPABASE_URL:}
     service-key: ${SUPABASE_SERVICE_KEY:}
