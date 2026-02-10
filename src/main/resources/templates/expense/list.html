@@ -224,7 +224,7 @@
     </main>
 
     <!-- Expense Detail Modal -->
-    <div id="expense-detail-modal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog" aria-labelledby="expense-modal-title">
+    <div id="expense-detail-modal" class="fixed inset-0 z-[55] hidden" aria-modal="true" role="dialog" aria-labelledby="expense-modal-title">
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200" onclick="closeExpenseModal()"></div>
 
@@ -232,7 +232,7 @@
         <div id="expense-modal-panel"
              class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl
                     md:bottom-auto md:top-8 md:bottom-8 md:max-w-lg md:mx-auto md:rounded-2xl md:max-h-none
-                    bg-white dark:bg-gray-900 overflow-clip flex flex-col shadow-2xl
+                    bg-white dark:bg-gray-900 overflow-hidden flex flex-col shadow-2xl
                     transform transition-all duration-200 translate-y-full md:translate-y-0 md:scale-95 md:opacity-0">
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-shrink-0">
@@ -353,6 +353,9 @@
             const panel = document.getElementById('expense-modal-panel');
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+
+            // Hide bottom nav to prevent overlap with modal footer
+            document.querySelector('.bottom-nav')?.classList.add('hidden');
 
             // Animate in
             requestAnimationFrame(() => {
@@ -569,6 +572,9 @@
                 document.body.style.overflow = '';
                 currentExpenseId = null;
                 currentExpenseData = null;
+
+                // Restore bottom nav
+                document.querySelector('.bottom-nav')?.classList.remove('hidden');
             }, 200);
         }
 
