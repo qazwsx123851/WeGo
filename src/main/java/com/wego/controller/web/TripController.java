@@ -42,9 +42,11 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -752,10 +754,12 @@ public class TripController {
         Map<LocalDate, List<com.wego.dto.response.ExpenseResponse>> expensesByDate =
                 expenses.stream()
                         .collect(Collectors.groupingBy(
-                                e -> e.getCreatedAt() != null
-                                        ? e.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate()
-                                        : LocalDate.now(),
-                                LinkedHashMap::new,
+                                e -> e.getExpenseDate() != null
+                                        ? e.getExpenseDate()
+                                        : (e.getCreatedAt() != null
+                                                ? e.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate()
+                                                : LocalDate.now()),
+                                () -> new TreeMap<>(Comparator.reverseOrder()),
                                 Collectors.toList()
                         ));
 
