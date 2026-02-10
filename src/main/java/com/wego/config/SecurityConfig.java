@@ -52,7 +52,7 @@ public class SecurityConfig {
             // Security Headers
             .headers(headers -> headers
                 // Prevent clickjacking
-                .frameOptions(frame -> frame.deny())
+                .frameOptions(frame -> frame.sameOrigin())
                 // Content Security Policy
                 .contentSecurityPolicy(csp -> csp
                     .policyDirectives(
@@ -62,8 +62,8 @@ public class SecurityConfig {
                         "font-src 'self' https://fonts.gstatic.com data:; " +
                         "img-src 'self' https: data: blob:; " +
                         "connect-src 'self' https://unpkg.com https://lottie.host https://cdn.jsdelivr.net; " +
-                        "frame-src 'self' https://www.google.com https://maps.google.com; " +
-                        "frame-ancestors 'none'"
+                        "frame-src 'self' https://www.google.com https://maps.google.com https://*.supabase.co; " +
+                        "frame-ancestors 'self'"
                     )
                 )
                 // Referrer Policy

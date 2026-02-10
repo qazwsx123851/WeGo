@@ -9,7 +9,9 @@ import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
 import com.wego.security.UserPrincipal;
+import com.wego.config.SupabaseProperties;
 import com.wego.service.DocumentService;
+import com.wego.service.external.StorageClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -64,6 +66,12 @@ class DocumentApiControllerTest {
 
     @MockBean
     private DocumentService documentService;
+
+    @MockBean
+    private StorageClient storageClient;
+
+    @MockBean
+    private SupabaseProperties supabaseProperties;
 
     private UUID tripId;
     private UUID documentId;

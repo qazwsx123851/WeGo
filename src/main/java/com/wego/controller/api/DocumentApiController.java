@@ -1,5 +1,6 @@
 package com.wego.controller.api;
 
+import com.wego.config.SupabaseProperties;
 import com.wego.dto.ApiResponse;
 import com.wego.dto.request.CreateDocumentRequest;
 import com.wego.dto.response.DocumentResponse;
@@ -7,6 +8,7 @@ import com.wego.entity.Document;
 import com.wego.security.CurrentUser;
 import com.wego.security.UserPrincipal;
 import com.wego.service.DocumentService;
+import com.wego.service.external.StorageClient;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,11 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +50,8 @@ import java.util.UUID;
 public class DocumentApiController {
 
     private final DocumentService documentService;
+    private final StorageClient storageClient;
+    private final SupabaseProperties supabaseProperties;
 
     /**
      * Uploads a document to a trip.
@@ -148,6 +157,56 @@ public class DocumentApiController {
         response.put("downloadUrl", downloadUrl);
 
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * Serves document content for inline preview (PDF/image).
+     *
+     * @contract
+     *   - pre: user is authenticated and has view permission
+     *   - post: returns raw file bytes with correct Content-Type
+     *   - post: sets security headers (nosniff, SAMEORIGIN, sandbox CSP)
+     *   - post: sets cache headers (private, 1 hour, immutable)
+     *   - calls: DocumentService#getDocumentForPreview, StorageClient#downloadFile
+     *
+     * GET /api/trips/{tripId}/documents/{documentId}/preview
+     */
+    @GetMapping("/trips/{tripId}/documents/{documentId}/preview")
+    public ResponseEntity<byte[]> previewDocument(
+            @PathVariable UUID tripId,
+            @PathVariable UUID documentId,
+            @CurrentUser UserPrincipal principal) {
+
+        UUID userId = principal.getId();
+        log.debug("GET /api/trips/{}/documents/{}/preview by user {}", tripId, documentId, userId);
+
+        Document document = documentService.getDocumentForPreview(tripId, documentId, userId);
+
+        String storagePath = document.getTripId() + "/" + document.getFileName();
+        byte[] content = storageClient.downloadFile(
+                supabaseProperties.getStorageBucket(), storagePath);
+
+        if (content == null || content.length == 0) {
+            log.warn("File content is empty for preview: {}", storagePath);
+            return ResponseEntity.notFound().build();
+        }
+
+        // RFC 5987 Content-Disposition with UTF-8 filename support
+        String originalFileName = document.getOriginalFileName();
+        String encodedFileName = URLEncoder.encode(
+                originalFileName, StandardCharsets.UTF_8).replace("+", "%20");
+        String disposition = "inline; filename=\"" + encodedFileName
+                + "\"; filename*=UTF-8''" + encodedFileName;
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, document.getMimeType())
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                .header("X-Content-Type-Options", "nosniff")
+                .header("X-Frame-Options", "SAMEORIGIN")
+                .header("Content-Security-Policy",
+                        "sandbox; default-src 'none'; style-src 'unsafe-inline'")
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600, immutable")
+                .body(content);
     }
 
     /**
