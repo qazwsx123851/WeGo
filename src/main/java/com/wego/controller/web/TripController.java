@@ -833,6 +833,49 @@ public class TripController {
     }
 
     /**
+     * Show document upload form.
+     *
+     * @contract
+     *   - pre: id != null, principal != null
+     *   - post: Returns document upload form view
+     *   - calls: TripService#getTrip, ActivityService#getActivitiesByTrip
+     *   - calledBy: Web browser GET /trips/{id}/documents/new
+     */
+    @GetMapping("/{id}/documents/new")
+    public String showDocumentUploadForm(@PathVariable UUID id,
+                                          @RequestParam(required = false) UUID activityId,
+                                          @AuthenticationPrincipal OAuth2User principal,
+                                          Model model) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        TripResponse trip;
+        try {
+            trip = tripService.getTrip(id, user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to get trip {}: {}", id, e.getMessage());
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        if (trip == null) {
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        var activities = activityService.getActivitiesByTrip(id, user.getId());
+
+        model.addAttribute("trip", trip);
+        model.addAttribute("tripId", id);
+        model.addAttribute("activities", activities);
+        model.addAttribute("activityId", activityId);
+        model.addAttribute("name", user.getNickname());
+        model.addAttribute("picture", user.getAvatarUrl());
+
+        return "document/upload";
+    }
+
+    /**
      * Show activity duplicate form (pre-filled create form from existing activity).
      *
      * @contract

@@ -935,15 +935,118 @@ const DatePicker = {
     initDateInputs() {
         document.querySelectorAll('[data-datepicker]:not([data-datepicker="trip-start"]):not([data-datepicker="trip-end"])').forEach(el => {
             if (el._flatpickr) return;
+
+            const minDate = el.dataset.minDate || undefined;
+            const maxDate = el.dataset.maxDate || undefined;
+
             const fp = flatpickr(el, {
                 dateFormat: 'Y-m-d',
                 altInput: true,
                 altFormat: 'Y年m月d日',
-                allowInput: true,
+                allowInput: false,
                 disableMobile: true,
                 defaultDate: el.value || null,
+                minDate: minDate || undefined,
+                maxDate: maxDate || undefined,
+                onChange: () => this.syncDateChips(el),
             });
             this.instances.push(fp);
+        });
+
+        this.initDateChips();
+    },
+
+    /** 格式化本地日期為 YYYY-MM-DD（避免 toISOString 的 UTC 時區偏移問題） */
+    formatLocalDate(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    },
+
+    /** 快速日期選擇 chips */
+    initDateChips() {
+        const container = document.getElementById('date-chips');
+        if (!container) return;
+
+        const dateInput = document.getElementById('expenseDate');
+        if (!dateInput) return;
+
+        const minDate = dateInput.dataset.minDate || '';
+        const maxDate = dateInput.dataset.maxDate || '';
+
+        // Generate trip day chips if trip <= 14 days
+        if (minDate && maxDate) {
+            const start = new Date(minDate + 'T00:00:00');
+            const end = new Date(maxDate + 'T00:00:00');
+            const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+            if (diffDays > 0 && diffDays <= 14) {
+                for (let i = 0; i < diffDays; i++) {
+                    const d = new Date(start);
+                    d.setDate(d.getDate() + i);
+                    const dateStr = this.formatLocalDate(d);
+                    const label = `${d.getMonth() + 1}/${d.getDate()}`;
+
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'date-chip min-h-[44px] px-3 py-2 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-200 cursor-pointer';
+                    chip.dataset.dateValue = dateStr;
+                    chip.textContent = `Day ${i + 1} (${label})`;
+                    container.appendChild(chip);
+                }
+            }
+        }
+
+        // Hide out-of-range offset chips (today/yesterday)
+        container.querySelectorAll('[data-date-offset]').forEach(chip => {
+            const offset = parseInt(chip.dataset.dateOffset, 10);
+            if (isNaN(offset)) return;
+            const d = new Date();
+            d.setDate(d.getDate() + offset);
+            const dateStr = this.formatLocalDate(d);
+            chip.dataset.dateValue = dateStr;
+
+            if ((minDate && dateStr < minDate) || (maxDate && dateStr > maxDate)) {
+                chip.classList.add('hidden');
+            }
+        });
+
+        // Click handler for all chips
+        container.addEventListener('click', (e) => {
+            const chip = e.target.closest('.date-chip');
+            if (!chip || !chip.dataset.dateValue) return;
+
+            const fp = dateInput._flatpickr;
+            if (fp) {
+                fp.setDate(chip.dataset.dateValue, true);
+            }
+            this.syncDateChips(dateInput);
+        });
+
+        // Initial sync
+        this.syncDateChips(dateInput);
+    },
+
+    /** 同步 chip 高亮狀態 */
+    syncDateChips(dateInput) {
+        const container = document.getElementById('date-chips');
+        if (!container) return;
+
+        const currentVal = dateInput.value;
+        container.querySelectorAll('.date-chip').forEach(chip => {
+            const isActive = chip.dataset.dateValue === currentVal;
+            chip.classList.toggle('border-primary-500', isActive);
+            chip.classList.toggle('bg-primary-50', isActive);
+            chip.classList.toggle('dark:bg-primary-900/30', isActive);
+            chip.classList.toggle('text-primary-700', isActive);
+            chip.classList.toggle('dark:text-primary-300', isActive);
+            chip.classList.toggle('border-gray-200', !isActive);
+            chip.classList.toggle('dark:border-gray-700', !isActive);
+            chip.classList.toggle('bg-white', !isActive);
+            chip.classList.toggle('dark:bg-gray-800', !isActive);
+            chip.classList.toggle('text-gray-700', !isActive);
+            chip.classList.toggle('dark:text-gray-300', !isActive);
         });
     },
 

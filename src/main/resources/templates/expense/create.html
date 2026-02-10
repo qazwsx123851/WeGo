@@ -159,13 +159,34 @@
                     <!-- Date -->
                     <div class="space-y-1.5">
                         <label for="expenseDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">日期</label>
-                        <input type="text"
-                               id="expenseDate"
-                               name="expenseDate"
-                               data-datepicker
-                               th:value="${expense?.expenseDate != null ? #temporals.format(expense.expenseDate, 'yyyy-MM-dd') : #temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}"
-                               placeholder="選擇日期"
-                               class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 cursor-pointer">
+
+                        <!-- Quick Date Chips -->
+                        <div id="date-chips" class="flex flex-wrap gap-2"
+                             th:with="tripStart=${trip?.startDate != null ? #temporals.format(trip.startDate, 'yyyy-MM-dd') : ''},
+                                      tripEnd=${trip?.endDate != null ? #temporals.format(trip.endDate, 'yyyy-MM-dd') : ''},
+                                      currentVal=${expense?.expenseDate != null ? #temporals.format(expense.expenseDate, 'yyyy-MM-dd') : #temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}">
+                            <button type="button" class="date-chip min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-200 cursor-pointer"
+                                    data-date-offset="0">今天</button>
+                            <button type="button" class="date-chip min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-200 cursor-pointer"
+                                    data-date-offset="-1">昨天</button>
+                        </div>
+
+                        <!-- Date Input with Calendar Icon -->
+                        <div class="relative">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <input type="text"
+                                   id="expenseDate"
+                                   name="expenseDate"
+                                   data-datepicker
+                                   readonly
+                                   th:value="${expense?.expenseDate != null ? #temporals.format(expense.expenseDate, 'yyyy-MM-dd') : #temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}"
+                                   th:data-min-date="${trip?.startDate != null ? #temporals.format(trip.startDate, 'yyyy-MM-dd') : ''}"
+                                   th:data-max-date="${trip?.endDate != null ? #temporals.format(trip.endDate, 'yyyy-MM-dd') : ''}"
+                                   placeholder="選擇日期"
+                                   class="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 cursor-pointer">
+                        </div>
                     </div>
                 </div>
             </section>
@@ -344,6 +365,7 @@
     </main>
 
     <!-- Expense form module -->
+    <script th:src="@{/js/app.js}" defer></script>
     <script th:src="@{/js/expense.js}" defer></script>
 
     <style>
@@ -358,6 +380,75 @@
         .dark .split-tab.active {
             background-color: rgb(55 65 81);
             color: rgb(243 244 246);
+        }
+
+        /* Flatpickr Dark Mode */
+        .dark .flatpickr-calendar {
+            background: rgb(31 41 55);
+            border-color: rgb(55 65 81);
+            box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.3);
+        }
+        .dark .flatpickr-months .flatpickr-month,
+        .dark .flatpickr-current-month .flatpickr-monthDropdown-months {
+            background: rgb(31 41 55);
+            color: rgb(243 244 246);
+        }
+        .dark .flatpickr-current-month input.cur-year {
+            color: rgb(243 244 246);
+        }
+        .dark .flatpickr-weekdays {
+            background: rgb(31 41 55);
+        }
+        .dark span.flatpickr-weekday {
+            color: rgb(156 163 175);
+            background: rgb(31 41 55);
+        }
+        .dark .flatpickr-day {
+            color: rgb(229 231 235);
+        }
+        .dark .flatpickr-day:hover {
+            background: rgb(55 65 81);
+            border-color: rgb(55 65 81);
+        }
+        .dark .flatpickr-day.today {
+            border-color: rgb(14 165 233);
+        }
+        .dark .flatpickr-day.today:hover {
+            background: rgb(14 165 233);
+            border-color: rgb(14 165 233);
+            color: white;
+        }
+        .dark .flatpickr-day.selected {
+            background: rgb(14 165 233);
+            border-color: rgb(14 165 233);
+            color: white;
+        }
+        .dark .flatpickr-day.flatpickr-disabled,
+        .dark .flatpickr-day.flatpickr-disabled:hover {
+            color: rgb(75 85 99);
+            background: transparent;
+        }
+        .dark .flatpickr-day.prevMonthDay,
+        .dark .flatpickr-day.nextMonthDay {
+            color: rgb(75 85 99);
+        }
+        .dark .flatpickr-months .flatpickr-prev-month,
+        .dark .flatpickr-months .flatpickr-next-month {
+            fill: rgb(156 163 175);
+        }
+        .dark .flatpickr-months .flatpickr-prev-month:hover,
+        .dark .flatpickr-months .flatpickr-next-month:hover {
+            fill: rgb(243 244 246);
+        }
+        .dark .flatpickr-monthDropdown-months option {
+            background: rgb(31 41 55);
+            color: rgb(243 244 246);
+        }
+
+        /* Flatpickr altInput styling - inherit padding for calendar icon */
+        .relative > input.form-control.input {
+            padding-left: 2.5rem !important;
+            cursor: pointer;
         }
     </style>
 </body>

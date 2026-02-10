@@ -137,6 +137,7 @@ public class DocumentService {
                     .fileUrl(fileUrl)
                     .fileSize(file.getSize())
                     .mimeType(file.getContentType())
+                    .category(request != null && request.getCategory() != null ? request.getCategory() : "other")
                     .relatedActivityId(request != null ? request.getRelatedActivityId() : null)
                     .relatedDay(request != null ? request.getRelatedDay() : null)
                     .description(request != null ? request.getDescription() : null)
