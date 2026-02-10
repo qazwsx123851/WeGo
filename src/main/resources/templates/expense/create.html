@@ -27,6 +27,7 @@
               id="expense-form"
               class="space-y-6">
             <input type="hidden" name="_method" th:value="${expense?.id != null ? 'PUT' : 'POST'}">
+            <input th:if="${activityId}" type="hidden" name="activityId" th:value="${activityId}">
 
             <!-- Amount Section -->
             <section class="glass-card p-6">
@@ -73,7 +74,7 @@
                         <input type="text"
                                id="description"
                                name="description"
-                               th:value="${expense?.description}"
+                               th:value="${expense?.description ?: activityName}"
                                required
                                maxlength="100"
                                placeholder="例如：午餐、計程車、門票..."
@@ -181,7 +182,7 @@
                                    name="expenseDate"
                                    data-datepicker
                                    readonly
-                                   th:value="${expense?.expenseDate != null ? #temporals.format(expense.expenseDate, 'yyyy-MM-dd') : #temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}"
+                                   th:value="${expense?.expenseDate != null ? #temporals.format(expense.expenseDate, 'yyyy-MM-dd') : (activityDate ?: #temporals.format(#temporals.createNow(), 'yyyy-MM-dd'))}"
                                    th:data-min-date="${trip?.startDate != null ? #temporals.format(trip.startDate, 'yyyy-MM-dd') : ''}"
                                    th:data-max-date="${trip?.endDate != null ? #temporals.format(trip.endDate, 'yyyy-MM-dd') : ''}"
                                    placeholder="選擇日期"
