@@ -110,32 +110,43 @@
             </div>
 
             <!-- Grouped by Date -->
-            <div th:each="dateGroup : ${expensesByDate}" class="mb-6">
-                <!-- Date Header -->
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex flex-col items-center justify-center">
-                        <span class="text-xs text-primary-600 dark:text-primary-400 font-medium"
-                              th:text="${#temporals.format(dateGroup.key, 'EEE')}">Mon</span>
-                        <span class="text-lg font-bold text-primary-700 dark:text-primary-300"
-                              th:text="${#temporals.format(dateGroup.key, 'd')}">1</span>
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-sm font-medium text-gray-800 dark:text-gray-100"
-                           th:text="${#temporals.format(dateGroup.key, 'MM月dd日')}">01月01日</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                            <span th:text="${#lists.size(dateGroup.value)}">0</span> 筆支出
-                        </p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 font-mono"
-                           th:text="'$' + ${#numbers.formatDecimal(#aggregates.sum(dateGroup.value.![amount]), 0, 'COMMA', 0, 'POINT')}">$0</p>
+            <div th:each="dateGroup, groupStat : ${expensesByDate}" class="mb-4">
+                <!-- Date Header - Clickable & Sticky -->
+                <div class="sticky top-0 z-10 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm py-2 -mx-4 px-4 cursor-pointer select-none"
+                     onclick="toggleDateGroup(this)">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex flex-col items-center justify-center">
+                            <span class="text-xs text-primary-600 dark:text-primary-400 font-medium"
+                                  th:text="${#temporals.format(dateGroup.key, 'EEE')}">Mon</span>
+                            <span class="text-lg font-bold text-primary-700 dark:text-primary-300"
+                                  th:text="${#temporals.format(dateGroup.key, 'd')}">1</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                               th:text="${#temporals.format(dateGroup.key, 'MM月dd日')}">01月01日</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                <span th:text="${#lists.size(dateGroup.value)}">0</span> 筆支出
+                            </p>
+                        </div>
+                        <div class="text-right mr-1">
+                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                               th:text="'$' + ${#numbers.formatDecimal(#aggregates.sum(dateGroup.value.![amount]), 0, 'COMMA', 0, 'POINT')}">$0</p>
+                        </div>
+                        <!-- Chevron Icon -->
+                        <svg class="w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform duration-200 chevron-icon flex-shrink-0"
+                             th:classappend="${groupStat.first} ? 'rotate-180' : ''"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
                     </div>
                 </div>
 
-                <!-- Expense Items -->
-                <div class="space-y-3">
+                <!-- Expense Items - Collapsible -->
+                <div class="expense-group-content space-y-2 mt-2 overflow-hidden transition-all duration-200 ease-out"
+                     th:classappend="${groupStat.first} ? '' : 'max-h-0'"
+                     th:style="${groupStat.first} ? '' : 'max-height: 0px'">
                     <div th:each="expense : ${dateGroup.value}"
-                         class="expense-card bg-white dark:bg-gray-800 rounded-xl p-4 shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer"
+                         class="expense-card bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer"
                          th:data-expense-id="${expense.id}"
                          th:data-expense-description="${expense.description}"
                          th:data-expense-amount="${expense.amount}"
@@ -144,85 +155,67 @@
                          th:data-expense-payer-name="${expense.paidByName}"
                          th:data-expense-split-type="${expense.splitType}"
                          th:data-expense-note="${expense.note}">
-                        <div class="flex items-start gap-3">
+                        <div class="flex items-center gap-3">
                             <!-- Category Icon -->
-                            <div class="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+                            <div class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
                                  th:classappend="${expense.category == 'FOOD' ? 'bg-orange-100 dark:bg-orange-900/30' :
                                                   expense.category == 'TRANSPORT' ? 'bg-blue-100 dark:bg-blue-900/30' :
                                                   expense.category == 'ACCOMMODATION' ? 'bg-purple-100 dark:bg-purple-900/30' :
                                                   expense.category == 'ENTERTAINMENT' ? 'bg-pink-100 dark:bg-pink-900/30' :
                                                   'bg-gray-100 dark:bg-gray-700'}">
                                 <!-- Food Icon -->
-                                <svg th:if="${expense.category == 'FOOD'}" class="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg th:if="${expense.category == 'FOOD'}" class="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
                                 </svg>
                                 <!-- Transport Icon -->
-                                <svg th:if="${expense.category == 'TRANSPORT'}" class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg th:if="${expense.category == 'TRANSPORT'}" class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                                 </svg>
                                 <!-- Accommodation Icon -->
-                                <svg th:if="${expense.category == 'ACCOMMODATION'}" class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg th:if="${expense.category == 'ACCOMMODATION'}" class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                                 </svg>
                                 <!-- Entertainment Icon -->
-                                <svg th:if="${expense.category == 'ENTERTAINMENT'}" class="w-5 h-5 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg th:if="${expense.category == 'ENTERTAINMENT'}" class="w-4 h-4 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
                                 <!-- Other Icon -->
-                                <svg th:if="${expense.category == 'OTHER' or expense.category == null}" class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg th:if="${expense.category == 'OTHER' or expense.category == null}" class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
                                 </svg>
                             </div>
 
-                            <!-- Expense Details -->
+                            <!-- Expense Details (compact) -->
                             <div class="flex-1 min-w-0">
-                                <p class="font-medium text-gray-800 dark:text-gray-100 truncate"
+                                <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate"
                                    th:text="${expense.description}">支出描述</p>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <div class="flex items-center gap-1">
-                                        <div class="w-5 h-5 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                                            <span class="text-xs font-medium text-primary-600 dark:text-primary-400"
-                                                  th:text="${expense.paidByName != null ? #strings.substring(expense.paidByName, 0, 1) : '?'}">A</span>
-                                        </div>
-                                        <span class="text-xs text-gray-500 dark:text-gray-400"
-                                              th:text="${expense.paidByName != null ? expense.paidByName : '未知'}">付款人</span>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <div class="w-4 h-4 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                        <span class="text-[10px] font-medium text-primary-600 dark:text-primary-400"
+                                              th:text="${expense.paidByName != null ? #strings.substring(expense.paidByName, 0, 1) : '?'}">A</span>
                                     </div>
-                                    <span class="text-gray-300 dark:text-gray-600">|</span>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400"
+                                          th:text="${expense.paidByName != null ? expense.paidByName : '未知'}">付款人</span>
+                                    <span class="text-gray-300 dark:text-gray-600 text-xs">·</span>
                                     <span class="text-xs text-gray-500 dark:text-gray-400"
                                           th:text="${expense.splitType?.name() == 'EQUAL' ? '均分' :
                                                      expense.splitType?.name() == 'PERCENTAGE' ? '百分比' :
                                                      expense.splitType?.name() == 'CUSTOM' ? '自訂' :
                                                      expense.splitType?.name() == 'SHARES' ? '比例' : '均分'}">均分</span>
+                                    <span class="text-gray-300 dark:text-gray-600 text-xs">·</span>
+                                    <span class="text-xs text-gray-400 dark:text-gray-500"
+                                          th:text="${expense.splits != null ? #lists.size(expense.splits) : 0} + '人'">2人</span>
                                 </div>
                             </div>
 
                             <!-- Amount -->
                             <div class="text-right flex-shrink-0">
-                                <p class="font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                                <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 font-mono"
                                    th:text="'$' + ${#numbers.formatDecimal(expense.amount, 0, 'COMMA', 0, 'POINT')}">$0</p>
                                 <p th:if="${expense.currency != defaultCurrency}"
-                                   class="text-xs text-gray-400 dark:text-gray-500"
+                                   class="text-[10px] text-gray-400 dark:text-gray-500"
                                    th:text="${expense.currency}">USD</p>
                             </div>
-                        </div>
-
-                        <!-- Participants Count (using splits) -->
-                        <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                            <div class="flex -space-x-2">
-                                <div th:each="split, iterStat : ${expense.splits}"
-                                     th:if="${iterStat.index < 4}"
-                                     class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
-                                    <span class="text-xs font-medium text-gray-600 dark:text-gray-300"
-                                          th:text="${split.userNickname != null ? #strings.substring(split.userNickname, 0, 1) : '?'}">A</span>
-                                </div>
-                                <div th:if="${expense.splits != null and #lists.size(expense.splits) > 4}"
-                                     class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center ring-2 ring-white dark:ring-gray-800">
-                                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
-                                          th:text="'+' + (${#lists.size(expense.splits)} - 4)">+2</span>
-                                </div>
-                            </div>
-                            <span class="text-xs text-gray-400 dark:text-gray-500"
-                                  th:text="${expense.splits != null ? #lists.size(expense.splits) : 0} + ' 人分攤'">5 人分攤</span>
                         </div>
                     </div>
                 </div>
@@ -236,8 +229,11 @@
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200" onclick="closeExpenseModal()"></div>
 
         <!-- Modal Content -->
-        <div class="absolute inset-4 md:inset-x-auto md:inset-y-8 md:max-w-lg md:mx-auto
-                    bg-white dark:bg-gray-900 rounded-2xl overflow-hidden flex flex-col shadow-2xl transform transition-all duration-200">
+        <div id="expense-modal-panel"
+             class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl
+                    md:bottom-auto md:top-8 md:bottom-8 md:max-w-lg md:mx-auto md:rounded-2xl md:max-h-none
+                    bg-white dark:bg-gray-900 overflow-clip flex flex-col shadow-2xl
+                    transform transition-all duration-200 translate-y-full md:translate-y-0 md:scale-95 md:opacity-0">
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-shrink-0">
                 <h3 id="expense-modal-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100">支出詳情</h3>
@@ -251,7 +247,8 @@
             </div>
 
             <!-- Body - scrollable -->
-            <div id="expense-modal-body" class="flex-1 overflow-y-auto p-6">
+            <div id="expense-modal-body" class="flex-1 overflow-y-auto overscroll-y-contain p-6"
+                 style="-webkit-overflow-scrolling: touch;">
                 <!-- Loading state -->
                 <div id="expense-modal-loading" class="flex items-center justify-center py-12">
                     <div class="w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
@@ -261,7 +258,7 @@
             </div>
 
             <!-- Footer with actions -->
-            <div class="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3 flex-shrink-0">
+            <div class="px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-gray-100 dark:border-gray-800 flex gap-3 flex-shrink-0">
                 <button onclick="editExpense()"
                         class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer flex items-center justify-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -351,10 +348,19 @@
                 note: cardElement.dataset.expenseNote
             };
 
-            // Show modal
+            // Show modal with animation
             const modal = document.getElementById('expense-detail-modal');
+            const panel = document.getElementById('expense-modal-panel');
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+
+            // Animate in
+            requestAnimationFrame(() => {
+                panel.classList.remove('translate-y-full');
+                panel.classList.add('translate-y-0');
+                panel.classList.remove('md:scale-95', 'md:opacity-0');
+                panel.classList.add('md:scale-100', 'md:opacity-100');
+            });
 
             // Show loading, hide content
             document.getElementById('expense-modal-loading').classList.remove('hidden');
@@ -550,10 +556,20 @@
 
         function closeExpenseModal() {
             const modal = document.getElementById('expense-detail-modal');
-            modal.classList.add('hidden');
-            document.body.style.overflow = '';
-            currentExpenseId = null;
-            currentExpenseData = null;
+            const panel = document.getElementById('expense-modal-panel');
+
+            // Animate out
+            panel.classList.add('translate-y-full');
+            panel.classList.remove('translate-y-0');
+            panel.classList.add('md:scale-95', 'md:opacity-0');
+            panel.classList.remove('md:scale-100', 'md:opacity-100');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+                currentExpenseId = null;
+                currentExpenseData = null;
+            }, 200);
         }
 
         // =====================
@@ -634,6 +650,57 @@
 
         // =====================
         // Utility Functions
+        // =====================
+        // Date Group Accordion
+        // =====================
+        function toggleDateGroup(header) {
+            const content = header.nextElementSibling;
+            if (!content || !content.classList.contains('expense-group-content')) return;
+
+            const chevron = header.querySelector('.chevron-icon');
+            const isCollapsed = content.classList.contains('max-h-0');
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            if (isCollapsed) {
+                // Expand
+                content.classList.remove('max-h-0');
+                content.style.maxHeight = content.scrollHeight + 'px';
+                if (chevron) chevron.classList.add('rotate-180');
+
+                // Clean up after transition
+                const cleanup = () => {
+                    content.style.maxHeight = '';
+                    content.removeEventListener('transitionend', cleanup);
+                };
+                if (prefersReducedMotion) {
+                    content.style.maxHeight = '';
+                } else {
+                    content.addEventListener('transitionend', cleanup);
+                }
+            } else {
+                // Collapse: set explicit height first, then animate to 0
+                content.style.maxHeight = content.scrollHeight + 'px';
+                if (chevron) chevron.classList.remove('rotate-180');
+
+                if (prefersReducedMotion) {
+                    content.classList.add('max-h-0');
+                    content.style.maxHeight = '0px';
+                } else {
+                    requestAnimationFrame(() => {
+                        content.classList.add('max-h-0');
+                        content.style.maxHeight = '0px';
+                    });
+                }
+            }
+        }
+
+        // Initialize expanded groups on load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.expense-group-content:not(.max-h-0)').forEach(content => {
+                content.style.maxHeight = '';
+            });
+        });
+
         // =====================
         function formatNumber(num) {
             if (num === null || num === undefined) return '0';
