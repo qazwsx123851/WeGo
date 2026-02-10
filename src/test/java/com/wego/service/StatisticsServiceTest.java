@@ -286,9 +286,9 @@ class StatisticsServiceTest {
 
             List<MemberStatistics> stats = List.of(
                     new MemberStatistics(userId, "Alice", null,
-                            new BigDecimal("2000"), new BigDecimal("1000"), 5),
+                            new BigDecimal("2000"), new BigDecimal("1000"), new BigDecimal("1000"), 5),
                     new MemberStatistics(user2Id, "Bob", null,
-                            new BigDecimal("1000"), new BigDecimal("2000"), 3)
+                            new BigDecimal("1000"), new BigDecimal("2000"), new BigDecimal("-1000"), 3)
             );
             when(expenseAggregator.aggregateByMember(anyList(), anyList(), anyMap())).thenReturn(stats);
 

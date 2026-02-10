@@ -354,12 +354,42 @@ const ExpenseStatistics = {
         if (!listEl) return;
 
         listEl.innerHTML = members.map(member => {
-            const isPositive = member.balance >= 0;
-            const balanceClass = isPositive
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-red-600 dark:text-red-400';
-            const balancePrefix = isPositive ? '+' : '';
-            const statusText = isPositive ? '可收回' : '需支付';
+            // Use unsettledBalance for display (reflects settlement status)
+            const unsettled = Number(member.unsettledBalance) || 0;
+            const historical = Number(member.balance) || 0;
+
+            let balanceHtml;
+            if (unsettled === 0 && historical !== 0) {
+                // Fully settled: green checkmark badge
+                balanceHtml = `
+                    <p class="font-semibold text-green-600 dark:text-green-400 flex items-center justify-end gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        已結清
+                    </p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                        原 ${historical >= 0 ? '+' : ''}$${this.formatNumber(Math.abs(historical))}
+                    </p>`;
+            } else if (unsettled === 0) {
+                // Even split, no balance
+                balanceHtml = `
+                    <p class="font-semibold text-gray-400 dark:text-gray-500">$0</p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">均分</p>`;
+            } else {
+                // Outstanding balance
+                const isPositive = unsettled >= 0;
+                const balanceClass = isPositive
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400';
+                const balancePrefix = isPositive ? '+' : '';
+                const statusText = isPositive ? '可收回' : '需支付';
+                balanceHtml = `
+                    <p class="font-semibold font-mono ${balanceClass}">
+                        ${balancePrefix}$${this.formatNumber(Math.abs(unsettled))}
+                    </p>
+                    <p class="text-xs ${balanceClass}">${statusText}</p>`;
+            }
 
             // Escape user-controlled data to prevent XSS
             const safeNickname = this.escapeHtml(member.nickname);
@@ -381,10 +411,7 @@ const ExpenseStatistics = {
                             <p class="text-xs text-gray-500 dark:text-gray-400">${Number(member.expenseCount)} 筆支出</p>
                         </div>
                         <div class="text-right">
-                            <p class="font-semibold font-mono ${balanceClass}">
-                                ${balancePrefix}$${this.formatNumber(Math.abs(member.balance))}
-                            </p>
-                            <p class="text-xs ${balanceClass}">${statusText}</p>
+                            ${balanceHtml}
                         </div>
                     </div>
                     <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">

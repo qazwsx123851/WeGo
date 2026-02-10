@@ -20,6 +20,7 @@ public final class MemberStatistics {
     private final BigDecimal totalPaid;
     private final BigDecimal totalOwed;
     private final BigDecimal balance;
+    private final BigDecimal unsettledBalance;
     private final int expenseCount;
 
     /**
@@ -30,10 +31,12 @@ public final class MemberStatistics {
      * @param avatarUrl The user's avatar URL (nullable)
      * @param totalPaid Total amount paid by this user
      * @param totalOwed Total amount this user owes (from splits)
+     * @param unsettledBalance Outstanding balance after settlements (0 = fully settled)
      * @param expenseCount Number of expenses created by this user
      */
     public MemberStatistics(UUID userId, String nickname, String avatarUrl,
-                            BigDecimal totalPaid, BigDecimal totalOwed, int expenseCount) {
+                            BigDecimal totalPaid, BigDecimal totalOwed,
+                            BigDecimal unsettledBalance, int expenseCount) {
         this.userId = Objects.requireNonNull(userId, "userId must not be null");
         this.nickname = Objects.requireNonNull(nickname, "nickname must not be null");
         this.avatarUrl = avatarUrl;
@@ -46,6 +49,7 @@ public final class MemberStatistics {
             throw new IllegalArgumentException("totalOwed must be non-negative");
         }
         this.balance = totalPaid.subtract(totalOwed);
+        this.unsettledBalance = Objects.requireNonNull(unsettledBalance, "unsettledBalance must not be null");
         this.expenseCount = expenseCount;
     }
 
@@ -79,6 +83,14 @@ public final class MemberStatistics {
         return balance;
     }
 
+    /**
+     * Returns the unsettled balance (outstanding after settlements).
+     * Zero means all debts are settled.
+     */
+    public BigDecimal getUnsettledBalance() {
+        return unsettledBalance;
+    }
+
     public int getExpenseCount() {
         return expenseCount;
     }
@@ -94,12 +106,13 @@ public final class MemberStatistics {
                Objects.equals(avatarUrl, that.avatarUrl) &&
                Objects.equals(totalPaid, that.totalPaid) &&
                Objects.equals(totalOwed, that.totalOwed) &&
-               Objects.equals(balance, that.balance);
+               Objects.equals(balance, that.balance) &&
+               Objects.equals(unsettledBalance, that.unsettledBalance);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(userId, nickname, avatarUrl, totalPaid, totalOwed, balance, expenseCount);
+        return Objects.hash(userId, nickname, avatarUrl, totalPaid, totalOwed, balance, unsettledBalance, expenseCount);
     }
 
     @Override
@@ -110,6 +123,7 @@ public final class MemberStatistics {
                ", totalPaid=" + totalPaid +
                ", totalOwed=" + totalOwed +
                ", balance=" + balance +
+               ", unsettledBalance=" + unsettledBalance +
                ", expenseCount=" + expenseCount +
                '}';
     }

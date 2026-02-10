@@ -33,6 +33,7 @@ public class MemberStatisticsResponse {
         private BigDecimal totalPaid;
         private BigDecimal totalOwed;
         private BigDecimal balance;
+        private BigDecimal unsettledBalance;
         private int expenseCount;
         private double paidPercentage;
 
@@ -51,6 +52,7 @@ public class MemberStatisticsResponse {
                     .totalPaid(stats.getTotalPaid())
                     .totalOwed(stats.getTotalOwed())
                     .balance(stats.getBalance())
+                    .unsettledBalance(stats.getUnsettledBalance())
                     .expenseCount(stats.getExpenseCount())
                     .paidPercentage(paidPct)
                     .build();
