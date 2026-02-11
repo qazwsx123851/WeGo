@@ -1,8 +1,9 @@
 # WeGo 開發貢獻指南
 
-> 最後更新: 2026-02-04 | 自動生成自 pom.xml 和 .env.example
+> 最後更新: 2026-02-11 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-11: 新增 CSRF Token 使用方式、前後端開發注意事項、API 對照表連結
 > - 2026-02-04: Phase 4 完成 - 安全強化、深色模式、E2E 測試 (89 tests)、無障礙支援
 > - 2026-02-03: Phase 3 完成 - 多幣別匯率、統計圖表、債務簡化
 > - 2026-02-02: 遷移至 Google Routes API、修復 CI 測試、暫停自動部署
@@ -378,6 +379,79 @@ GOOGLE_MAPS_USE_ROUTES_API=false # 使用舊 Distance Matrix API
 
 ---
 
+## CSRF Token 使用方式
+
+### 基本設定
+
+| 項目 | 值 |
+|------|---|
+| Cookie 名稱 | `XSRF-TOKEN` |
+| Header 名稱 | `X-XSRF-TOKEN` |
+| Repository | `CookieCsrfTokenRepository` (Spring default for cookie-based) |
+| CSRF 豁免 | `/api/health`, `/api/weather/**`, `/api/test/auth/**` |
+
+### 前端 JavaScript 使用方式
+
+從 Thymeleaf 模板注入的 `<meta>` 標籤取得 CSRF token：
+
+```javascript
+// 取得 token
+const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
+// 在 fetch 請求中使用
+fetch(url, {
+    method: 'POST', // 或 PUT / DELETE
+    headers: {
+        [csrfHeader]: csrfToken,
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+});
+```
+
+### 規則
+
+- 所有 `POST`/`PUT`/`DELETE` 請求**必須**附帶 CSRF token
+- `GET` 請求**不需要** CSRF token (附帶也不影響，但屬於不必要的開銷)
+- HTML form 使用 Thymeleaf `th:action` 會自動附帶 hidden CSRF input
+
+---
+
+## 前後端開發注意事項
+
+### 雙介面並行架構
+
+系統同時提供 Web Form 和 REST API 兩套介面：
+
+| 介面 | Controller 位置 | 參數綁定 | 回傳格式 |
+|------|----------------|----------|----------|
+| Web Form | `controller/web/*` | `@RequestParam` | HTML (Thymeleaf) |
+| REST API | `controller/api/*` | `@RequestBody` (JSON) | JSON (`ApiResponse`) |
+
+> 新增 API endpoint 時，需考慮是否同時需要前端呼叫，或僅作為 API-only (供未來 mobile/SPA 使用)。
+> 詳細前後端 API 對照表請參考 [api-reference.md](./api-reference.md)。
+
+### API 路徑模式不一致
+
+Activity/Expense 的 CRUD 路徑存在不一致：
+
+| 操作 | 路徑模式 | 範例 |
+|------|----------|------|
+| 建立/列表 | `/api/trips/{tripId}/[resource]` | `POST /api/trips/{id}/activities` |
+| 更新/刪除 | `/api/[resource]/{resourceId}` | `PUT /api/activities/{id}` |
+
+這是有意的設計 (update/delete 透過 resourceId 即可唯一識別)，但開發新端點時請保持一致。
+
+### 認證方式差異
+
+| 介面 | 識別使用者方式 | 取得方式 |
+|------|---------------|----------|
+| Web Controller | `email` attribute | `getUserByEmail(principal.getAttribute("email"))` |
+| API Controller | `sub` attribute | `UUID.fromString(principal.getAttribute("sub"))` |
+
+---
+
 ## 新增功能指南
 
 ### 全域概覽頁面
@@ -469,6 +543,7 @@ Playwright E2E 測試覆蓋以下流程：
 
 | 文件 | 說明 |
 |------|------|
+| [api-reference.md](./api-reference.md) | 前後端 API 對照表 |
 | [RUNBOOK.md](./RUNBOOK.md) | 部署與維運手冊 |
 | [requirements.md](./requirements.md) | 需求規格書 (PRD) |
 | [software-design-document.md](./software-design-document.md) | 軟體設計文件 |

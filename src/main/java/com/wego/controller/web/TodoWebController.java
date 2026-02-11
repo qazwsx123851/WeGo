@@ -36,11 +36,10 @@ import java.util.UUID;
 @RequestMapping("/trips/{tripId}/todos")
 @RequiredArgsConstructor
 @Slf4j
-public class TodoWebController {
+public class TodoWebController extends BaseWebController {
 
     private final TodoService todoService;
     private final TripService tripService;
-    private final UserService userService;
 
     /**
      * List all todos for a trip.
@@ -114,22 +113,4 @@ public class TodoWebController {
         return "todo/list";
     }
 
-    /**
-     * Gets the current user from OAuth2 principal.
-     *
-     * @param principal The OAuth2 user principal
-     * @return The user entity or null if not found
-     */
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        try {
-            return userService.getUserByEmail(email);
-        } catch (Exception e) {
-            log.warn("Failed to get user by email {}: {}", email, e.getMessage());
-            return null;
-        }
-    }
 }

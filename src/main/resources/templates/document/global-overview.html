@@ -405,9 +405,7 @@
 
         async function fetchPreviewDownloadUrl(tripId, docId) {
             try {
-                const response = await fetch('/api/trips/' + tripId + '/documents/' + docId + '/download', {
-                    headers: { [csrfHeader]: csrfToken }
-                });
+                const response = await fetch('/api/trips/' + tripId + '/documents/' + docId + '/download');
                 if (response.ok) {
                     const result = await response.json();
                     if (result.success && result.data && result.data.downloadUrl) {

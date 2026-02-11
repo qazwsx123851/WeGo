@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,7 +34,11 @@ import java.util.UUID;
  * @see Activity
  */
 @Entity
-@Table(name = "documents")
+@Table(name = "documents", indexes = {
+    @Index(name = "idx_document_trip_id", columnList = "trip_id"),
+    @Index(name = "idx_document_uploaded_by", columnList = "uploaded_by"),
+    @Index(name = "idx_document_trip_created", columnList = "trip_id, created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor

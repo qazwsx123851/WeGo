@@ -34,12 +34,11 @@ import java.util.UUID;
 @RequestMapping("/documents")
 @RequiredArgsConstructor
 @Slf4j
-public class GlobalDocumentController {
+public class GlobalDocumentController extends BaseWebController {
 
     private static final int PAGE_SIZE = 20;
 
     private final GlobalDocumentService globalDocumentService;
-    private final UserService userService;
 
     /**
      * Shows the global document overview page.
@@ -103,25 +102,4 @@ public class GlobalDocumentController {
         return "document/global-overview";
     }
 
-    /**
-     * Gets the current user from OAuth2 principal.
-     *
-     * @param principal The OAuth2 principal
-     * @return User entity or null if not found
-     */
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        if (email == null) {
-            return null;
-        }
-        try {
-            return userService.getUserByEmail(email);
-        } catch (Exception e) {
-            log.warn("Failed to get user by email: {}", email, e);
-            return null;
-        }
-    }
 }
