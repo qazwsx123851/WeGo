@@ -390,17 +390,6 @@
             <span class="text-xs mt-1">分帳</span>
         </a>
 
-        <!-- Add Button -->
-        <button aria-label="新增"
-                class="-mt-5 w-14 h-14 bg-adventure-500 hover:bg-adventure-600
-                       rounded-full text-white shadow-lg shadow-adventure-500/30
-                       flex items-center justify-center
-                       transition-all duration-200 active:scale-95 cursor-pointer">
-            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-        </button>
-
         <!-- Documents -->
         <a th:href="@{/documents}"
            th:classappend="${#strings.startsWith(currentPath, '/documents') ? 'active' : ''}"

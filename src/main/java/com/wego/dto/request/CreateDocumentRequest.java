@@ -35,6 +35,12 @@ public class CreateDocumentRequest {
     private Integer relatedDay;
 
     /**
+     * Optional document category (tickets, receipts, reservations, other).
+     */
+    @Size(max = 50, message = "分類名稱不可超過 50 字")
+    private String category;
+
+    /**
      * Optional description of the document.
      */
     @Size(max = 500, message = "描述不可超過 500 字")

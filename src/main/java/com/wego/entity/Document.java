@@ -83,6 +83,10 @@ public class Document {
     @Column(name = "description", length = 500)
     private String description;
 
+    @Column(name = "category", length = 50)
+    @Builder.Default
+    private String category = "other";
+
     @Column(name = "uploaded_by", nullable = false)
     private UUID uploadedBy;
 

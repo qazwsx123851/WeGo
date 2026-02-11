@@ -116,25 +116,61 @@
         <!-- Activities Timeline -->
         <div class="space-y-6">
             <!-- Day Group -->
-            <th:block th:each="dayGroup : ${activitiesByDate}">
+            <th:block th:each="dayGroup, groupStat : ${activitiesByDate}">
                 <section th:id="'day-' + ${#temporals.format(dayGroup.key, 'yyyy-MM-dd')}"
                          style="scroll-margin-top: 80px;">
-                    <!-- Day Header -->
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30
-                                    flex flex-col items-center justify-center">
-                            <span class="text-xs text-primary-600 dark:text-primary-400 font-medium"
-                                  th:text="${#temporals.format(dayGroup.key, 'E')}">Mon</span>
-                            <span class="text-lg font-bold text-primary-700 dark:text-primary-300"
-                                  th:text="${#temporals.day(dayGroup.key)}">15</span>
-                        </div>
-                        <div>
-                            <h2 class="text-base font-semibold text-gray-800 dark:text-gray-100"
-                                th:text="${#temporals.format(dayGroup.key, 'M月d日')}">3月15日</h2>
-                            <p class="text-caption text-gray-500 dark:text-gray-400"
-                               th:text="${#lists.size(dayGroup.value)} + ' 個景點'">3 個景點</p>
+                    <!-- Day Header - Clickable & Sticky (top offset = main header height ~52px) -->
+                    <div class="sticky top-[52px] z-10 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm
+                                py-2 -mx-4 px-4 cursor-pointer select-none"
+                         role="button"
+                         tabindex="0"
+                         th:aria-expanded="${groupStat.first} ? 'true' : 'false'"
+                         th:aria-controls="'day-content-' + ${#temporals.format(dayGroup.key, 'yyyy-MM-dd')}"
+                         onclick="toggleActivityGroup(this)"
+                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleActivityGroup(this)}">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30
+                                        flex flex-col items-center justify-center">
+                                <span class="text-xs text-primary-600 dark:text-primary-400 font-medium"
+                                      th:text="${#temporals.format(dayGroup.key, 'E')}">Mon</span>
+                                <span class="text-lg font-bold text-primary-700 dark:text-primary-300"
+                                      th:text="${#temporals.day(dayGroup.key)}">15</span>
+                            </div>
+                            <div class="flex-1">
+                                <h2 class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                                    th:text="${#temporals.format(dayGroup.key, 'M月d日')}">3月15日</h2>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    <span th:text="${#lists.size(dayGroup.value)}">0</span> 個景點
+                                    <th:block th:if="${!#lists.isEmpty(dayGroup.value) and dayGroup.value[0]?.startTime != null}">
+                                        <span class="text-gray-300 dark:text-gray-600 mx-1">·</span>
+                                        <span th:text="${#temporals.format(dayGroup.value[0]?.startTime, 'HH:mm')}">09:00</span>
+                                        <th:block th:with="lastActivity=${dayGroup.value.get(#lists.size(dayGroup.value) - 1)}">
+                                            <span th:if="${lastActivity.endTime != null or (lastActivity.startTime != null and #lists.size(dayGroup.value) > 1)}">
+                                                -
+                                                <span th:if="${lastActivity.endTime != null}"
+                                                      th:text="${#temporals.format(lastActivity.endTime, 'HH:mm')}">18:00</span>
+                                                <span th:if="${lastActivity.endTime == null and lastActivity.startTime != null}"
+                                                      th:text="${#temporals.format(lastActivity.startTime, 'HH:mm')}">17:00</span>
+                                            </span>
+                                        </th:block>
+                                    </th:block>
+                                </p>
+                            </div>
+                            <!-- Chevron Icon -->
+                            <svg class="w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform duration-200 chevron-icon flex-shrink-0"
+                                 th:classappend="${groupStat.first} ? 'rotate-180' : ''"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
                         </div>
                     </div>
+
+                    <!-- Activity Cards - Collapsible -->
+                    <div class="activity-group-content overflow-hidden transition-all duration-200 ease-out"
+                         th:id="'day-content-' + ${#temporals.format(dayGroup.key, 'yyyy-MM-dd')}"
+                         role="region"
+                         th:classappend="${groupStat.first} ? '' : 'max-h-0'"
+                         th:style="${groupStat.first} ? '' : 'max-height: 0px'">
 
                     <!-- Activity Cards (only render if there are activities) -->
                     <div th:if="${!#lists.isEmpty(dayGroup.value)}"
@@ -355,6 +391,7 @@
                             </th:block>
                         </th:block>
                     </div>
+                    </div><!-- /activity-group-content -->
                 </section>
             </th:block>
         </div>
@@ -701,12 +738,69 @@
     <script th:src="@{/js/route-optimizer.js}" defer></script>
     <script th:src="@{/js/drag-reorder.js}" defer></script>
 
+    <!-- Activity Group Toggle Script -->
+    <script>
+        function toggleActivityGroup(header) {
+            var content = header.nextElementSibling;
+            if (!content || !content.classList.contains('activity-group-content')) return;
+
+            var chevron = header.querySelector('.chevron-icon');
+            var isCollapsed = content.classList.contains('max-h-0');
+            var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            // Clean up any stale listener from rapid clicks
+            if (content._cleanupTimer) clearTimeout(content._cleanupTimer);
+            if (content._cleanup) {
+                content.removeEventListener('transitionend', content._cleanup);
+                content._cleanup = null;
+            }
+
+            // Update ARIA state
+            header.setAttribute('aria-expanded', isCollapsed ? 'true' : 'false');
+
+            if (isCollapsed) {
+                // Expand
+                content.classList.remove('max-h-0');
+                content.style.maxHeight = content.scrollHeight + 'px';
+                if (chevron) chevron.classList.add('rotate-180');
+
+                var cleanup = function() {
+                    content.style.maxHeight = '';
+                    content.removeEventListener('transitionend', cleanup);
+                    content._cleanup = null;
+                    clearTimeout(content._cleanupTimer);
+                };
+                content._cleanup = cleanup;
+                if (prefersReducedMotion) {
+                    content.style.maxHeight = '';
+                } else {
+                    content.addEventListener('transitionend', cleanup);
+                    content._cleanupTimer = setTimeout(cleanup, 300);
+                }
+            } else {
+                // Collapse
+                content.style.maxHeight = content.scrollHeight + 'px';
+                if (chevron) chevron.classList.remove('rotate-180');
+
+                if (prefersReducedMotion) {
+                    content.classList.add('max-h-0');
+                    content.style.maxHeight = '0px';
+                } else {
+                    requestAnimationFrame(function() {
+                        content.classList.add('max-h-0');
+                        content.style.maxHeight = '0px';
+                    });
+                }
+            }
+        }
+    </script>
+
     <!-- Date Tab Navigation Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const dateTabs = document.querySelectorAll('button[data-date]');
-            const activeClasses = ['bg-primary-500', 'text-white'];
-            const inactiveClasses = ['bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-200'];
+            var dateTabs = document.querySelectorAll('button[data-date]');
+            var activeClasses = ['bg-primary-500', 'text-white'];
+            var inactiveClasses = ['bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-200'];
 
             dateTabs.forEach(function(tab) {
                 tab.addEventListener('click', function() {
@@ -714,8 +808,22 @@
                     var section = document.getElementById('day-' + date);
                     if (!section) return;
 
-                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Auto-expand if collapsed
+                    var header = section.querySelector('[onclick*="toggleActivityGroup"]');
+                    if (header) {
+                        var content = header.nextElementSibling;
+                        if (content && content.classList.contains('activity-group-content')
+                            && content.classList.contains('max-h-0')) {
+                            toggleActivityGroup(header);
+                        }
+                    }
 
+                    // Scroll after brief delay to allow expansion to start
+                    setTimeout(function() {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
+
+                    // Update active tab styling
                     dateTabs.forEach(function(t) {
                         activeClasses.forEach(function(c) { t.classList.remove(c); });
                         inactiveClasses.forEach(function(c) { t.classList.add(c); });
