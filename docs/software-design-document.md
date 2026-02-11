@@ -6,7 +6,7 @@
 |------|------|
 | 專案名稱 | WeGo - 旅遊規劃協作平台 |
 | 版本 | 1.0.0 |
-| 最後更新 | 2024-01 |
+| 最後更新 | 2026-02-11 |
 | 狀態 | Draft |
 
 ---
@@ -483,6 +483,31 @@ public class DebtSimplifier {
 - 回傳統一的 Response 格式
 - 使用適當的 HTTP 狀態碼
 - 支援分頁與排序
+
+#### API 端點統計
+
+| 項目 | 數量 | 說明 |
+|------|------|------|
+| 後端 REST endpoint 總數 | ~50 | 含 Web Controller + API Controller |
+| 前端實際使用的 endpoint | ~24 | JavaScript 模組 + Thymeleaf inline 呼叫 |
+| Orphan endpoints (API-only) | ~26 | 後端有但前端未使用，供未來 mobile/SPA 使用 |
+
+> 詳細前後端 API 對照表請參考 [docs/api-reference.md](./api-reference.md)
+
+#### API 路徑命名模式
+
+- 資源建立/列表：`/api/trips/{tripId}/[resource]` (帶 tripId)
+- Activity/Expense 的更新/刪除：`/api/[resource]/{id}` (不帶 tripId)
+- 此不一致為設計決策：update/delete 透過 resourceId 即可唯一識別，不需要 tripId
+
+#### 雙介面並行架構
+
+系統提供兩套平行介面：
+
+| 介面 | Controller 類型 | 參數綁定 | 回傳格式 | 用途 |
+|------|----------------|----------|----------|------|
+| Web Form | `controller/web/*` | `@RequestParam` | HTML (Thymeleaf) | 目前前端使用 |
+| REST API | `controller/api/*` | `@RequestBody` | JSON (ApiResponse) | 供未來 mobile/SPA 使用 |
 
 #### 統一回應格式
 ```java

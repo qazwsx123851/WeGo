@@ -5,6 +5,7 @@ import com.wego.entity.TripMember;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -124,6 +125,19 @@ public interface TripMemberRepository extends JpaRepository<TripMember, UUID> {
      * @param userId The user ID
      */
     void deleteByTripIdAndUserId(UUID tripId, UUID userId);
+
+    /**
+     * Finds all members for multiple trips in a single query.
+     *
+     * @contract
+     *   - pre: tripIds != null
+     *   - post: Returns list of members for all specified trips
+     *   - calledBy: TripService#getUserTrips (batch loading)
+     *
+     * @param tripIds Collection of trip IDs
+     * @return List of trip members across all specified trips
+     */
+    List<TripMember> findByTripIdIn(Collection<UUID> tripIds);
 
     // ========== Global Profile Methods ==========
 

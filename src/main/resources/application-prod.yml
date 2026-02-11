@@ -1,0 +1,20 @@
+# Production profile - secure defaults
+server:
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  thymeleaf:
+    cache: true
+
+logging:
+  level:
+    root: WARN
+    com.wego: INFO
+    org.hibernate.SQL: WARN

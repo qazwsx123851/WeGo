@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,7 +38,12 @@ import java.util.UUID;
  * @see Trip
  */
 @Entity
-@Table(name = "expenses")
+@Table(name = "expenses", indexes = {
+    @Index(name = "idx_expense_trip_id", columnList = "trip_id"),
+    @Index(name = "idx_expense_paid_by", columnList = "paid_by"),
+    @Index(name = "idx_expense_activity_id", columnList = "activity_id"),
+    @Index(name = "idx_expense_created_by", columnList = "created_by")
+})
 @Getter
 @Setter
 @NoArgsConstructor
