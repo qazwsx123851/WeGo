@@ -1,5 +1,6 @@
 package com.wego.controller.web;
 
+import com.wego.dto.response.ExpenseResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.Role;
 import com.wego.entity.User;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -521,14 +523,17 @@ public class TripController extends BaseWebController {
         var expenses = expenseService.getExpensesByTrip(id, user.getId());
 
         // Group expenses by date
-        Map<LocalDate, List<com.wego.dto.response.ExpenseResponse>> expensesByDate =
+        Function<ExpenseResponse, LocalDate> dateClassifier = e ->
+                e.getExpenseDate() != null
+                        ? e.getExpenseDate()
+                        : (e.getCreatedAt() != null
+                                ? e.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate()
+                                : LocalDate.now());
+
+        Map<LocalDate, List<ExpenseResponse>> expensesByDate =
                 expenses.stream()
                         .collect(Collectors.groupingBy(
-                                e -> e.getExpenseDate() != null
-                                        ? e.getExpenseDate()
-                                        : (e.getCreatedAt() != null
-                                                ? e.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate()
-                                                : LocalDate.now()),
+                                dateClassifier,
                                 () -> new TreeMap<>(Comparator.reverseOrder()),
                                 Collectors.toList()
                         ));
