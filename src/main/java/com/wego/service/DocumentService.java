@@ -137,6 +137,7 @@ public class DocumentService {
                     .fileUrl(fileUrl)
                     .fileSize(file.getSize())
                     .mimeType(file.getContentType())
+                    .category(request != null && request.getCategory() != null ? request.getCategory() : "other")
                     .relatedActivityId(request != null ? request.getRelatedActivityId() : null)
                     .relatedDay(request != null ? request.getRelatedDay() : null)
                     .description(request != null ? request.getDescription() : null)
@@ -358,6 +359,40 @@ public class DocumentService {
         return documents.stream()
                 .map(this::buildDocumentResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Gets the raw file content of a document for inline preview.
+     *
+     * @contract
+     *   - pre: tripId != null, documentId != null, userId != null
+     *   - pre: document must belong to the specified trip
+     *   - pre: user has view permission on the document's trip
+     *   - post: returns raw file bytes
+     *   - calledBy: DocumentApiController#previewDocument
+     *
+     * @param tripId The expected trip ID (for security validation)
+     * @param documentId The document ID
+     * @param userId The requesting user's ID
+     * @return The document entity (caller uses it for bytes + metadata)
+     * @throws ResourceNotFoundException if document not found or doesn't belong to trip
+     * @throws ForbiddenException if user has no view permission
+     */
+    @Transactional(readOnly = true)
+    public Document getDocumentForPreview(UUID tripId, UUID documentId, UUID userId) {
+        log.debug("Getting document content for preview: {} from trip {} by user {}", documentId, tripId, userId);
+
+        Document document = findDocumentById(documentId);
+
+        if (!document.getTripId().equals(tripId)) {
+            throw ResourceNotFoundException.withCode("DOCUMENT_NOT_FOUND", "檔案不存在");
+        }
+
+        if (!permissionChecker.canView(document.getTripId(), userId)) {
+            throw new ForbiddenException("您沒有權限查看此檔案");
+        }
+
+        return document;
     }
 
     // Private helper methods

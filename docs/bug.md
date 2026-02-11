@@ -5,7 +5,7 @@
 | 項目 | 內容 |
 |------|------|
 | 建立日期 | 2026-02-03 |
-| 最後更新 | 2026-02-06 |
+| 最後更新 | 2026-02-11 |
 | 測試環境 | localhost:8080 |
 | 測試方式 | Chrome DevTools MCP E2E 測試 |
 | 安全審查 | security-reviewer agent |
@@ -63,6 +63,45 @@
 | **檔案** | `service/SettlementService.java:330-342` |
 
 `calculateCurrencyBreakdown` 方法缺少 `calls`/`calledBy` 契約註解。
+
+---
+
+## 已知問題：前後端 Cross-Validation
+
+### CV-004: expense/list 取全部再 find 單筆
+
+| 屬性 | 內容 |
+|------|------|
+| **狀態** | 🟡 Open |
+| **嚴重度** | LOW |
+| **類別** | 效能 |
+| **檔案** | `templates/expense/list.html` |
+
+`expense/list.html` 的 `fetchExpenseDetail` 使用 `GET /api/trips/{tripId}/expenses` 取全部支出再 `.find()` 篩選，而非直接呼叫尚未被前端使用的 single expense endpoint `GET /api/expenses/{expenseId}`。在支出數量較多時可能影響效能。
+
+---
+
+## 已修復：Cross-Validation (CV-001 ~ CV-003)
+
+| ID | 問題 | 修復日期 | 修復方式 |
+|----|------|----------|----------|
+| CV-001 | 離開行程用 `/{userId}` 而非 `/me` | 2026-02-11 | 改用 `DELETE /api/trips/{tripId}/members/me` |
+| CV-002 | `inviteLink`/`inviteLinkExpiry` 模板變數未提供 | 2026-02-11 | 移除 `th:value`/`th:if` 引用，改為純 HTML + AJAX 動態顯示 |
+| CV-003 | GET 請求附帶不必要的 CSRF header | 2026-02-11 | 移除 `document/list.html` 及 `document/global-overview.html` 下載 GET 請求的 CSRF header |
+
+---
+
+## 已修復：架構與效能改善 (2026-02-11)
+
+| 項目 | 修復方式 |
+|------|----------|
+| `max-request-size` 100MB 過大 | 降為 30MB |
+| Entity 缺少複合索引 | 新增 5 個複合索引 (expenses, expense_splits, todos, documents, invite_links) |
+| Place entity 無索引 | 新增 `google_place_id` 索引 |
+| 8 個 Web Controller 重複 `getCurrentUser()` | 提取 `BaseWebController` 共用基類 |
+| CoverImagePreview 記憶體洩漏 | 新增 `URL.revokeObjectURL()` 釋放前一個 blob URL |
+| JS 殘留 console 語句 | 移除 `app.js`、`expense.js`、`todo.js`、`route-optimizer.js` 共 7 處 |
+| 靜態資源無 Cache-Control | `WebConfig` 新增 7 天 public cache |
 
 ---
 
@@ -158,4 +197,6 @@
 | 2026-02-06 | ✅ 修復 BE-SEC-004、BE-SEC-006、CR-HIGH-003、CR-MEDIUM-002 |
 | 2026-02-06 | ✅ 全面審查：確認 16 項 Bug 已修復並更新狀態 |
 | 2026-02-06 | ✅ 修復 SEC-006 (filter null 防護)、BE-SEC-003 補充 (deleteTrip 儲存檔案清理) |
-| 2026-02-06 | 📋 精簡文件：移除已修復項目的舊程式碼、過時優先順序表，整合為摘要表格 |
+| 2026-02-06 | 精簡文件：移除已修復項目的舊程式碼、過時優先順序表，整合為摘要表格 |
+| 2026-02-11 | 新增前後端 Cross-Validation 已知問題 (CV-001~004) |
+| 2026-02-11 | ✅ 修復 CV-001~003、Entity 複合索引、BaseWebController 提取、CoverImage 記憶體洩漏、console 語句清除、Cache-Control |

@@ -219,7 +219,6 @@ const ExpenseForm = {
                     <span class="text-xs text-gray-400 dark:text-gray-500">(1 ${currency} = ${rate.toFixed(4)} ${this.baseCurrency})</span>`;
             }
         } catch (error) {
-            console.error('Failed to get exchange rate:', error);
             textEl.textContent = '無法取得匯率';
         }
     },
@@ -236,7 +235,6 @@ const ExpenseForm = {
         to = String(to).toUpperCase();
         const currencyRegex = /^[A-Z]{3}$/;
         if (!currencyRegex.test(from) || !currencyRegex.test(to)) {
-            console.warn('Invalid currency code format:', from, to);
             return null;
         }
 
@@ -261,10 +259,8 @@ const ExpenseForm = {
                 return rate;
             }
         } catch (error) {
-            console.error('Exchange rate API error:', error);
             // Return stale cache if available (fallback)
             if (cached) {
-                console.warn('Using stale cached rate');
                 return cached.rate;
             }
         }

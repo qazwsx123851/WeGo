@@ -17,6 +17,8 @@
         })();
     </script>
 
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>上傳檔案 - WeGo</title>
     <link rel="stylesheet" th:href="@{/css/styles.css}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -74,8 +76,12 @@
 
                 <!-- Drag & Drop Zone -->
                 <div id="drop-zone"
-                     class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl p-8 text-center transition-all duration-200 hover:border-primary-400 dark:hover:border-primary-500 cursor-pointer"
-                     onclick="document.getElementById('file-input').click()">
+                     role="button"
+                     tabindex="0"
+                     aria-label="點擊或拖放檔案至此處上傳"
+                     class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl p-8 text-center transition-all duration-200 hover:border-primary-400 dark:hover:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 cursor-pointer"
+                     onclick="document.getElementById('file-input').click()"
+                     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('file-input').click()}">
                     <div class="w-20 h-20 mx-auto mb-4 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
                         <svg class="w-10 h-10 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
@@ -194,12 +200,16 @@
                     <textarea id="description"
                               name="description"
                               rows="3"
+                              maxlength="500"
                               placeholder="例如：3/15 東京迪士尼門票、JR Pass 兌換券..."
                               class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 resize-none"></textarea>
                     <p class="text-xs text-gray-400 dark:text-gray-500">
                         加入描述可以讓團員更容易找到需要的檔案
                     </p>
                 </div>
+
+                <!-- Hidden activityId when no activity dropdown shown -->
+                <input type="hidden" name="relatedActivityId" th:if="${activityId != null and (activities == null or activities.isEmpty())}" th:value="${activityId}"/>
 
                 <!-- Link to Activity (Optional) -->
                 <div class="space-y-1.5" th:if="${activities != null and !activities.isEmpty()}">
@@ -208,12 +218,13 @@
                         <span class="text-gray-400 dark:text-gray-500 font-normal">(選填)</span>
                     </label>
                     <select id="activityId"
-                            name="activityId"
+                            name="relatedActivityId"
                             class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 cursor-pointer">
                         <option value="">不關聯</option>
                         <option th:each="activity : ${activities}"
                                 th:value="${activity.id}"
-                                th:text="${activity.title}">景點名稱</option>
+                                th:text="${activity.place?.name ?: '未命名景點'}"
+                                th:selected="${activity.id != null and activity.id.equals(activityId)}">景點名稱</option>
                     </select>
                 </div>
 
@@ -286,6 +297,14 @@
         function handleFileSelect(input) {
             const file = input.files[0];
             if (!file) return;
+
+            // Validate file type
+            var allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showToast('error', '不支援此檔案類型，請上傳 PDF 或圖片');
+                input.value = '';
+                return;
+            }
 
             // Validate file size (10MB max)
             if (file.size > 10 * 1024 * 1024) {
@@ -401,7 +420,26 @@
             document.getElementById('submit-icon').classList.add('animate-spin');
             uploadProgress.classList.remove('hidden');
 
-            const formData = new FormData(form);
+            var formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            var metadata = {};
+            var categoryInput = form.querySelector('input[name="category"]:checked');
+            if (categoryInput) {
+                metadata.category = categoryInput.value;
+            }
+            var descEl = document.getElementById('description');
+            if (descEl && descEl.value.trim()) {
+                metadata.description = descEl.value.trim();
+            }
+            var activitySelect = document.getElementById('activityId');
+            var hiddenActivityId = form.querySelector('input[name="relatedActivityId"]');
+            if (activitySelect && activitySelect.value) {
+                metadata.relatedActivityId = activitySelect.value;
+            } else if (hiddenActivityId && hiddenActivityId.value) {
+                metadata.relatedActivityId = hiddenActivityId.value;
+            }
+            formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
 
             try {
                 const xhr = new XMLHttpRequest();
@@ -417,13 +455,16 @@
                 xhr.addEventListener('load', () => {
                     if (xhr.status >= 200 && xhr.status < 300) {
                         showToast('success', '檔案上傳成功');
-                        // Redirect after short delay
                         setTimeout(() => {
                             window.location.href = form.dataset.redirectUrl + '?success=uploaded';
                         }, 1000);
                     } else {
-                        const response = JSON.parse(xhr.responseText);
-                        showToast('error', response.message || '上傳失敗，請稍後再試');
+                        var errorMsg = '上傳失敗，請稍後再試';
+                        try {
+                            var response = JSON.parse(xhr.responseText);
+                            errorMsg = response.message || errorMsg;
+                        } catch (parseError) { /* non-JSON response */ }
+                        showToast('error', errorMsg);
                         resetSubmitButton();
                     }
                 });
@@ -434,6 +475,11 @@
                 });
 
                 xhr.open('POST', form.action);
+                var csrfMeta = document.querySelector('meta[name="_csrf"]');
+                var csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
+                if (csrfMeta && csrfHeaderMeta) {
+                    xhr.setRequestHeader(csrfHeaderMeta.content, csrfMeta.content);
+                }
                 xhr.send(formData);
 
             } catch (error) {

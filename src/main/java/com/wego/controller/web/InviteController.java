@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
 @RequestMapping("/invite")
 @RequiredArgsConstructor
 @Slf4j
-public class InviteController {
+public class InviteController extends BaseWebController {
 
     private static final Pattern TOKEN_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
     private static final int MAX_TOKEN_LENGTH = 64;
@@ -49,7 +49,6 @@ public class InviteController {
     private final InviteLinkService inviteLinkService;
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
-    private final UserService userService;
 
     /**
      * Displays the invite acceptance page.
@@ -172,11 +171,4 @@ public class InviteController {
                 && TOKEN_PATTERN.matcher(token).matches();
     }
 
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        return userService.getUserByEmail(email);
-    }
 }

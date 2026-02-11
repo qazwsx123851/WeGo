@@ -30,10 +30,9 @@ import java.util.List;
 @RequestMapping("/expenses")
 @RequiredArgsConstructor
 @Slf4j
-public class GlobalExpenseController {
+public class GlobalExpenseController extends BaseWebController {
 
     private final GlobalExpenseService globalExpenseService;
-    private final UserService userService;
 
     /**
      * Shows the global expense overview page.
@@ -71,25 +70,4 @@ public class GlobalExpenseController {
         return "expense/global-overview";
     }
 
-    /**
-     * Gets the current user from OAuth2 principal.
-     *
-     * @param principal The OAuth2 principal
-     * @return User entity or null if not found
-     */
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        if (email == null) {
-            return null;
-        }
-        try {
-            return userService.getUserByEmail(email);
-        } catch (Exception e) {
-            log.warn("Failed to get user by email: {}", email, e);
-            return null;
-        }
-    }
 }

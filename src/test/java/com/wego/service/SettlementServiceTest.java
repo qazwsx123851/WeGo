@@ -24,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -135,7 +136,8 @@ class SettlementServiceTest {
                 userRepository,
                 permissionChecker,
                 debtSimplifier,
-                exchangeRateService
+                exchangeRateService,
+                null
         );
     }
 
@@ -424,6 +426,231 @@ class SettlementServiceTest {
             assertThat(response.getCurrencyBreakdown()).hasSize(2);
             assertThat(response.getCurrencyBreakdown().get("USD")).isEqualByComparingTo(new BigDecimal("100.00"));
             assertThat(response.getCurrencyBreakdown().get("JPY")).isEqualByComparingTo(new BigDecimal("10000"));
+        }
+
+        @Test
+        @DisplayName("should have zero balances after all non-payer splits are settled")
+        void calculateSettlement_withAllNonPayerSplitsSettled_shouldHaveZeroBalances() {
+            // Given: User1 paid 1000, split equally with User2
+            // User2's split is SETTLED, User1's self-split is UNSETTLED
+            // Bug scenario: payer's unsettled self-split should NOT create phantom balance
+            Expense expense = Expense.builder()
+                    .id(expenseId)
+                    .tripId(tripId)
+                    .description("Dinner")
+                    .amount(new BigDecimal("1000"))
+                    .currency("TWD")
+                    .paidBy(userId)
+                    .splitType(SplitType.EQUAL)
+                    .build();
+
+            ExpenseSplit payerSplit = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expenseId)
+                    .userId(userId)
+                    .amount(new BigDecimal("500"))
+                    .isSettled(false)
+                    .build();
+
+            ExpenseSplit settledSplit = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expenseId)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("500"))
+                    .isSettled(true)
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(Collections.singletonList(expense));
+            when(expenseSplitRepository.findByTripId(tripId))
+                    .thenReturn(Arrays.asList(payerSplit, settledSplit));
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Map<UUID, BigDecimal>> balancesCaptor = ArgumentCaptor.forClass(Map.class);
+            when(debtSimplifier.simplify(balancesCaptor.capture())).thenReturn(Collections.emptyList());
+
+            // When
+            SettlementResponse response = settlementService.calculateSettlement(tripId, userId);
+
+            // Then: balances should be empty (no phantom positive balance for payer)
+            Map<UUID, BigDecimal> capturedBalances = balancesCaptor.getValue();
+            assertThat(capturedBalances).isEmpty();
+            assertThat(response.getSettlements()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("should show correct balance when only some non-payer splits are settled")
+        void calculateSettlement_withPartialSettlement_shouldShowCorrectBalance() {
+            // Given: User1 paid 900, split equally among User1, User2, User3 (300 each)
+            // User2's split is SETTLED, User3's is NOT
+            UUID expense1Id = UUID.randomUUID();
+
+            Expense expense = Expense.builder()
+                    .id(expense1Id)
+                    .tripId(tripId)
+                    .description("Dinner")
+                    .amount(new BigDecimal("900"))
+                    .currency("TWD")
+                    .paidBy(userId)
+                    .splitType(SplitType.EQUAL)
+                    .build();
+
+            ExpenseSplit payerSplit = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expense1Id)
+                    .userId(userId)
+                    .amount(new BigDecimal("300"))
+                    .isSettled(false)
+                    .build();
+
+            ExpenseSplit settledSplit = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expense1Id)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("300"))
+                    .isSettled(true)
+                    .build();
+
+            ExpenseSplit unsettledSplit = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expense1Id)
+                    .userId(user3Id)
+                    .amount(new BigDecimal("300"))
+                    .isSettled(false)
+                    .build();
+
+            Settlement expectedSettlement = Settlement.builder()
+                    .fromUserId(user3Id)
+                    .toUserId(userId)
+                    .amount(new BigDecimal("300"))
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(Collections.singletonList(expense));
+            when(expenseSplitRepository.findByTripId(tripId))
+                    .thenReturn(Arrays.asList(payerSplit, settledSplit, unsettledSplit));
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Map<UUID, BigDecimal>> balancesCaptor = ArgumentCaptor.forClass(Map.class);
+            when(debtSimplifier.simplify(balancesCaptor.capture()))
+                    .thenReturn(Collections.singletonList(expectedSettlement));
+            when(userRepository.findAllById(any())).thenReturn(Arrays.asList(testUser, testUser3));
+
+            // When
+            settlementService.calculateSettlement(tripId, userId);
+
+            // Then: payer credit = only user3's unsettled split (300)
+            Map<UUID, BigDecimal> capturedBalances = balancesCaptor.getValue();
+            assertThat(capturedBalances).hasSize(2);
+            assertThat(capturedBalances.get(userId)).isEqualByComparingTo(new BigDecimal("300"));
+            assertThat(capturedBalances.get(user3Id)).isEqualByComparingTo(new BigDecimal("-300"));
+        }
+
+        @Test
+        @DisplayName("should handle expense where payer has no split (custom split)")
+        void calculateSettlement_withPayerNotInSplits_shouldCreditPayerCorrectly() {
+            // Given: User1 paid 600, custom split: User2=400, User3=200 (payer has no split)
+            UUID expense1Id = UUID.randomUUID();
+
+            Expense expense = Expense.builder()
+                    .id(expense1Id)
+                    .tripId(tripId)
+                    .description("Gift")
+                    .amount(new BigDecimal("600"))
+                    .currency("TWD")
+                    .paidBy(userId)
+                    .splitType(SplitType.CUSTOM)
+                    .build();
+
+            ExpenseSplit split2 = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expense1Id)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("400"))
+                    .isSettled(false)
+                    .build();
+
+            ExpenseSplit split3 = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expense1Id)
+                    .userId(user3Id)
+                    .amount(new BigDecimal("200"))
+                    .isSettled(false)
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(Collections.singletonList(expense));
+            when(expenseSplitRepository.findByTripId(tripId))
+                    .thenReturn(Arrays.asList(split2, split3));
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Map<UUID, BigDecimal>> balancesCaptor = ArgumentCaptor.forClass(Map.class);
+            when(debtSimplifier.simplify(balancesCaptor.capture())).thenReturn(Collections.emptyList());
+
+            // When
+            settlementService.calculateSettlement(tripId, userId);
+
+            // Then: payer credit = 400 + 200 = 600 (all splits belong to others)
+            Map<UUID, BigDecimal> capturedBalances = balancesCaptor.getValue();
+            assertThat(capturedBalances.get(userId)).isEqualByComparingTo(new BigDecimal("600"));
+            assertThat(capturedBalances.get(user2Id)).isEqualByComparingTo(new BigDecimal("-400"));
+            assertThat(capturedBalances.get(user3Id)).isEqualByComparingTo(new BigDecimal("-200"));
+        }
+
+        @Test
+        @DisplayName("should return empty settlements when all splits are settled")
+        void calculateSettlement_withAllSplitsSettled_shouldReturnNoSettlements() {
+            // Given: User1 paid 1000, split with User2, BOTH splits settled
+            Expense expense = Expense.builder()
+                    .id(expenseId)
+                    .tripId(tripId)
+                    .description("Dinner")
+                    .amount(new BigDecimal("1000"))
+                    .currency("TWD")
+                    .paidBy(userId)
+                    .splitType(SplitType.EQUAL)
+                    .build();
+
+            ExpenseSplit payerSplit = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expenseId)
+                    .userId(userId)
+                    .amount(new BigDecimal("500"))
+                    .isSettled(true)
+                    .build();
+
+            ExpenseSplit otherSplit = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expenseId)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("500"))
+                    .isSettled(true)
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(Collections.singletonList(expense));
+            when(expenseSplitRepository.findByTripId(tripId))
+                    .thenReturn(Arrays.asList(payerSplit, otherSplit));
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Map<UUID, BigDecimal>> balancesCaptor = ArgumentCaptor.forClass(Map.class);
+            when(debtSimplifier.simplify(balancesCaptor.capture())).thenReturn(Collections.emptyList());
+
+            // When
+            SettlementResponse response = settlementService.calculateSettlement(tripId, userId);
+
+            // Then
+            Map<UUID, BigDecimal> capturedBalances = balancesCaptor.getValue();
+            assertThat(capturedBalances).isEmpty();
+            assertThat(response.getSettlements()).isEmpty();
         }
 
         @Test

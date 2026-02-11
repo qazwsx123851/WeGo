@@ -183,15 +183,58 @@ public class TripService {
      */
     @Transactional(readOnly = true)
     public Page<TripResponse> getUserTrips(UUID userId, Pageable pageable) {
-        return tripRepository.findTripsByMemberId(userId, pageable)
-                .map(trip -> {
-                    TripResponse response = TripResponse.fromEntity(trip);
-                    List<TripResponse.MemberSummary> members = getMemberSummaries(trip.getId());
-                    response.setMembers(members);
-                    response.setMemberCount(members.size());
-                    response.setCurrentUserRole(permissionChecker.getRole(trip.getId(), userId).orElse(null));
-                    return response;
-                });
+        Page<Trip> tripPage = tripRepository.findTripsByMemberId(userId, pageable);
+
+        List<UUID> tripIds = tripPage.getContent().stream()
+                .map(Trip::getId)
+                .toList();
+
+        if (tripIds.isEmpty()) {
+            return tripPage.map(TripResponse::fromEntity);
+        }
+
+        // Batch load all members for all trips (1 query instead of N)
+        Map<UUID, List<TripMember>> membersByTripId = tripMemberRepository.findByTripIdIn(tripIds)
+                .stream()
+                .collect(Collectors.groupingBy(TripMember::getTripId));
+
+        // Batch load all users referenced by members (1 query instead of N)
+        Set<UUID> allUserIds = membersByTripId.values().stream()
+                .flatMap(List::stream)
+                .map(TripMember::getUserId)
+                .collect(Collectors.toSet());
+        Map<UUID, User> userMap = userRepository.findAllById(allUserIds).stream()
+                .collect(Collectors.toMap(User::getId, java.util.function.Function.identity(), (a, b) -> a));
+
+        return tripPage.map(trip -> {
+            TripResponse response = TripResponse.fromEntity(trip);
+            List<TripMember> tripMembers = membersByTripId.getOrDefault(trip.getId(), List.of());
+
+            List<TripResponse.MemberSummary> memberSummaries = tripMembers.stream()
+                    .map(member -> {
+                        User user = userMap.get(member.getUserId());
+                        return TripResponse.MemberSummary.builder()
+                                .userId(member.getUserId())
+                                .nickname(user != null ? user.getNickname() : UNKNOWN_USER_NAME)
+                                .avatarUrl(user != null ? user.getAvatarUrl() : null)
+                                .role(member.getRole())
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+
+            response.setMembers(memberSummaries);
+            response.setMemberCount(memberSummaries.size());
+
+            // Get role from batch-loaded data (no extra query)
+            Role currentUserRole = tripMembers.stream()
+                    .filter(m -> m.getUserId().equals(userId))
+                    .map(TripMember::getRole)
+                    .findFirst()
+                    .orElse(null);
+            response.setCurrentUserRole(currentUserRole);
+
+            return response;
+        });
     }
 
     /**

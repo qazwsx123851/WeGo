@@ -19,6 +19,8 @@
     </script>
 
     <title>檔案總覽 - WeGo</title>
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/styles.css}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -132,13 +134,16 @@
         <!-- Documents Grid -->
         <section th:if="${overview.documents != null and !overview.documents.isEmpty()}" class="mb-8">
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <a th:each="doc : ${overview.documents}"
-                   th:href="${doc.fileUrl}" target="_blank" rel="noopener"
-                   class="glass-card group hover:shadow-card-hover transition-all duration-200 cursor-pointer overflow-hidden">
+                <div th:each="doc : ${overview.documents}"
+                     onclick="openDocumentPreview(this)"
+                     th:data-id="${doc.id}"
+                     th:data-trip-id="${doc.tripId}"
+                     th:data-mime="${doc.mimeType ?: ''}"
+                     class="glass-card group hover:shadow-card-hover transition-all duration-200 cursor-pointer overflow-hidden">
                     <!-- Preview -->
                     <div class="relative h-40 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                         <!-- Image Preview -->
-                        <img th:if="${doc.isImage}" th:src="${doc.fileUrl}"
+                        <img th:if="${doc.isImage}" th:src="|/api/trips/${doc.tripId}/documents/${doc.id}/preview|"
                              th:alt="${doc.originalFileName}"
                              class="w-full h-full object-cover">
                         <!-- PDF Icon -->
@@ -170,7 +175,7 @@
                                   th:text="${doc.uploadedByName}">上傳者</span>
                         </div>
                     </div>
-                </a>
+                </div>
             </div>
         </section>
 
@@ -236,17 +241,6 @@
                 <span class="text-xs mt-1">分帳</span>
             </a>
 
-            <!-- Add Button -->
-            <a th:href="@{/trips/create}" aria-label="新增"
-               class="-mt-5 w-14 h-14 bg-adventure-500 hover:bg-adventure-600
-                      rounded-full text-white shadow-lg shadow-adventure-500/30
-                      flex items-center justify-center
-                      transition-all duration-200 active:scale-95 cursor-pointer">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-            </a>
-
             <!-- Documents -->
             <a th:href="@{/documents}" class="bottom-nav-item active">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -267,7 +261,175 @@
         </div>
     </nav>
 
+    <!-- Document Preview Modal -->
+    <div id="preview-modal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/80" onclick="closePreviewModal()"></div>
+
+        <!-- Modal Content -->
+        <div class="absolute inset-4 md:inset-8 flex flex-col bg-white dark:bg-gray-900 rounded-2xl overflow-hidden">
+            <!-- Header -->
+            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-shrink-0">
+                <h3 id="preview-title" class="text-base font-semibold text-gray-800 dark:text-gray-100 truncate">document.pdf</h3>
+                <div class="flex items-center gap-2">
+                    <a id="preview-download" href="#" download
+                       class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                       aria-label="下載">
+                        <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                    </a>
+                    <button onclick="closePreviewModal()"
+                            class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                            aria-label="關閉">
+                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Preview Area -->
+            <div id="preview-area" class="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+            </div>
+
+            <!-- Info Footer -->
+            <div id="preview-info" class="px-4 py-3 border-t border-gray-100 dark:border-gray-800 text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script th:src="@{/js/app.js}" defer></script>
+    <script>
+        // CSRF Token
+        const csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+
+        function openDocumentPreview(card) {
+            const docId = card.dataset.id;
+            const tripId = card.dataset.tripId;
+            const mimeType = card.dataset.mime || '';
+            const isPdf = mimeType === 'application/pdf';
+            const isImage = mimeType.startsWith('image/');
+
+            // Get info from card DOM
+            const fileName = card.querySelector('h3')?.textContent || '';
+            const fileSize = card.querySelector('.text-caption')?.textContent || '';
+            const tripName = card.querySelector('.absolute')?.textContent || '';
+
+            // Update modal header
+            document.getElementById('preview-title').textContent = fileName;
+            document.getElementById('preview-info').textContent = fileSize + (tripName ? ' - ' + tripName : '');
+            document.getElementById('preview-download').href = '#';
+
+            // Clear and populate preview area
+            const previewArea = document.getElementById('preview-area');
+            previewArea.innerHTML = '';
+
+            // Show modal
+            document.getElementById('preview-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            if (isImage) {
+                const img = document.createElement('img');
+                img.src = '/api/trips/' + tripId + '/documents/' + docId + '/preview';
+                img.alt = fileName;
+                img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                previewArea.appendChild(img);
+                fetchPreviewDownloadUrl(tripId, docId);
+            } else if (isPdf) {
+                const previewUrl = '/api/trips/' + tripId + '/documents/' + docId + '/preview';
+                renderPdfPreview(previewArea, previewUrl);
+                fetchPreviewDownloadUrl(tripId, docId);
+            } else {
+                renderGenericPreview(previewArea);
+                fetchPreviewDownloadUrl(tripId, docId);
+            }
+        }
+
+        function renderPdfPreview(container, url) {
+            container.innerHTML = '';
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.className = 'w-full h-full rounded-xl';
+            iframe.style.border = 'none';
+            iframe.style.minHeight = '400px';
+            iframe.title = 'PDF Preview';
+
+            let loaded = false;
+            iframe.onload = function() { loaded = true; };
+            iframe.onerror = function() { renderPreviewError(container); };
+            setTimeout(function() {
+                if (!loaded) { renderPreviewError(container); }
+            }, 15000);
+
+            container.appendChild(iframe);
+        }
+
+        function renderPreviewError(container) {
+            container.innerHTML = '';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'text-center';
+            wrapper.setAttribute('role', 'alert');
+            wrapper.innerHTML = '<svg class="w-20 h-20 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4z"/></svg>';
+            const label = document.createElement('p');
+            label.className = 'text-gray-500 dark:text-gray-400 mb-4';
+            label.textContent = '無法預覽此檔案';
+            wrapper.appendChild(label);
+
+            const downloadBtn = document.createElement('a');
+            downloadBtn.href = document.getElementById('preview-download').href || '#';
+            downloadBtn.className = 'inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-colors';
+            downloadBtn.setAttribute('download', '');
+            downloadBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>';
+            const btnText = document.createElement('span');
+            btnText.textContent = '下載查看';
+            downloadBtn.appendChild(btnText);
+            wrapper.appendChild(downloadBtn);
+
+            container.appendChild(wrapper);
+        }
+
+        function renderGenericPreview(container) {
+            container.innerHTML = '';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'text-center';
+            wrapper.innerHTML = '<svg class="w-24 h-24 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
+            const label = document.createElement('p');
+            label.className = 'text-gray-600 dark:text-gray-400';
+            label.textContent = '此檔案類型不支援預覽';
+            wrapper.appendChild(label);
+            container.appendChild(wrapper);
+        }
+
+        async function fetchPreviewDownloadUrl(tripId, docId) {
+            try {
+                const response = await fetch('/api/trips/' + tripId + '/documents/' + docId + '/download');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data && result.data.downloadUrl) {
+                        document.getElementById('preview-download').href = result.data.downloadUrl;
+                    }
+                }
+            } catch (error) {
+                // Download URL fetch failed silently - download button stays as '#'
+            }
+        }
+
+        function closePreviewModal() {
+            document.getElementById('preview-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+            // Clear iframe to stop any ongoing loads
+            document.getElementById('preview-area').innerHTML = '';
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closePreviewModal();
+            }
+        });
+    </script>
 </body>
 </html>

@@ -159,6 +159,26 @@ public class ExpenseAggregator {
                         Collectors.reducing(BigDecimal.ZERO, ExpenseSplit::getAmount, BigDecimal::add)
                 ));
 
+        // Calculate unsettled balances (skipping payer's own splits)
+        Map<UUID, BigDecimal> unsettledBalances = new HashMap<>();
+        Map<UUID, List<ExpenseSplit>> splitsByExpense = splits.stream()
+                .collect(Collectors.groupingBy(ExpenseSplit::getExpenseId));
+
+        for (Expense expense : expenses) {
+            UUID payer = expense.getPaidBy();
+            List<ExpenseSplit> expenseSplits = splitsByExpense.getOrDefault(expense.getId(), List.of());
+            BigDecimal payerCredit = BigDecimal.ZERO;
+            for (ExpenseSplit split : expenseSplits) {
+                if (!split.isSettled() && !split.getUserId().equals(payer)) {
+                    unsettledBalances.merge(split.getUserId(), split.getAmount().negate(), BigDecimal::add);
+                    payerCredit = payerCredit.add(split.getAmount());
+                }
+            }
+            if (payerCredit.compareTo(BigDecimal.ZERO) > 0) {
+                unsettledBalances.merge(payer, payerCredit, BigDecimal::add);
+            }
+        }
+
         // Combine all user IDs
         Set<UUID> allUserIds = new HashSet<>();
         allUserIds.addAll(paidByUser.keySet());
@@ -171,6 +191,7 @@ public class ExpenseAggregator {
                     User user = userMap.get(userId);
                     BigDecimal totalPaid = paidByUser.getOrDefault(userId, BigDecimal.ZERO);
                     BigDecimal totalOwed = owedByUser.getOrDefault(userId, BigDecimal.ZERO);
+                    BigDecimal unsettledBalance = unsettledBalances.getOrDefault(userId, BigDecimal.ZERO);
                     int expenseCount = countByUser.getOrDefault(userId, 0L).intValue();
 
                     return new MemberStatistics(
@@ -179,6 +200,7 @@ public class ExpenseAggregator {
                             user.getAvatarUrl(),
                             totalPaid,
                             totalOwed,
+                            unsettledBalance,
                             expenseCount
                     );
                 })

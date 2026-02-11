@@ -23,7 +23,6 @@ const RouteOptimizationApi = {
     getCsrfToken() {
         const token = document.querySelector('meta[name="_csrf"]');
         if (!token || !token.getAttribute('content')) {
-            console.error('CSRF token not found in page metadata');
             throw new Error('CSRF token not found');
         }
         return token.getAttribute('content');

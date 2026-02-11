@@ -36,6 +36,7 @@ public class DocumentResponse {
     private String fileUrl;
     private long fileSize;
     private String mimeType;
+    private String category;
     private UUID relatedActivityId;
     private Integer relatedDay;
     private String description;
@@ -60,6 +61,56 @@ public class DocumentResponse {
     private String fileExtension;
 
     /**
+     * Thumbnail URL for image files (same as fileUrl for images, null otherwise).
+     */
+    public String getThumbnailUrl() {
+        return isImage ? fileUrl : null;
+    }
+
+    /**
+     * Human-readable formatted file size.
+     */
+    public String getFormattedSize() {
+        if (fileSize == 0) return "0 Bytes";
+        String[] units = {"Bytes", "KB", "MB", "GB"};
+        int i = (int) Math.floor(Math.log(fileSize) / Math.log(1024));
+        i = Math.min(i, units.length - 1);
+        double size = fileSize / Math.pow(1024, i);
+        return String.format("%.1f %s", size, units[i]);
+    }
+
+    /**
+     * Alias for createdAt (template uses uploadedAt).
+     */
+    public Instant getUploadedAt() {
+        return createdAt;
+    }
+
+    /**
+     * Alias for uploadedByName (template uses uploaderName).
+     */
+    public String getUploaderName() {
+        return uploadedByName;
+    }
+
+    /**
+     * Alias for uploadedByAvatarUrl (template uses uploaderAvatarUrl).
+     */
+    public String getUploaderAvatarUrl() {
+        return uploadedByAvatarUrl;
+    }
+
+    /**
+     * First character of uploader name for avatar placeholder.
+     */
+    public String getUploaderInitial() {
+        if (uploadedByName != null && !uploadedByName.isEmpty()) {
+            return uploadedByName.substring(0, 1);
+        }
+        return "?";
+    }
+
+    /**
      * Creates a DocumentResponse from a Document entity.
      * Note: uploadedByName and uploadedByAvatarUrl must be set separately.
      *
@@ -75,6 +126,7 @@ public class DocumentResponse {
                 .fileUrl(document.getFileUrl())
                 .fileSize(document.getFileSize())
                 .mimeType(document.getMimeType())
+                .category(document.getCategory() != null ? document.getCategory() : "other")
                 .relatedActivityId(document.getRelatedActivityId())
                 .relatedDay(document.getRelatedDay())
                 .description(document.getDescription())

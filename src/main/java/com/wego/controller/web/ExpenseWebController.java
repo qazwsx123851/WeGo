@@ -2,6 +2,7 @@ package com.wego.controller.web;
 
 import com.wego.dto.request.CreateExpenseRequest;
 import com.wego.dto.request.UpdateExpenseRequest;
+import com.wego.dto.response.ActivityResponse;
 import com.wego.dto.response.ExpenseResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.Role;
@@ -11,6 +12,7 @@ import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.repository.TripMemberRepository;
+import com.wego.service.ActivityService;
 import com.wego.service.ExpenseService;
 import com.wego.service.TripService;
 import com.wego.service.UserService;
@@ -50,11 +52,11 @@ import java.util.UUID;
 @RequestMapping("/trips/{tripId}/expenses")
 @RequiredArgsConstructor
 @Slf4j
-public class ExpenseWebController {
+public class ExpenseWebController extends BaseWebController {
 
     private final ExpenseService expenseService;
     private final TripService tripService;
-    private final UserService userService;
+    private final ActivityService activityService;
     private final TripMemberRepository tripMemberRepository;
 
     /**
@@ -74,6 +76,7 @@ public class ExpenseWebController {
      */
     @GetMapping({"/create", "/new"})
     public String showCreateForm(@PathVariable UUID tripId,
+                                 @RequestParam(required = false) UUID activityId,
                                  @AuthenticationPrincipal OAuth2User principal,
                                  Model model) {
         User user = getCurrentUser(principal);
@@ -98,6 +101,24 @@ public class ExpenseWebController {
         if (!canEdit(currentMember)) {
             log.warn("User {} has no edit permission for trip {}", user.getId(), tripId);
             return "redirect:/trips/" + tripId + "/expenses?error=access_denied";
+        }
+
+        // If activityId is provided, pre-fill data from the activity
+        if (activityId != null) {
+            try {
+                ActivityResponse activity = activityService.getActivity(activityId, user.getId());
+                model.addAttribute("activityId", activityId);
+                if (activity.getPlace() != null && activity.getPlace().getName() != null) {
+                    model.addAttribute("activityName", activity.getPlace().getName());
+                }
+                // Calculate the activity date from trip start date + activity day
+                if (trip.getStartDate() != null) {
+                    LocalDate activityDate = trip.getStartDate().plusDays(activity.getDay() - 1);
+                    model.addAttribute("activityDate", activityDate.toString());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to load activity {} for expense pre-fill: {}", activityId, e.getMessage());
+            }
         }
 
         // Get members for the payer and participant selection (use trip.getMembers() which returns MemberSummary)
@@ -154,6 +175,7 @@ public class ExpenseWebController {
                                 @RequestParam(required = false) Map<String, String> percentages,
                                 @RequestParam(required = false) Map<String, String> customAmounts,
                                 @RequestParam(required = false) String notes,
+                                @RequestParam(required = false) UUID activityId,
                                 @AuthenticationPrincipal OAuth2User principal,
                                 Model model,
                                 RedirectAttributes redirectAttributes) {
@@ -199,6 +221,7 @@ public class ExpenseWebController {
                     .splitType(splitType)
                     .category(category)
                     .expenseDate(parsedExpenseDate)
+                    .activityId(activityId)
                     .note(notes);
 
             // Build splits based on split type
@@ -600,45 +623,4 @@ public class ExpenseWebController {
         return splits;
     }
 
-    /**
-     * Finds the current member in the trip.
-     *
-     * @param trip The trip response
-     * @param userId The user ID
-     * @return The member summary or null if not found
-     */
-    private TripResponse.MemberSummary findCurrentMember(TripResponse trip, UUID userId) {
-        if (trip == null || trip.getMembers() == null) {
-            return null;
-        }
-        return trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(userId))
-                .findFirst()
-                .orElse(null);
-    }
-
-    /**
-     * Checks if the member can edit the trip.
-     *
-     * @param member The member summary
-     * @return true if the member is OWNER or EDITOR
-     */
-    private boolean canEdit(TripResponse.MemberSummary member) {
-        return member != null &&
-                (member.getRole() == Role.OWNER || member.getRole() == Role.EDITOR);
-    }
-
-    /**
-     * Gets the current user from OAuth2 principal.
-     *
-     * @param principal The OAuth2 principal
-     * @return The user or null if not found
-     */
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        return userService.getUserByEmail(email);
-    }
 }

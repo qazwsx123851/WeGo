@@ -55,6 +55,7 @@ public class SettlementService {
     private final PermissionChecker permissionChecker;
     private final DebtSimplifier debtSimplifier;
     private final ExchangeRateService exchangeRateService;
+    private final StatisticsService statisticsService;
 
     /**
      * Creates a SettlementService with all dependencies.
@@ -70,6 +71,7 @@ public class SettlementService {
      * @param permissionChecker Permission checker
      * @param debtSimplifier Debt simplifier algorithm
      * @param exchangeRateService Exchange rate service (optional, can be null)
+     * @param statisticsService Statistics service for cache eviction
      */
     public SettlementService(
             ExpenseRepository expenseRepository,
@@ -78,7 +80,8 @@ public class SettlementService {
             UserRepository userRepository,
             PermissionChecker permissionChecker,
             DebtSimplifier debtSimplifier,
-            @Nullable ExchangeRateService exchangeRateService) {
+            @Nullable ExchangeRateService exchangeRateService,
+            @Nullable StatisticsService statisticsService) {
         this.expenseRepository = expenseRepository;
         this.expenseSplitRepository = expenseSplitRepository;
         this.tripRepository = tripRepository;
@@ -86,6 +89,7 @@ public class SettlementService {
         this.permissionChecker = permissionChecker;
         this.debtSimplifier = debtSimplifier;
         this.exchangeRateService = exchangeRateService;
+        this.statisticsService = statisticsService;
     }
 
     /**
@@ -206,6 +210,7 @@ public class SettlementService {
 
         split.markAsSettled();
         expenseSplitRepository.save(split);
+        evictStatisticsCache(expense.getTripId());
 
         log.info("Marked split {} as settled", splitId);
     }
@@ -240,6 +245,7 @@ public class SettlementService {
 
         split.markAsUnsettled();
         expenseSplitRepository.save(split);
+        evictStatisticsCache(expense.getTripId());
 
         log.info("Marked split {} as unsettled", splitId);
     }
@@ -251,7 +257,7 @@ public class SettlementService {
      * @contract
      *   - pre: tripId, fromUserId, toUserId, currentUserId != null
      *   - pre: current user has edit permission on trip
-     *   - post: all unsettled splits where toUserId paid and fromUserId owes are marked settled
+     *   - post: all unsettled splits between both users (both directions) are marked settled
      *   - calledBy: ExpenseApiController#settleByUsers
      *
      * @param tripId The trip ID
@@ -264,11 +270,21 @@ public class SettlementService {
         if (!permissionChecker.canEdit(tripId, currentUserId)) {
             throw new ForbiddenException("No permission to settle");
         }
+        // Forward direction: toUser paid, fromUser owes
         List<ExpenseSplit> splits = expenseSplitRepository
                 .findUnsettledByTripIdAndUsers(tripId, toUserId, fromUserId);
         splits.forEach(ExpenseSplit::markAsSettled);
         expenseSplitRepository.saveAll(splits);
-        log.info("Settled {} splits between users {} -> {} in trip {}", splits.size(), fromUserId, toUserId, tripId);
+
+        // Reverse direction: fromUser paid, toUser owes
+        List<ExpenseSplit> reverseSplits = expenseSplitRepository
+                .findUnsettledByTripIdAndUsers(tripId, fromUserId, toUserId);
+        reverseSplits.forEach(ExpenseSplit::markAsSettled);
+        expenseSplitRepository.saveAll(reverseSplits);
+
+        evictStatisticsCache(tripId);
+        log.info("Settled {} + {} reverse splits between users {} <-> {} in trip {}",
+                splits.size(), reverseSplits.size(), fromUserId, toUserId, tripId);
     }
 
     /**
@@ -277,7 +293,7 @@ public class SettlementService {
      * @contract
      *   - pre: tripId, fromUserId, toUserId, currentUserId != null
      *   - pre: current user has edit permission on trip
-     *   - post: all settled splits where toUserId paid and fromUserId owes are marked unsettled
+     *   - post: all settled splits between both users (both directions) are marked unsettled
      *   - calledBy: ExpenseApiController#unsettleByUsers
      *
      * @param tripId The trip ID
@@ -290,16 +306,36 @@ public class SettlementService {
         if (!permissionChecker.canEdit(tripId, currentUserId)) {
             throw new ForbiddenException("No permission to unsettle");
         }
+        // Forward direction: toUser paid, fromUser owes
         List<ExpenseSplit> splits = expenseSplitRepository
                 .findSettledByTripIdAndUsers(tripId, toUserId, fromUserId);
         splits.forEach(ExpenseSplit::markAsUnsettled);
         expenseSplitRepository.saveAll(splits);
-        log.info("Unsettled {} splits between users {} -> {} in trip {}", splits.size(), fromUserId, toUserId, tripId);
+
+        // Reverse direction: fromUser paid, toUser owes
+        List<ExpenseSplit> reverseSplits = expenseSplitRepository
+                .findSettledByTripIdAndUsers(tripId, fromUserId, toUserId);
+        reverseSplits.forEach(ExpenseSplit::markAsUnsettled);
+        expenseSplitRepository.saveAll(reverseSplits);
+
+        evictStatisticsCache(tripId);
+        log.info("Unsettled {} + {} reverse splits between users {} <-> {} in trip {}",
+                splits.size(), reverseSplits.size(), fromUserId, toUserId, tripId);
+    }
+
+    private void evictStatisticsCache(UUID tripId) {
+        if (statisticsService != null) {
+            statisticsService.evictCaches(tripId);
+        }
     }
 
     /**
      * Calculates net balances for all users involved in expenses.
      * Converts all amounts to base currency for consistent settlement calculation.
+     *
+     * Only unsettled non-payer splits contribute to balances. The payer's own split
+     * is always skipped — a payer never owes themselves. This prevents phantom
+     * positive balances after partial settlement.
      *
      * @param expenses List of expenses
      * @param splits List of expense splits
@@ -317,24 +353,22 @@ public class SettlementService {
         for (Expense expense : expenses) {
             UUID payer = expense.getPaidBy();
             String expenseCurrency = expense.getCurrency();
-            BigDecimal amount = expense.getAmount();
 
-            // Convert expense amount to base currency
-            BigDecimal amountInBaseCurrency = convertToBaseCurrency(amount, expenseCurrency, baseCurrency, conversionWarnings);
-
-            // Payer is owed the expense amount (in base currency)
-            balances.merge(payer, amountInBaseCurrency, BigDecimal::add);
-
-            // Each split participant owes their share
+            // Credit the payer only for unsettled non-payer splits.
+            // The payer's own split is skipped entirely — you never owe yourself.
+            // This prevents phantom balances after partial settlement.
             List<ExpenseSplit> expenseSplits = splitsByExpense.getOrDefault(expense.getId(), List.of());
+            BigDecimal payerCredit = BigDecimal.ZERO;
             for (ExpenseSplit split : expenseSplits) {
-                // Only count unsettled splits
-                if (!split.isSettled()) {
-                    // Convert split amount to base currency
+                if (!split.isSettled() && !split.getUserId().equals(payer)) {
                     BigDecimal splitAmountInBaseCurrency = convertToBaseCurrency(
                             split.getAmount(), expenseCurrency, baseCurrency, conversionWarnings);
                     balances.merge(split.getUserId(), splitAmountInBaseCurrency.negate(), BigDecimal::add);
+                    payerCredit = payerCredit.add(splitAmountInBaseCurrency);
                 }
+            }
+            if (payerCredit.compareTo(BigDecimal.ZERO) > 0) {
+                balances.merge(payer, payerCredit, BigDecimal::add);
             }
         }
 
