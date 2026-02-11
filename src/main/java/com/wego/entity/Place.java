@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,7 +31,9 @@ import java.util.UUID;
  * @see Activity
  */
 @Entity
-@Table(name = "places")
+@Table(name = "places", indexes = {
+    @Index(name = "idx_place_google_place_id", columnList = "google_place_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor

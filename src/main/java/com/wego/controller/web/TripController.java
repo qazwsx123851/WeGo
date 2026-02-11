@@ -55,10 +55,9 @@ import java.util.stream.Collectors;
 @RequestMapping("/trips")
 @RequiredArgsConstructor
 @Slf4j
-public class TripController {
+public class TripController extends BaseWebController {
 
     private final TripService tripService;
-    private final UserService userService;
     private final ActivityService activityService;
     private final TodoService todoService;
     private final ExpenseService expenseService;
@@ -813,11 +812,4 @@ public class TripController {
         }
     }
 
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        return userService.getUserByEmail(email);
-    }
 }

@@ -44,10 +44,9 @@ import java.util.stream.Collectors;
 @RequestMapping("/trips/{tripId}")
 @RequiredArgsConstructor
 @Slf4j
-public class ActivityWebController {
+public class ActivityWebController extends BaseWebController {
 
     private final TripService tripService;
-    private final UserService userService;
     private final ActivityService activityService;
     private final PlaceService placeService;
     private final ExpenseService expenseService;
@@ -818,11 +817,4 @@ public class ActivityWebController {
         model.addAttribute("searchRadius", searchRadius);
     }
 
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        return userService.getUserByEmail(email);
-    }
 }

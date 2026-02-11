@@ -11,13 +11,13 @@ import org.springframework.web.bind.annotation.ModelAttribute;
  *
  * @contract
  *   - post: currentPath is available in all templates
- *   - post: googleMapsApiKey is available in all templates
+ *   - post: googleMapsApiKey is available in all templates (restricted embed-only key)
  *   - calledBy: Spring MVC framework
  */
 @ControllerAdvice
 public class GlobalModelAttributes {
 
-    @Value("${wego.external-api.google-maps.api-key:}")
+    @Value("${wego.external-api.google-maps.embed-api-key:}")
     private String googleMapsApiKey;
 
     /**

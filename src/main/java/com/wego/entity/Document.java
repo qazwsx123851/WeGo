@@ -36,7 +36,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "documents", indexes = {
     @Index(name = "idx_document_trip_id", columnList = "trip_id"),
-    @Index(name = "idx_document_uploaded_by", columnList = "uploaded_by")
+    @Index(name = "idx_document_uploaded_by", columnList = "uploaded_by"),
+    @Index(name = "idx_document_trip_created", columnList = "trip_id, created_at")
 })
 @Getter
 @Setter

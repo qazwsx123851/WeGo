@@ -42,7 +42,8 @@ import java.util.UUID;
     @Index(name = "idx_expense_trip_id", columnList = "trip_id"),
     @Index(name = "idx_expense_paid_by", columnList = "paid_by"),
     @Index(name = "idx_expense_activity_id", columnList = "activity_id"),
-    @Index(name = "idx_expense_created_by", columnList = "created_by")
+    @Index(name = "idx_expense_created_by", columnList = "created_by"),
+    @Index(name = "idx_expense_trip_created", columnList = "trip_id, created_at")
 })
 @Getter
 @Setter

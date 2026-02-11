@@ -34,7 +34,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "expense_splits", indexes = {
     @Index(name = "idx_split_expense_id", columnList = "expense_id"),
-    @Index(name = "idx_split_user_id", columnList = "user_id")
+    @Index(name = "idx_split_user_id", columnList = "user_id"),
+    @Index(name = "idx_split_user_settled", columnList = "user_id, is_settled")
 })
 @Getter
 @Setter

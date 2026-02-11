@@ -74,7 +74,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
-      max-request-size: 100MB
+      max-request-size: 30MB
 
 # Server Configuration
 server:
@@ -104,6 +104,7 @@ wego:
   external-api:
     google-maps:
       api-key: ${GOOGLE_MAPS_API_KEY:}
+      embed-api-key: ${GOOGLE_MAPS_EMBED_API_KEY:}
       enabled: ${GOOGLE_MAPS_ENABLED:false}
       use-routes-api: ${GOOGLE_MAPS_USE_ROUTES_API:true}
       routes-api:

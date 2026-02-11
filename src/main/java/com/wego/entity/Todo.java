@@ -40,7 +40,8 @@ import java.util.UUID;
 @Table(name = "todos", indexes = {
     @Index(name = "idx_todo_trip_id", columnList = "trip_id"),
     @Index(name = "idx_todo_assignee_id", columnList = "assignee_id"),
-    @Index(name = "idx_todo_created_by", columnList = "created_by")
+    @Index(name = "idx_todo_created_by", columnList = "created_by"),
+    @Index(name = "idx_todo_trip_status_due", columnList = "trip_id, status, due_date")
 })
 @Getter
 @Setter

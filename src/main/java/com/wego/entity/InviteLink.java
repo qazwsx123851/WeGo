@@ -41,7 +41,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "invite_links", indexes = {
     @Index(name = "idx_invite_link_trip_id", columnList = "trip_id"),
-    @Index(name = "idx_invite_link_created_by", columnList = "created_by")
+    @Index(name = "idx_invite_link_created_by", columnList = "created_by"),
+    @Index(name = "idx_invite_link_token", columnList = "token")
 })
 @Getter
 @Setter

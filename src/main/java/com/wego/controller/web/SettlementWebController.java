@@ -37,11 +37,10 @@ import java.util.UUID;
 @RequestMapping("/trips/{tripId}/settlement")
 @RequiredArgsConstructor
 @Slf4j
-public class SettlementWebController {
+public class SettlementWebController extends BaseWebController {
 
     private final TripService tripService;
     private final SettlementService settlementService;
-    private final UserService userService;
     private final PermissionChecker permissionChecker;
 
     /**
@@ -119,17 +118,4 @@ public class SettlementWebController {
         return "expense/settlement";
     }
 
-    /**
-     * Gets the current user from OAuth2 principal.
-     *
-     * @param principal The OAuth2 principal
-     * @return The user or null if not found
-     */
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        return userService.getUserByEmail(email);
-    }
 }

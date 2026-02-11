@@ -468,7 +468,6 @@ const WeatherUI = {
                 this.renderError('無法取得天氣資料');
             }
         } catch (error) {
-            console.error('Weather load error:', error);
             this.renderError('天氣資訊暫時無法取得');
         }
     },
@@ -645,6 +644,11 @@ const CoverImagePreview = {
                 Toast.error('僅支援 JPEG、PNG、WebP 格式');
                 coverInput.value = '';
                 return;
+            }
+
+            // Revoke previous object URL to prevent memory leak
+            if (previewImage.src && previewImage.src.startsWith('blob:')) {
+                URL.revokeObjectURL(previewImage.src);
             }
 
             // Create preview using URL.createObjectURL

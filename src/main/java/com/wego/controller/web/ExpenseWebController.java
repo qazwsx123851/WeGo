@@ -52,11 +52,10 @@ import java.util.UUID;
 @RequestMapping("/trips/{tripId}/expenses")
 @RequiredArgsConstructor
 @Slf4j
-public class ExpenseWebController {
+public class ExpenseWebController extends BaseWebController {
 
     private final ExpenseService expenseService;
     private final TripService tripService;
-    private final UserService userService;
     private final ActivityService activityService;
     private final TripMemberRepository tripMemberRepository;
 
@@ -624,45 +623,4 @@ public class ExpenseWebController {
         return splits;
     }
 
-    /**
-     * Finds the current member in the trip.
-     *
-     * @param trip The trip response
-     * @param userId The user ID
-     * @return The member summary or null if not found
-     */
-    private TripResponse.MemberSummary findCurrentMember(TripResponse trip, UUID userId) {
-        if (trip == null || trip.getMembers() == null) {
-            return null;
-        }
-        return trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(userId))
-                .findFirst()
-                .orElse(null);
-    }
-
-    /**
-     * Checks if the member can edit the trip.
-     *
-     * @param member The member summary
-     * @return true if the member is OWNER or EDITOR
-     */
-    private boolean canEdit(TripResponse.MemberSummary member) {
-        return member != null &&
-                (member.getRole() == Role.OWNER || member.getRole() == Role.EDITOR);
-    }
-
-    /**
-     * Gets the current user from OAuth2 principal.
-     *
-     * @param principal The OAuth2 principal
-     * @return The user or null if not found
-     */
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        return userService.getUserByEmail(email);
-    }
 }

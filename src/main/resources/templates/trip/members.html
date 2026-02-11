@@ -75,7 +75,8 @@
                         <input type="text"
                                id="inviteLink"
                                readonly
-                               th:value="${inviteLink}"
+                               value=""
+                               placeholder="點擊「產生連結」以取得邀請連結"
                                class="flex-1 px-4 py-3
                                       bg-gray-50 dark:bg-gray-800
                                       border border-gray-200 dark:border-gray-700
@@ -99,16 +100,12 @@
                 </div>
 
                 <!-- Link Expiry Info -->
-                <div th:if="${inviteLinkExpiry}"
-                     class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <div id="inviteLinkExpiry" class="hidden flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <span>
-                        連結有效至
-                        <span th:text="${#temporals.format(inviteLinkExpiry, 'yyyy/MM/dd HH:mm')}">2024/03/15 23:59</span>
-                    </span>
+                    <span>連結有效期限：72 小時</span>
                 </div>
 
                 <!-- Generate New Link -->
@@ -486,6 +483,8 @@
                 if (response.ok) {
                     const data = await response.json();
                     document.getElementById('inviteLink').value = data.data.inviteUrl;
+                    const expiryEl = document.getElementById('inviteLinkExpiry');
+                    if (expiryEl) expiryEl.classList.remove('hidden');
                     showToast('success', '已產生新的邀請連結');
                 } else {
                     const error = await response.json();
@@ -502,7 +501,7 @@
          */
         async function leaveTrip() {
             try {
-                const response = await fetch(`/api/trips/${tripId}/members/${/*[[${currentUserId}]]*/ ''}`, {
+                const response = await fetch(`/api/trips/${tripId}/members/me`, {
                     method: 'DELETE',
                     headers: {
                         [csrfHeader]: csrfToken

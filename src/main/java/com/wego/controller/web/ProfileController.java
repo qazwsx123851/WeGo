@@ -31,9 +31,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequestMapping("/profile")
 @RequiredArgsConstructor
 @Slf4j
-public class ProfileController {
+public class ProfileController extends BaseWebController {
 
-    private final UserService userService;
     private final TripMemberRepository tripMemberRepository;
     private final DocumentRepository documentRepository;
     private final ExpenseRepository expenseRepository;
@@ -151,25 +150,4 @@ public class ProfileController {
         return "redirect:/profile?success=profile_updated";
     }
 
-    /**
-     * Gets the current user from OAuth2 principal.
-     *
-     * @param principal The OAuth2 principal
-     * @return User entity or null if not found
-     */
-    private User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
-        if (email == null) {
-            return null;
-        }
-        try {
-            return userService.getUserByEmail(email);
-        } catch (Exception e) {
-            log.warn("Failed to get user by email: {}", email, e);
-            return null;
-        }
-    }
 }
