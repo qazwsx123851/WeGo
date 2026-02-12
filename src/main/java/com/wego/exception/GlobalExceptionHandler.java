@@ -198,9 +198,15 @@ public class GlobalExceptionHandler {
             default -> HttpStatus.BAD_GATEWAY;
         };
 
+        String clientMessage = switch (errorCode) {
+            case "INVALID_CURRENCY", "UNSUPPORTED_CURRENCY" -> ex.getMessage();
+            case "RATE_LIMIT_EXCEEDED" -> "Exchange rate service is busy. Please try again later.";
+            default -> "Exchange rate service encountered an error. Please try again later.";
+        };
+
         return ResponseEntity
             .status(status)
-            .body(ApiResponse.error(errorCode, ex.getMessage()));
+            .body(ApiResponse.error(errorCode, clientMessage));
     }
 
     /**

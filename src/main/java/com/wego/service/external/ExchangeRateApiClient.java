@@ -48,6 +48,8 @@ public class ExchangeRateApiClient implements ExchangeRateClient {
 
     private static final String BASE_URL = "https://v6.exchangerate-api.com/v6";
     private static final Pattern CURRENCY_CODE_PATTERN = Pattern.compile("^[A-Z]{3}$");
+    private static final Pattern API_KEY_IN_URL = Pattern.compile(
+            "(https://v6\\.exchangerate-api\\.com/v6/)[^/]+(/.*)?");
 
     private final ExchangeRateProperties properties;
     private final RestTemplate restTemplate;
@@ -141,12 +143,14 @@ public class ExchangeRateApiClient implements ExchangeRateClient {
             throw e;
         } catch (RestClientException e) {
             recordFailure();
-            log.error("HTTP error getting exchange rate: {}", sanitizeError(e.getMessage()));
-            throw ExchangeRateException.networkError(e);
+            String sanitizedMsg = sanitizeError(e.getMessage());
+            log.error("HTTP error getting exchange rate: {}", sanitizedMsg);
+            throw ExchangeRateException.networkError(sanitizedMsg);
         } catch (Exception e) {
             recordFailure();
-            log.error("Error getting exchange rate: {}", sanitizeError(e.getMessage()), e);
-            throw ExchangeRateException.apiError("Failed to get exchange rate: " + sanitizeError(e.getMessage()));
+            String sanitizedMsg = sanitizeError(e.getMessage());
+            log.error("Error getting exchange rate: {}", sanitizedMsg);
+            throw ExchangeRateException.apiError("Failed to get exchange rate: " + sanitizedMsg);
         }
     }
 
@@ -193,12 +197,14 @@ public class ExchangeRateApiClient implements ExchangeRateClient {
             throw e;
         } catch (RestClientException e) {
             recordFailure();
-            log.error("HTTP error getting all exchange rates: {}", sanitizeError(e.getMessage()));
-            throw ExchangeRateException.networkError(e);
+            String sanitizedMsg = sanitizeError(e.getMessage());
+            log.error("HTTP error getting all exchange rates: {}", sanitizedMsg);
+            throw ExchangeRateException.networkError(sanitizedMsg);
         } catch (Exception e) {
             recordFailure();
-            log.error("Error getting all exchange rates: {}", sanitizeError(e.getMessage()), e);
-            throw ExchangeRateException.apiError("Failed to get exchange rates: " + sanitizeError(e.getMessage()));
+            String sanitizedMsg = sanitizeError(e.getMessage());
+            log.error("Error getting all exchange rates: {}", sanitizedMsg);
+            throw ExchangeRateException.apiError("Failed to get exchange rates: " + sanitizedMsg);
         }
     }
 
@@ -291,9 +297,10 @@ public class ExchangeRateApiClient implements ExchangeRateClient {
         if (message == null) {
             return "null";
         }
+        String result = API_KEY_IN_URL.matcher(message).replaceAll("$1[REDACTED]$2");
         if (properties.hasApiKey()) {
-            return message.replace(properties.getApiKey(), "[REDACTED]");
+            result = result.replace(properties.getApiKey(), "[REDACTED]");
         }
-        return message;
+        return result;
     }
 }

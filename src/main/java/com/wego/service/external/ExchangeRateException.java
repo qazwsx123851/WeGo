@@ -140,6 +140,18 @@ public class ExchangeRateException extends RuntimeException {
     }
 
     /**
+     * Creates an ExchangeRateException for network/connection issues
+     * with a pre-sanitized message (no raw cause chaining).
+     *
+     * @param sanitizedMessage A sanitized error message (API keys redacted)
+     * @return A new ExchangeRateException
+     */
+    public static ExchangeRateException networkError(String sanitizedMessage) {
+        return new ExchangeRateException("NETWORK_ERROR",
+                "Failed to connect to ExchangeRate API: " + sanitizedMessage);
+    }
+
+    /**
      * Creates an ExchangeRateException for cache expired and API unavailable.
      *
      * @return A new ExchangeRateException
