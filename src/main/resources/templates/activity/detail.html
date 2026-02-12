@@ -344,10 +344,27 @@
                                   hover:bg-gray-50 dark:hover:bg-gray-700/50
                                   transition-colors duration-200 cursor-pointer">
                             <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700
-                                            text-gray-600 dark:text-gray-400
-                                            flex items-center justify-center text-sm">
-                                    <span th:text="${expense.category}">$</span>
+                                <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                                     th:classappend="${expense.category == 'FOOD' ? 'bg-orange-100 dark:bg-orange-900/30' :
+                                                      expense.category == 'TRANSPORT' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                                                      expense.category == 'ACCOMMODATION' ? 'bg-purple-100 dark:bg-purple-900/30' :
+                                                      expense.category == 'ENTERTAINMENT' ? 'bg-pink-100 dark:bg-pink-900/30' :
+                                                      'bg-gray-100 dark:bg-gray-700'}">
+                                    <svg th:if="${expense.category == 'FOOD'}" class="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                    </svg>
+                                    <svg th:if="${expense.category == 'TRANSPORT'}" class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                    </svg>
+                                    <svg th:if="${expense.category == 'ACCOMMODATION'}" class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                    </svg>
+                                    <svg th:if="${expense.category == 'ENTERTAINMENT'}" class="w-4 h-4 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <svg th:if="${expense.category == 'OTHER' or expense.category == null}" class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                    </svg>
                                 </div>
                                 <div>
                                     <p class="text-sm font-medium text-gray-700 dark:text-gray-200"
