@@ -6,12 +6,13 @@ import com.wego.dto.response.PlaceSearchResult;
 import com.wego.exception.ValidationException;
 import com.wego.security.CurrentUser;
 import com.wego.security.UserPrincipal;
-import com.wego.service.CacheService;
 import com.wego.service.RateLimitService;
 import com.wego.service.external.GoogleMapsClient;
 import com.wego.service.external.GoogleMapsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -48,14 +48,13 @@ public class PlaceApiController {
     private static final int MAX_QUERY_LENGTH = 200;
     private static final int RATE_LIMIT_SEARCH = 30; // 30 requests per minute
     private static final int RATE_LIMIT_DETAILS = 60; // 60 requests per minute
-    private static final long CACHE_TTL_MS = 5 * 60 * 1000L; // 5 minutes
 
     // Pattern to detect potentially dangerous characters (XSS, SQL injection)
     private static final Pattern SAFE_QUERY_PATTERN = Pattern.compile("^[\\p{L}\\p{N}\\s\\-_.,&'()]+$");
 
     private final GoogleMapsClient googleMapsClient;
     private final RateLimitService rateLimitService;
-    private final CacheService cacheService;
+    private final CacheManager cacheManager;
 
     /**
      * Searches for places near a location.
@@ -108,20 +107,25 @@ public class PlaceApiController {
         }
 
         // Check cache
-        String cacheKey = String.format("places:search:%s:%.4f:%.4f:%d", sanitizedQuery, lat, lng, radius);
-        Optional<Object> cachedObj = cacheService.get(cacheKey, Object.class);
-        if (cachedObj.isPresent() && cachedObj.get() instanceof List) {
-            @SuppressWarnings("unchecked")
-            List<PlaceSearchResult> cachedResult = (List<PlaceSearchResult>) cachedObj.get();
-            log.debug("Cache hit for place search: {}", cacheKey);
-            return ResponseEntity.ok(ApiResponse.success(cachedResult));
+        String cacheKey = String.format("search:%s:%.4f:%.4f:%d", sanitizedQuery, lat, lng, radius);
+        Cache cache = cacheManager.getCache("places");
+        if (cache != null) {
+            Cache.ValueWrapper wrapper = cache.get(cacheKey);
+            if (wrapper != null) {
+                @SuppressWarnings("unchecked")
+                List<PlaceSearchResult> cachedResult = (List<PlaceSearchResult>) wrapper.get();
+                log.debug("Cache hit for place search: {}", cacheKey);
+                return ResponseEntity.ok(ApiResponse.success(cachedResult));
+            }
         }
 
         try {
             List<PlaceSearchResult> results = googleMapsClient.searchPlaces(sanitizedQuery, lat, lng, radius);
 
             // Cache the results
-            cacheService.put(cacheKey, results, CACHE_TTL_MS);
+            if (cache != null) {
+                cache.put(cacheKey, results);
+            }
 
             return ResponseEntity.ok(ApiResponse.success(results));
         } catch (GoogleMapsException e) {
@@ -167,18 +171,25 @@ public class PlaceApiController {
         }
 
         // Check cache
-        String cacheKey = "places:details:" + sanitizedPlaceId;
-        Optional<PlaceDetails> cachedResult = cacheService.get(cacheKey, PlaceDetails.class);
-        if (cachedResult.isPresent()) {
-            log.debug("Cache hit for place details: {}", sanitizedPlaceId);
-            return ResponseEntity.ok(ApiResponse.success(cachedResult.get()));
+        String cacheKey = "details:" + sanitizedPlaceId;
+        Cache cache = cacheManager.getCache("places");
+        if (cache != null) {
+            Cache.ValueWrapper wrapper = cache.get(cacheKey);
+            if (wrapper != null) {
+                @SuppressWarnings("unchecked")
+                PlaceDetails cachedResult = (PlaceDetails) wrapper.get();
+                log.debug("Cache hit for place details: {}", sanitizedPlaceId);
+                return ResponseEntity.ok(ApiResponse.success(cachedResult));
+            }
         }
 
         try {
             PlaceDetails details = googleMapsClient.getPlaceDetails(sanitizedPlaceId);
 
             // Cache the results
-            cacheService.put(cacheKey, details, CACHE_TTL_MS);
+            if (cache != null) {
+                cache.put(cacheKey, details);
+            }
 
             return ResponseEntity.ok(ApiResponse.success(details));
         } catch (GoogleMapsException e) {

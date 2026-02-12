@@ -2,14 +2,10 @@ package com.wego.controller.web;
 
 import com.wego.dto.response.UserProfileResponse;
 import com.wego.entity.User;
-import com.wego.repository.DocumentRepository;
-import com.wego.repository.ExpenseRepository;
-import com.wego.repository.TripMemberRepository;
-import com.wego.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +21,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  *   - Handles /profile routes for profile view and edit
  *   - Requires authentication
  *   - calledBy: Web browser requests, header avatar link, bottom navigation
- *   - calls: UserService, TripMemberRepository, DocumentRepository, ExpenseRepository
+ *   - calls: UserService
  */
 @Controller
 @RequestMapping("/profile")
@@ -33,17 +29,13 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Slf4j
 public class ProfileController extends BaseWebController {
 
-    private final TripMemberRepository tripMemberRepository;
-    private final DocumentRepository documentRepository;
-    private final ExpenseRepository expenseRepository;
-
     /**
      * Shows the user profile page.
      *
      * @contract
      *   - pre: user is authenticated
      *   - post: Returns profile page with user info and statistics
-     *   - calls: UserService#getUserByEmail
+     *   - calls: UserService#getUserProfile
      *   - calledBy: Web browser request, header avatar link, bottom navigation
      *
      * @param principal The authenticated OAuth2 user
@@ -51,25 +43,17 @@ public class ProfileController extends BaseWebController {
      * @return Template name or redirect
      */
     @GetMapping
-    public String showProfile(@AuthenticationPrincipal OAuth2User principal, Model model) {
+    public String showProfile(@CurrentUser UserPrincipal principal, Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        long tripCount = tripMemberRepository.countByUserId(user.getId());
-        long documentsUploaded = documentRepository.countByUploadedBy(user.getId());
-        long expensesCreated = expenseRepository.countByCreatedBy(user.getId());
-
-        UserProfileResponse profile = UserProfileResponse.from(
-                user, tripCount, documentsUploaded, expensesCreated);
+        UserProfileResponse profile = userService.getUserProfile(user);
 
         model.addAttribute("profile", profile);
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
-
-        log.debug("Showing profile for user {}: {} trips, {} docs, {} expenses",
-                user.getId(), tripCount, documentsUploaded, expensesCreated);
 
         return "profile/index";
     }
@@ -87,7 +71,7 @@ public class ProfileController extends BaseWebController {
      * @return Template name or redirect
      */
     @GetMapping("/edit")
-    public String showEditForm(@AuthenticationPrincipal OAuth2User principal, Model model) {
+    public String showEditForm(@CurrentUser UserPrincipal principal, Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
@@ -118,7 +102,7 @@ public class ProfileController extends BaseWebController {
      */
     @PostMapping("/edit")
     public String updateProfile(@RequestParam String nickname,
-                                 @AuthenticationPrincipal OAuth2User principal,
+                                 @CurrentUser UserPrincipal principal,
                                  Model model,
                                  RedirectAttributes redirectAttributes) {
         User user = getCurrentUser(principal);

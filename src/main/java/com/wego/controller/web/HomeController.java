@@ -16,6 +16,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -67,13 +69,15 @@ public class HomeController {
         );
         List<TripResponse> allTrips = tripPage.getContent();
 
-        // Calculate daysUntil for each trip
+        // Calculate daysUntil map (trip ID -> days until departure)
         LocalDate today = LocalDate.now();
-        allTrips.forEach(trip -> {
-            if (trip.getStartDate() != null && !trip.getStartDate().isBefore(today)) {
-                trip.setDaysUntil(ChronoUnit.DAYS.between(today, trip.getStartDate()));
-            }
-        });
+        Map<UUID, Long> daysUntilMap = allTrips.stream()
+                .filter(trip -> trip.getStartDate() != null && !trip.getStartDate().isBefore(today))
+                .collect(Collectors.toMap(
+                        TripResponse::getId,
+                        trip -> ChronoUnit.DAYS.between(today, trip.getStartDate())
+                ));
+        model.addAttribute("daysUntilMap", daysUntilMap);
         model.addAttribute("trips", allTrips);
 
         // Filter upcoming trips (today to next 30 days)

@@ -9,8 +9,8 @@
     <!-- Dark Mode FOUC Prevention -->
     <script>
         (function() {
-            var theme = localStorage.getItem('theme');
-            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             if (theme === 'dark' || (!theme && prefersDark)) {
                 document.documentElement.classList.add('dark');
             }
@@ -311,7 +311,7 @@
             if (!file) return;
 
             // Validate file type
-            var allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
                 showToast('error', '不支援此檔案類型，請上傳 PDF 或圖片');
                 input.value = '';
@@ -432,20 +432,20 @@
             document.getElementById('submit-icon').classList.add('animate-spin');
             uploadProgress.classList.remove('hidden');
 
-            var formData = new FormData();
+            const formData = new FormData();
             formData.append('file', fileInput.files[0]);
 
-            var metadata = {};
-            var categoryInput = form.querySelector('input[name="category"]:checked');
+            const metadata = {};
+            const categoryInput = form.querySelector('input[name="category"]:checked');
             if (categoryInput) {
                 metadata.category = categoryInput.value;
             }
-            var descEl = document.getElementById('description');
+            const descEl = document.getElementById('description');
             if (descEl && descEl.value.trim()) {
                 metadata.description = descEl.value.trim();
             }
-            var activitySelect = document.getElementById('activityId');
-            var hiddenActivityId = form.querySelector('input[name="relatedActivityId"]');
+            const activitySelect = document.getElementById('activityId');
+            const hiddenActivityId = form.querySelector('input[name="relatedActivityId"]');
             if (activitySelect && activitySelect.value) {
                 metadata.relatedActivityId = activitySelect.value;
             } else if (hiddenActivityId && hiddenActivityId.value) {
@@ -468,9 +468,9 @@
                     if (xhr.status >= 200 && xhr.status < 300) {
                         showUploadSuccess();
                     } else {
-                        var errorMsg = '上傳失敗，請稍後再試';
+                        let errorMsg = '上傳失敗，請稍後再試';
                         try {
-                            var response = JSON.parse(xhr.responseText);
+                            const response = JSON.parse(xhr.responseText);
                             errorMsg = response.message || errorMsg;
                         } catch (parseError) { /* non-JSON response */ }
                         showToast('error', errorMsg);
@@ -484,8 +484,8 @@
                 });
 
                 xhr.open('POST', form.action);
-                var csrfMeta = document.querySelector('meta[name="_csrf"]');
-                var csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
+                const csrfMeta = document.querySelector('meta[name="_csrf"]');
+                const csrfHeaderMeta = document.querySelector('meta[name="_csrf_header"]');
                 if (csrfMeta && csrfHeaderMeta) {
                     xhr.setRequestHeader(csrfHeaderMeta.content, csrfMeta.content);
                 }
@@ -499,12 +499,12 @@
 
         // Upload success animation (fullscreen Lottie overlay)
         function showUploadSuccess() {
-            var overlay = document.getElementById('upload-success-overlay');
+            const overlay = document.getElementById('upload-success-overlay');
             overlay.classList.remove('opacity-0', 'pointer-events-none');
             overlay.classList.add('opacity-100');
 
-            var redirectUrl = form.dataset.redirectUrl + '?success=uploaded';
-            var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const redirectUrl = form.dataset.redirectUrl + '?success=uploaded';
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
             if (prefersReducedMotion) {
                 document.getElementById('success-lottie').classList.add('hidden');
@@ -513,10 +513,10 @@
                 return;
             }
 
-            var container = document.getElementById('success-lottie');
+            const container = document.getElementById('success-lottie');
             try {
                 if (typeof lottie !== 'undefined') {
-                    var anim = lottie.loadAnimation({
+                    const anim = lottie.loadAnimation({
                         container: container,
                         renderer: 'svg',
                         loop: false,
@@ -562,16 +562,16 @@
                 ? '<svg class="w-5 h-5 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
                 : '<svg class="w-5 h-5 text-error flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
 
-            var iconWrapper = document.createElement('span');
+            const iconWrapper = document.createElement('span');
             iconWrapper.innerHTML = icon;
             toast.appendChild(iconWrapper.firstChild);
 
-            var msgEl = document.createElement('p');
+            const msgEl = document.createElement('p');
             msgEl.className = 'flex-1 text-gray-800 dark:text-gray-100';
             msgEl.textContent = message;
             toast.appendChild(msgEl);
 
-            var closeBtn = document.createElement('button');
+            const closeBtn = document.createElement('button');
             closeBtn.className = 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer';
             closeBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
             closeBtn.addEventListener('click', function() { toast.remove(); });

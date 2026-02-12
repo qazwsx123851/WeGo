@@ -5,18 +5,16 @@ import com.wego.dto.request.UpdateActivityRequest;
 import com.wego.dto.response.ActivityResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.Place;
-import com.wego.entity.Role;
 import com.wego.entity.TransportMode;
 import com.wego.entity.User;
 import com.wego.service.ActivityService;
+import com.wego.service.ActivityViewHelper;
 import com.wego.service.ExpenseService;
 import com.wego.service.PlaceService;
-import com.wego.service.TripService;
-import com.wego.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -25,11 +23,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Controller for Activity-related web pages within a Trip.
@@ -46,8 +42,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ActivityWebController extends BaseWebController {
 
-    private final TripService tripService;
     private final ActivityService activityService;
+    private final ActivityViewHelper activityViewHelper;
     private final PlaceService placeService;
     private final ExpenseService expenseService;
 
@@ -63,66 +59,30 @@ public class ActivityWebController extends BaseWebController {
     @GetMapping("/activities")
     public String showActivities(@PathVariable UUID tripId,
                                   @RequestParam(required = false) Integer day,
-                                  @AuthenticationPrincipal OAuth2User principal,
+                                  @CurrentUser UserPrincipal principal,
                                   Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
         // Find current member's role
-        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
-
-        boolean canEdit = currentMember != null &&
-                (currentMember.getRole() == Role.OWNER ||
-                 currentMember.getRole() == Role.EDITOR);
+        TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+        boolean canEdit = canEdit(currentMember);
 
         // Get all activities for the trip
         List<ActivityResponse> activities =
                 activityService.getActivitiesByTrip(tripId, user.getId());
 
         // Group activities by date
+        List<LocalDate> dates = activityViewHelper.generateTripDates(trip);
         Map<LocalDate, List<ActivityResponse>> activitiesByDate =
-                new LinkedHashMap<>();
-
-        // Generate dates from startDate to endDate
-        List<LocalDate> dates = trip.getStartDate().datesUntil(trip.getEndDate().plusDays(1))
-                .collect(Collectors.toList());
-
-        // Initialize all dates in the map
-        for (LocalDate date : dates) {
-            activitiesByDate.put(date, new java.util.ArrayList<>());
-        }
-
-        // Group activities by their scheduled date
-        for (ActivityResponse activity : activities) {
-            int activityDay = activity.getDay();
-            if (activityDay >= 1 && activityDay <= dates.size()) {
-                LocalDate activityDate = trip.getStartDate().plusDays(activityDay - 1);
-                activitiesByDate.computeIfAbsent(activityDate, k -> new java.util.ArrayList<>())
-                        .add(activity);
-            }
-        }
-
-        // Sort activities within each day by sortOrder
-        for (List<ActivityResponse> dayActivities : activitiesByDate.values()) {
-            dayActivities.sort((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()));
-        }
+                activityViewHelper.groupActivitiesByDate(trip, activities);
 
         // Calculate total activity count
         int totalActivityCount = activities.size();
@@ -135,8 +95,7 @@ public class ActivityWebController extends BaseWebController {
         model.addAttribute("currentDay", day != null ? day : 1);
         model.addAttribute("currentMember", currentMember);
         model.addAttribute("canEdit", canEdit);
-        model.addAttribute("isOwner", currentMember != null &&
-                currentMember.getRole() == Role.OWNER);
+        model.addAttribute("isOwner", isOwner(currentMember));
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
 
@@ -155,21 +114,14 @@ public class ActivityWebController extends BaseWebController {
     @GetMapping("/activities/{activityId}")
     public String showActivityDetail(@PathVariable UUID tripId,
                                       @PathVariable UUID activityId,
-                                      @AuthenticationPrincipal OAuth2User principal,
+                                      @CurrentUser UserPrincipal principal,
                                       Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
@@ -184,14 +136,8 @@ public class ActivityWebController extends BaseWebController {
         }
 
         // Find current member's role
-        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
-
-        boolean canEdit = currentMember != null &&
-                (currentMember.getRole() == Role.OWNER ||
-                 currentMember.getRole() == Role.EDITOR);
+        TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+        boolean canEdit = canEdit(currentMember);
 
         // Get next activity for navigation (if exists)
         List<ActivityResponse> allActivities =
@@ -209,8 +155,7 @@ public class ActivityWebController extends BaseWebController {
         model.addAttribute("nextActivity", nextActivity);
         model.addAttribute("currentMember", currentMember);
         model.addAttribute("canEdit", canEdit);
-        model.addAttribute("isOwner", currentMember != null &&
-                currentMember.getRole() == Role.OWNER);
+        model.addAttribute("isOwner", isOwner(currentMember));
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
 
@@ -238,41 +183,25 @@ public class ActivityWebController extends BaseWebController {
     @GetMapping("/activities/new")
     public String showActivityCreateForm(@PathVariable UUID tripId,
                                           @RequestParam(required = false) Integer day,
-                                          @AuthenticationPrincipal OAuth2User principal,
+                                          @CurrentUser UserPrincipal principal,
                                           Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
         // Check permission
-        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
-
-        if (currentMember == null ||
-            (currentMember.getRole() != Role.OWNER &&
-             currentMember.getRole() != Role.EDITOR)) {
+        TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+        if (!canEdit(currentMember)) {
             return "redirect:/trips/" + tripId + "?error=access_denied";
         }
 
-        // Generate dates from startDate to endDate
-        List<LocalDate> dates = trip.getStartDate() != null && trip.getEndDate() != null
-                ? trip.getStartDate().datesUntil(trip.getEndDate().plusDays(1)).collect(Collectors.toList())
-                : List.of(LocalDate.now());
+        List<LocalDate> dates = activityViewHelper.generateTripDates(trip);
 
         model.addAttribute("trip", trip);
         model.addAttribute("tripId", tripId);
@@ -312,7 +241,7 @@ public class ActivityWebController extends BaseWebController {
                                   @RequestParam(required = false, defaultValue = "ATTRACTION") String type,
                                   @RequestParam(required = false, defaultValue = "WALKING") String transportMode,
                                   @RequestParam(required = false) Integer manualTransportMinutes,
-                                  @AuthenticationPrincipal OAuth2User principal,
+                                  @CurrentUser UserPrincipal principal,
                                   Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
@@ -321,20 +250,14 @@ public class ActivityWebController extends BaseWebController {
 
         try {
             // Get trip to verify permission and calculate day
-            TripResponse trip = tripService.getTrip(tripId, user.getId());
+            TripResponse trip = loadTrip(tripId, user.getId());
             if (trip == null) {
                 return "redirect:/dashboard?error=trip_not_found";
             }
 
             // Check permission
-            TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                    .filter(m -> m.getUserId().equals(user.getId()))
-                    .findFirst()
-                    .orElse(null);
-
-            if (currentMember == null ||
-                (currentMember.getRole() != Role.OWNER &&
-                 currentMember.getRole() != Role.EDITOR)) {
+            TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+            if (!canEdit(currentMember)) {
                 return "redirect:/trips/" + tripId + "?error=access_denied";
             }
 
@@ -350,35 +273,11 @@ public class ActivityWebController extends BaseWebController {
                     ? LocalTime.parse(startTime)
                     : null;
 
-            // Parse transport mode
-            TransportMode parsedTransportMode;
-            try {
-                parsedTransportMode = TransportMode.valueOf(transportMode);
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid transport mode '{}', defaulting to WALKING", transportMode);
-                parsedTransportMode = TransportMode.WALKING;
-            }
-
-            // Validate manualTransportMinutes range (0-2880, max 48 hours)
-            Integer validatedManualMinutes = manualTransportMinutes;
-            if (validatedManualMinutes != null) {
-                if (validatedManualMinutes < 0) {
-                    log.warn("Invalid manualTransportMinutes '{}', must be >= 0, setting to null",
-                            validatedManualMinutes);
-                    validatedManualMinutes = null;
-                } else if (validatedManualMinutes > 2880) {
-                    log.warn("manualTransportMinutes '{}' exceeds max (2880), capping",
-                            validatedManualMinutes);
-                    validatedManualMinutes = 2880;
-                }
-            }
-
-            // Validate: FLIGHT/HIGH_SPEED_RAIL requires manual input
-            if (parsedTransportMode.requiresManualInput() &&
-                (validatedManualMinutes == null || validatedManualMinutes <= 0)) {
-                log.warn("Transport mode '{}' requires manual duration but none provided",
-                        parsedTransportMode);
-                model.addAttribute("error", "選擇飛機或高鐵時，必須輸入預估交通時間");
+            // Validate transport input
+            ActivityViewHelper.TransportValidationResult transportResult =
+                    activityViewHelper.validateTransportInput(transportMode, manualTransportMinutes);
+            if (!transportResult.isValid()) {
+                model.addAttribute("error", transportResult.errorMessage());
                 return "redirect:/trips/" + tripId + "/activities/new?error=manual_time_required";
             }
 
@@ -389,8 +288,8 @@ public class ActivityWebController extends BaseWebController {
                     .startTime(parsedStartTime)
                     .durationMinutes(durationMinutes)
                     .note(notes)
-                    .transportMode(parsedTransportMode)
-                    .manualTransportMinutes(validatedManualMinutes)
+                    .transportMode(transportResult.transportMode())
+                    .manualTransportMinutes(transportResult.manualMinutes())
                     .build();
 
             // Create activity
@@ -419,34 +318,21 @@ public class ActivityWebController extends BaseWebController {
     @GetMapping("/activities/{activityId}/edit")
     public String showActivityEditForm(@PathVariable UUID tripId,
                                         @PathVariable UUID activityId,
-                                        @AuthenticationPrincipal OAuth2User principal,
+                                        @CurrentUser UserPrincipal principal,
                                         Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
         // Check permission
-        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
-
-        if (currentMember == null ||
-            (currentMember.getRole() != Role.OWNER &&
-             currentMember.getRole() != Role.EDITOR)) {
+        TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+        if (!canEdit(currentMember)) {
             return "redirect:/trips/" + tripId + "?error=access_denied";
         }
 
@@ -459,10 +345,7 @@ public class ActivityWebController extends BaseWebController {
             return "redirect:/trips/" + tripId + "/activities?error=activity_not_found";
         }
 
-        // Generate dates from startDate to endDate
-        List<LocalDate> dates = trip.getStartDate() != null && trip.getEndDate() != null
-                ? trip.getStartDate().datesUntil(trip.getEndDate().plusDays(1)).collect(Collectors.toList())
-                : List.of(LocalDate.now());
+        List<LocalDate> dates = activityViewHelper.generateTripDates(trip);
 
         // Calculate selected date from activity's day
         LocalDate selectedDate = trip.getStartDate().plusDays(activity.getDay() - 1);
@@ -511,7 +394,7 @@ public class ActivityWebController extends BaseWebController {
                                   @RequestParam(required = false, defaultValue = "WALKING") String transportMode,
                                   @RequestParam(required = false) Integer manualTransportMinutes,
                                   @RequestParam(required = false, defaultValue = "ATTRACTION") String type,
-                                  @AuthenticationPrincipal OAuth2User principal,
+                                  @CurrentUser UserPrincipal principal,
                                   RedirectAttributes redirectAttributes) {
         User user = getCurrentUser(principal);
         if (user == null) {
@@ -520,20 +403,14 @@ public class ActivityWebController extends BaseWebController {
 
         try {
             // Get trip to verify permission and calculate day
-            TripResponse trip = tripService.getTrip(tripId, user.getId());
+            TripResponse trip = loadTrip(tripId, user.getId());
             if (trip == null) {
                 return "redirect:/dashboard?error=trip_not_found";
             }
 
             // Check permission
-            TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                    .filter(m -> m.getUserId().equals(user.getId()))
-                    .findFirst()
-                    .orElse(null);
-
-            if (currentMember == null ||
-                (currentMember.getRole() != Role.OWNER &&
-                 currentMember.getRole() != Role.EDITOR)) {
+            TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+            if (!canEdit(currentMember)) {
                 return "redirect:/trips/" + tripId + "?error=access_denied";
             }
 
@@ -549,35 +426,11 @@ public class ActivityWebController extends BaseWebController {
                     ? LocalTime.parse(startTime)
                     : null;
 
-            // Parse transport mode
-            TransportMode parsedTransportMode;
-            try {
-                parsedTransportMode = TransportMode.valueOf(transportMode);
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid transport mode '{}', defaulting to WALKING", transportMode);
-                parsedTransportMode = TransportMode.WALKING;
-            }
-
-            // Validate manualTransportMinutes range (0-2880, max 48 hours)
-            Integer validatedManualMinutes = manualTransportMinutes;
-            if (validatedManualMinutes != null) {
-                if (validatedManualMinutes < 0) {
-                    log.warn("Invalid manualTransportMinutes '{}', must be >= 0, setting to null",
-                            validatedManualMinutes);
-                    validatedManualMinutes = null;
-                } else if (validatedManualMinutes > 2880) {
-                    log.warn("manualTransportMinutes '{}' exceeds max (2880), capping",
-                            validatedManualMinutes);
-                    validatedManualMinutes = 2880;
-                }
-            }
-
-            // Validate: FLIGHT/HIGH_SPEED_RAIL requires manual input
-            if (parsedTransportMode.requiresManualInput() &&
-                (validatedManualMinutes == null || validatedManualMinutes <= 0)) {
-                log.warn("Transport mode '{}' requires manual duration but none provided",
-                        parsedTransportMode);
-                redirectAttributes.addFlashAttribute("error", "選擇飛機或高鐵時，必須輸入預估交通時間");
+            // Validate transport input
+            ActivityViewHelper.TransportValidationResult transportResult =
+                    activityViewHelper.validateTransportInput(transportMode, manualTransportMinutes);
+            if (!transportResult.isValid()) {
+                redirectAttributes.addFlashAttribute("error", transportResult.errorMessage());
                 return "redirect:/trips/" + tripId + "/activities/" + activityId + "/edit?error=manual_time_required";
             }
 
@@ -588,8 +441,8 @@ public class ActivityWebController extends BaseWebController {
                     .startTime(parsedStartTime)
                     .durationMinutes(durationMinutes)
                     .note(notes)
-                    .transportMode(parsedTransportMode)
-                    .manualTransportMinutes(validatedManualMinutes)
+                    .transportMode(transportResult.transportMode())
+                    .manualTransportMinutes(transportResult.manualMinutes())
                     .build();
 
             // Update activity (this will recalculate transport if needed)
@@ -620,7 +473,7 @@ public class ActivityWebController extends BaseWebController {
     @PostMapping("/activities/{activityId}/delete")
     public String deleteActivity(@PathVariable UUID tripId,
                                  @PathVariable UUID activityId,
-                                 @AuthenticationPrincipal OAuth2User principal,
+                                 @CurrentUser UserPrincipal principal,
                                  RedirectAttributes redirectAttributes) {
         User user = getCurrentUser(principal);
         if (user == null) {
@@ -652,34 +505,21 @@ public class ActivityWebController extends BaseWebController {
     @GetMapping("/activities/{activityId}/duplicate")
     public String duplicateActivity(@PathVariable UUID tripId,
                                      @PathVariable UUID activityId,
-                                     @AuthenticationPrincipal OAuth2User principal,
+                                     @CurrentUser UserPrincipal principal,
                                      Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
         // Check permission
-        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
-
-        if (currentMember == null ||
-            (currentMember.getRole() != Role.OWNER &&
-             currentMember.getRole() != Role.EDITOR)) {
+        TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+        if (!canEdit(currentMember)) {
             return "redirect:/trips/" + tripId + "?error=access_denied";
         }
 
@@ -706,10 +546,7 @@ public class ActivityWebController extends BaseWebController {
                 .transportMode(sourceActivity.getTransportMode())
                 .build();
 
-        // Generate dates from startDate to endDate
-        List<LocalDate> dates = trip.getStartDate() != null && trip.getEndDate() != null
-                ? trip.getStartDate().datesUntil(trip.getEndDate().plusDays(1)).collect(Collectors.toList())
-                : List.of(LocalDate.now());
+        List<LocalDate> dates = activityViewHelper.generateTripDates(trip);
 
         model.addAttribute("trip", trip);
         model.addAttribute("tripId", tripId);
@@ -741,7 +578,7 @@ public class ActivityWebController extends BaseWebController {
      */
     @PostMapping("/recalculate-transport")
     public String recalculateTransport(@PathVariable UUID tripId,
-                                        @AuthenticationPrincipal OAuth2User principal,
+                                        @CurrentUser UserPrincipal principal,
                                         RedirectAttributes redirectAttributes) {
         User user = getCurrentUser(principal);
         if (user == null) {

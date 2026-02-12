@@ -258,7 +258,7 @@
     <!-- Settlement JS -->
     <script th:if="${canEdit}" th:inline="javascript">
         function showToast(message, isError) {
-            var container = document.getElementById('toast-container')
+            let container = document.getElementById('toast-container')
                 || document.querySelector('[id^="toast"]');
             if (!container) {
                 container = document.createElement('div');
@@ -266,18 +266,18 @@
                 container.className = 'fixed top-4 right-4 z-50 flex flex-col gap-3 pointer-events-none';
                 document.body.appendChild(container);
             }
-            var toast = document.createElement('div');
-            var bgClass = isError
+            const toast = document.createElement('div');
+            const bgClass = isError
                 ? 'bg-red-500'
                 : 'bg-green-500';
             toast.className = 'pointer-events-auto ' + bgClass + ' text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in';
-            var icon = isError
+            const icon = isError
                 ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>'
                 : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
-            var iconWrapper = document.createElement('span');
+            const iconWrapper = document.createElement('span');
             iconWrapper.innerHTML = '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">' + icon + '</svg>';
             toast.appendChild(iconWrapper.firstChild);
-            var msgSpan = document.createElement('span');
+            const msgSpan = document.createElement('span');
             msgSpan.textContent = message;
             toast.appendChild(msgSpan);
             container.appendChild(toast);
@@ -289,21 +289,21 @@
         }
 
         function settleItem(btn) {
-            var tripId = btn.getAttribute('data-trip');
-            var fromUserId = btn.getAttribute('data-from');
-            var toUserId = btn.getAttribute('data-to');
-            var nameFrom = btn.getAttribute('data-name-from');
-            var nameTo = btn.getAttribute('data-name-to');
+            const tripId = btn.getAttribute('data-trip');
+            const fromUserId = btn.getAttribute('data-from');
+            const toUserId = btn.getAttribute('data-to');
+            const nameFrom = btn.getAttribute('data-name-from');
+            const nameTo = btn.getAttribute('data-name-to');
 
             // Disable button and show loading state
             btn.disabled = true;
-            var originalHTML = btn.innerHTML;
+            const originalHTML = btn.innerHTML;
             btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg><span>處理中...</span>';
             btn.classList.add('opacity-60');
 
-            var csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
-            var csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
-            var headers = { 'Content-Type': 'application/json' };
+            const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+            const headers = { 'Content-Type': 'application/json' };
             if (csrfHeader && csrfToken) {
                 headers[csrfHeader] = csrfToken;
             }

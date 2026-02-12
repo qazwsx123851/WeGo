@@ -2,7 +2,6 @@ package com.wego.controller.api;
 
 import com.wego.dto.response.PlaceDetails;
 import com.wego.dto.response.PlaceSearchResult;
-import com.wego.service.CacheService;
 import com.wego.service.RateLimitService;
 import com.wego.service.external.GoogleMapsClient;
 import com.wego.service.external.GoogleMapsException;
@@ -23,7 +22,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -62,7 +60,7 @@ class PlaceApiControllerTest {
     private RateLimitService rateLimitService;
 
     @MockBean
-    private CacheService cacheService;
+    private org.springframework.cache.CacheManager cacheManager;
 
     private PlaceSearchResult testPlace1;
     private PlaceSearchResult testPlace2;
@@ -134,8 +132,7 @@ class PlaceApiControllerTest {
         // Configure rate limit service to allow requests by default
         when(rateLimitService.isAllowed(anyString(), anyInt())).thenReturn(true);
 
-        // Configure cache service to return empty (cache miss) by default
-        when(cacheService.get(anyString(), any())).thenReturn(Optional.empty());
+        // CacheManager mock returns null for getCache() by default = cache miss
     }
 
     @Nested

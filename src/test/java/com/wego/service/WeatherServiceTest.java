@@ -12,11 +12,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,7 +40,10 @@ class WeatherServiceTest {
     private WeatherClient weatherClient;
 
     @Mock
-    private CacheService cacheService;
+    private CacheManager cacheManager;
+
+    @Mock
+    private Cache cache;
 
     private WeatherService weatherService;
 
@@ -47,7 +52,7 @@ class WeatherServiceTest {
 
     @BeforeEach
     void setUp() {
-        weatherService = new WeatherService(weatherClient, cacheService);
+        weatherService = new WeatherService(weatherClient, cacheManager);
     }
 
     private List<WeatherForecast> createMockForecasts() {
@@ -116,6 +121,18 @@ class WeatherServiceTest {
         );
     }
 
+    private void setupCacheMiss() {
+        when(cacheManager.getCache("weather")).thenReturn(cache);
+        when(cache.get(anyString())).thenReturn(null);
+    }
+
+    private void setupCacheHit(List<WeatherForecast> forecasts) {
+        when(cacheManager.getCache("weather")).thenReturn(cache);
+        Cache.ValueWrapper wrapper = mock(Cache.ValueWrapper.class);
+        when(wrapper.get()).thenReturn(forecasts);
+        when(cache.get(anyString())).thenReturn(wrapper);
+    }
+
     @Nested
     @DisplayName("getWeatherForDate")
     class GetWeatherForDate {
@@ -126,8 +143,7 @@ class WeatherServiceTest {
             LocalDate today = LocalDate.now();
             List<WeatherForecast> mockForecasts = createMockForecasts();
 
-            when(cacheService.get(anyString(), eq(List.class)))
-                    .thenReturn(Optional.empty());
+            setupCacheMiss();
             when(weatherClient.get5DayForecast(TEST_LAT, TEST_LNG))
                     .thenReturn(mockForecasts);
 
@@ -152,7 +168,6 @@ class WeatherServiceTest {
             assertThat(response.getMessage()).contains("not available");
             assertThat(response.getForecast()).isNull();
 
-            // Should not call the client for out-of-range dates
             verify(weatherClient, never()).get5DayForecast(anyDouble(), anyDouble());
         }
 
@@ -173,15 +188,13 @@ class WeatherServiceTest {
             LocalDate today = LocalDate.now();
             List<WeatherForecast> cachedForecasts = createMockForecasts();
 
-            when(cacheService.get(anyString(), eq(List.class)))
-                    .thenReturn(Optional.of(cachedForecasts));
+            setupCacheHit(cachedForecasts);
 
             WeatherResponse response = weatherService.getWeatherForDate(TEST_LAT, TEST_LNG, today);
 
             assertThat(response).isNotNull();
             assertThat(response.isAvailable()).isTrue();
 
-            // Should not call the weather client when cache hit
             verify(weatherClient, never()).get5DayForecast(anyDouble(), anyDouble());
         }
 
@@ -191,15 +204,14 @@ class WeatherServiceTest {
             LocalDate today = LocalDate.now();
             List<WeatherForecast> mockForecasts = createMockForecasts();
 
-            when(cacheService.get(anyString(), eq(List.class)))
-                    .thenReturn(Optional.empty());
+            setupCacheMiss();
             when(weatherClient.get5DayForecast(TEST_LAT, TEST_LNG))
                     .thenReturn(mockForecasts);
 
             weatherService.getWeatherForDate(TEST_LAT, TEST_LNG, today);
 
             verify(weatherClient).get5DayForecast(TEST_LAT, TEST_LNG);
-            verify(cacheService).put(anyString(), eq(mockForecasts), eq(6 * 60 * 60 * 1000L));
+            verify(cache).put(anyString(), eq(mockForecasts));
         }
 
         @Test
@@ -228,8 +240,7 @@ class WeatherServiceTest {
         void shouldReturnAllForecasts() {
             List<WeatherForecast> mockForecasts = createMockForecasts();
 
-            when(cacheService.get(anyString(), eq(List.class)))
-                    .thenReturn(Optional.empty());
+            setupCacheMiss();
             when(weatherClient.get5DayForecast(TEST_LAT, TEST_LNG))
                     .thenReturn(mockForecasts);
 
@@ -247,17 +258,15 @@ class WeatherServiceTest {
         void shouldCacheForecastsAfterFetching() {
             List<WeatherForecast> mockForecasts = createMockForecasts();
 
-            when(cacheService.get(anyString(), eq(List.class)))
-                    .thenReturn(Optional.empty());
+            setupCacheMiss();
             when(weatherClient.get5DayForecast(TEST_LAT, TEST_LNG))
                     .thenReturn(mockForecasts);
 
             weatherService.getFullForecast(TEST_LAT, TEST_LNG);
 
-            verify(cacheService).put(
-                    contains("weather:forecast:"),
-                    eq(mockForecasts),
-                    eq(6 * 60 * 60 * 1000L)
+            verify(cache).put(
+                    contains("forecast:"),
+                    eq(mockForecasts)
             );
         }
     }
@@ -269,17 +278,21 @@ class WeatherServiceTest {
         @Test
         @DisplayName("should evict cache for specific location")
         void shouldEvictCacheForLocation() {
+            when(cacheManager.getCache("weather")).thenReturn(cache);
+
             weatherService.evictCache(TEST_LAT, TEST_LNG);
 
-            verify(cacheService).evict(contains("weather:forecast:"));
+            verify(cache).evict(contains("forecast:"));
         }
 
         @Test
         @DisplayName("should evict all cache entries")
         void shouldEvictAllCacheEntries() {
+            when(cacheManager.getCache("weather")).thenReturn(cache);
+
             weatherService.evictAllCache();
 
-            verify(cacheService).evictByPrefix("weather:forecast:");
+            verify(cache).clear();
         }
 
         @Test
@@ -287,22 +300,17 @@ class WeatherServiceTest {
         void shouldUseConsistentCacheKey() {
             List<WeatherForecast> mockForecasts = createMockForecasts();
 
-            when(cacheService.get(anyString(), eq(List.class)))
-                    .thenReturn(Optional.empty());
+            setupCacheMiss();
             when(weatherClient.get5DayForecast(TEST_LAT, TEST_LNG))
                     .thenReturn(mockForecasts);
 
-            // Call twice with same coordinates
             weatherService.getFullForecast(TEST_LAT, TEST_LNG);
 
-            // Cache miss on first call
             verify(weatherClient, times(1)).get5DayForecast(TEST_LAT, TEST_LNG);
 
-            // Same cache key should be used
-            verify(cacheService, times(1)).put(
-                    eq("weather:forecast:35.68:139.77"),
-                    any(),
-                    anyLong()
+            verify(cache, times(1)).put(
+                    eq("forecast:35.68:139.77"),
+                    any()
             );
         }
     }
@@ -316,12 +324,11 @@ class WeatherServiceTest {
         void shouldAcceptValidCoordinates() {
             List<WeatherForecast> mockForecasts = createMockForecasts();
 
-            when(cacheService.get(anyString(), eq(List.class)))
-                    .thenReturn(Optional.empty());
+            when(cacheManager.getCache("weather")).thenReturn(cache);
+            when(cache.get(anyString())).thenReturn(null);
             when(weatherClient.get5DayForecast(anyDouble(), anyDouble()))
                     .thenReturn(mockForecasts);
 
-            // Various valid coordinates
             assertThat(weatherService.getFullForecast(0, 0)).isNotNull();
             assertThat(weatherService.getFullForecast(-90, -180)).isNotNull();
             assertThat(weatherService.getFullForecast(90, 180)).isNotNull();
@@ -365,8 +372,7 @@ class WeatherServiceTest {
         void shouldAcceptToday() {
             List<WeatherForecast> mockForecasts = createMockForecasts();
 
-            when(cacheService.get(anyString(), eq(List.class)))
-                    .thenReturn(Optional.of(mockForecasts));
+            setupCacheHit(mockForecasts);
 
             WeatherResponse response = weatherService.getWeatherForDate(
                     TEST_LAT, TEST_LNG, LocalDate.now());
@@ -379,8 +385,7 @@ class WeatherServiceTest {
         void shouldAcceptDay4FromToday() {
             List<WeatherForecast> mockForecasts = createMockForecasts();
 
-            when(cacheService.get(anyString(), eq(List.class)))
-                    .thenReturn(Optional.of(mockForecasts));
+            setupCacheHit(mockForecasts);
 
             WeatherResponse response = weatherService.getWeatherForDate(
                     TEST_LAT, TEST_LNG, LocalDate.now().plusDays(4));
@@ -415,8 +420,8 @@ class WeatherServiceTest {
         @DisplayName("should work with MockWeatherClient")
         void shouldWorkWithMockClient() {
             MockWeatherClient mockClient = new MockWeatherClient();
-            CacheService realCache = new CacheService();
-            WeatherService serviceWithMock = new WeatherService(mockClient, realCache);
+            CacheManager realCacheManager = new ConcurrentMapCacheManager("weather");
+            WeatherService serviceWithMock = new WeatherService(mockClient, realCacheManager);
 
             WeatherResponse response = serviceWithMock.getFullForecast(
                     35.6812, 139.7671); // Tokyo
@@ -425,7 +430,6 @@ class WeatherServiceTest {
             assertThat(response.isAvailable()).isTrue();
             assertThat(response.getForecasts()).hasSize(5);
 
-            // Verify each forecast has required fields
             for (WeatherForecast forecast : response.getForecasts()) {
                 assertThat(forecast.getDate()).isNotNull();
                 assertThat(forecast.getCondition()).isNotNull();
@@ -442,7 +446,6 @@ class WeatherServiceTest {
             List<WeatherForecast> forecast1 = mockClient.get5DayForecast(35.6812, 139.7671);
             List<WeatherForecast> forecast2 = mockClient.get5DayForecast(35.6812, 139.7671);
 
-            // Mock should use seeded random, so same inputs should give same outputs
             assertThat(forecast1).hasSize(forecast2.size());
             for (int i = 0; i < forecast1.size(); i++) {
                 assertThat(forecast1.get(i).getTempHigh())

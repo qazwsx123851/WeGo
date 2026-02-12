@@ -5,14 +5,11 @@ import com.wego.dto.response.SettlementResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
-import com.wego.exception.ResourceNotFoundException;
 import com.wego.service.SettlementService;
-import com.wego.service.TripService;
-import com.wego.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +36,6 @@ import java.util.UUID;
 @Slf4j
 public class SettlementWebController extends BaseWebController {
 
-    private final TripService tripService;
     private final SettlementService settlementService;
     private final PermissionChecker permissionChecker;
 
@@ -60,27 +56,14 @@ public class SettlementWebController extends BaseWebController {
      */
     @GetMapping
     public String showSettlement(@PathVariable UUID tripId,
-                                 @AuthenticationPrincipal OAuth2User principal,
+                                 @CurrentUser UserPrincipal principal,
                                  Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (ForbiddenException e) {
-            log.warn("User {} has no permission to view trip {}", user.getId(), tripId);
-            return "redirect:/dashboard?error=access_denied";
-        } catch (ResourceNotFoundException e) {
-            log.warn("Trip {} not found", tripId);
-            return "redirect:/dashboard?error=trip_not_found";
-        } catch (Exception e) {
-            log.error("Failed to get trip {}: {}", tripId, e.getMessage(), e);
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }

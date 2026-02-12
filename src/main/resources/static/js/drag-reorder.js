@@ -565,22 +565,26 @@ const DragReorder = {
 
     /**
      * Get CSRF token from meta tag.
+     * Delegates to WeGo.getCsrfToken shared utility.
      *
      * @returns {string|null} The CSRF token or null if not found
      */
     getCsrfToken() {
-        const csrfMeta = document.querySelector('meta[name="_csrf"]');
-        return csrfMeta ? csrfMeta.getAttribute('content') : null;
+        try {
+            return WeGo.getCsrfToken();
+        } catch (e) {
+            return null;
+        }
     },
 
     /**
      * Get CSRF header name from meta tag.
+     * Delegates to WeGo.getCsrfHeader shared utility.
      *
      * @returns {string} The CSRF header name (defaults to X-CSRF-TOKEN)
      */
     getCsrfHeader() {
-        const headerMeta = document.querySelector('meta[name="_csrf_header"]');
-        return headerMeta ? headerMeta.getAttribute('content') : 'X-CSRF-TOKEN';
+        return WeGo.getCsrfHeader();
     },
 
     /**

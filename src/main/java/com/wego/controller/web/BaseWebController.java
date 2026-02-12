@@ -3,10 +3,11 @@ package com.wego.controller.web;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.Role;
 import com.wego.entity.User;
+import com.wego.security.UserPrincipal;
+import com.wego.service.TripService;
 import com.wego.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.UUID;
 
@@ -14,12 +15,13 @@ import java.util.UUID;
  * Base controller providing common utilities for all Web controllers.
  *
  * Consolidates repeated patterns:
- * - getCurrentUser: resolves OAuth2User to User entity
+ * - getCurrentUser: resolves UserPrincipal to User entity (zero DB query)
+ * - loadTrip: fetches a trip with error handling
  * - findCurrentMember: finds current user's membership in a trip
  * - canEdit/isOwner: permission checks from member summary
  *
  * @contract
- *   - pre: UserService must be injected
+ *   - pre: UserService and TripService must be injected
  *   - post: Provides shared utility methods to subclasses
  *   - calledBy: All Web Controllers
  */
@@ -29,21 +31,36 @@ public abstract class BaseWebController {
     @Autowired
     protected UserService userService;
 
+    @Autowired
+    protected TripService tripService;
+
     /**
-     * Gets the current user from OAuth2 principal.
+     * Gets the current user from UserPrincipal (zero DB query).
      *
-     * @param principal The OAuth2 user principal
-     * @return The user entity or null if not found
+     * @param principal The authenticated user principal
+     * @return The user entity or null if not authenticated
      */
-    protected User getCurrentUser(OAuth2User principal) {
-        if (principal == null) {
-            return null;
-        }
-        String email = principal.getAttribute("email");
+    protected User getCurrentUser(UserPrincipal principal) {
+        return principal == null ? null : principal.getUser();
+    }
+
+    /**
+     * Loads a trip by ID with error handling.
+     * Returns null if the trip is not found or access is denied.
+     *
+     * @param tripId The trip UUID
+     * @param userId The requesting user's UUID
+     * @return The trip response, or null if not found/forbidden
+     */
+    protected TripResponse loadTrip(UUID tripId, UUID userId) {
         try {
-            return userService.getUserByEmail(email);
+            TripResponse trip = tripService.getTrip(tripId, userId);
+            if (trip == null) {
+                log.warn("Trip {} returned null for user {}", tripId, userId);
+            }
+            return trip;
         } catch (Exception e) {
-            log.warn("Failed to get user by email {}: {}", email, e.getMessage());
+            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
             return null;
         }
     }

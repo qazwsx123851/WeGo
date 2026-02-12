@@ -10,8 +10,8 @@
     <!-- Dark Mode FOUC Prevention (must be inline and before styles) -->
     <script>
         (function() {
-            var theme = localStorage.getItem('theme');
-            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             if (theme === 'dark' || (!theme && prefersDark)) {
                 document.documentElement.classList.add('dark');
             }
@@ -120,11 +120,11 @@
                              th:alt="${trip.title + ' 封面圖片'}" class="w-full h-full object-cover">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                         <!-- Days Until -->
-                        <div th:if="${trip.daysUntil != null}"
+                        <div th:if="${daysUntilMap?.get(trip.id) != null}"
                              class="absolute top-3 right-3 bg-white/90 dark:bg-gray-800/90 rounded-lg px-2 py-1 text-caption font-medium">
-                            <span th:if="${trip.daysUntil == 0}" class="text-adventure-500">今天出發!</span>
-                            <span th:if="${trip.daysUntil == 1}" class="text-adventure-500">明天出發</span>
-                            <span th:if="${trip.daysUntil > 1}" th:text="'還有 ' + ${trip.daysUntil} + ' 天'"
+                            <span th:if="${daysUntilMap?.get(trip.id) == 0}" class="text-adventure-500">今天出發!</span>
+                            <span th:if="${daysUntilMap?.get(trip.id) == 1}" class="text-adventure-500">明天出發</span>
+                            <span th:if="${daysUntilMap?.get(trip.id) > 1}" th:text="'還有 ' + ${daysUntilMap?.get(trip.id)} + ' 天'"
                                   class="text-gray-700 dark:text-gray-200"></span>
                         </div>
                     </div>

@@ -3,8 +3,10 @@ package com.wego.service;
 import com.wego.domain.permission.PermissionChecker;
 import com.wego.dto.request.CreateInviteLinkRequest;
 import com.wego.dto.response.InviteLinkResponse;
+import com.wego.dto.response.InvitePageData;
 import com.wego.entity.InviteLink;
 import com.wego.entity.Role;
+import com.wego.entity.Trip;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
@@ -18,8 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -39,7 +43,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class InviteLinkService {
 
-    private static final int MAX_MEMBERS_PER_TRIP = 10;
+    private static final int MAX_MEMBERS_PER_TRIP = com.wego.domain.TripConstants.MAX_MEMBERS_PER_TRIP;
 
     private final InviteLinkRepository inviteLinkRepository;
     private final TripRepository tripRepository;
@@ -199,6 +203,88 @@ public class InviteLinkService {
 
         inviteLinkRepository.delete(link);
         log.info("Deleted invite link: {} by user: {}", linkId, userId);
+    }
+
+    /**
+     * Resolves invite page data for rendering the invite acceptance page.
+     *
+     * @contract
+     *   - pre: token != null
+     *   - post: returns InvitePageData with error message if invalid, or full page data if valid
+     *   - calledBy: InviteController#showInvitePage
+     *
+     * @param token The invite token
+     * @param userId The authenticated user's ID (nullable if user not found)
+     * @return InvitePageData containing all data needed for the invite page
+     */
+    @Transactional(readOnly = true)
+    public InvitePageData getInvitePageData(String token, UUID userId) {
+        Optional<InviteLink> optLink = inviteLinkRepository.findByToken(token);
+        if (optLink.isEmpty()) {
+            return InvitePageData.builder()
+                    .token(token)
+                    .error("邀請連結無效或已過期")
+                    .build();
+        }
+
+        InviteLink link = optLink.get();
+
+        if (link.isExpired()) {
+            return InvitePageData.builder()
+                    .token(token)
+                    .error("邀請連結已過期")
+                    .build();
+        }
+
+        Optional<Trip> optTrip = tripRepository.findById(link.getTripId());
+        if (optTrip.isEmpty()) {
+            return InvitePageData.builder()
+                    .token(token)
+                    .error("行程不存在")
+                    .build();
+        }
+
+        Trip trip = optTrip.get();
+
+        if (userId != null && tripMemberRepository.existsByTripIdAndUserId(trip.getId(), userId)) {
+            return InvitePageData.builder()
+                    .token(token)
+                    .tripId(trip.getId())
+                    .alreadyMember(true)
+                    .build();
+        }
+
+        long memberCount = tripMemberRepository.countByTripId(trip.getId());
+        boolean expiresWithin24h = link.getExpiresAt().isBefore(Instant.now().plus(24, ChronoUnit.HOURS));
+
+        return InvitePageData.builder()
+                .token(token)
+                .tripTitle(trip.getTitle())
+                .tripId(trip.getId())
+                .tripStartDate(trip.getStartDate())
+                .tripEndDate(trip.getEndDate())
+                .inviteRole(link.getRole().name())
+                .expiresAt(link.getExpiresAt().atZone(ZoneId.of("Asia/Taipei")))
+                .memberCount(memberCount)
+                .expiresWithin24h(expiresWithin24h)
+                .build();
+    }
+
+    /**
+     * Finds the trip ID associated with an invite token.
+     *
+     * @contract
+     *   - pre: token != null
+     *   - post: returns Optional containing trip ID if token exists
+     *   - calledBy: InviteController#acceptInvite (for redirect on duplicate member)
+     *
+     * @param token The invite token
+     * @return Optional containing the trip ID
+     */
+    @Transactional(readOnly = true)
+    public Optional<UUID> findTripIdByToken(String token) {
+        return inviteLinkRepository.findByToken(token)
+                .map(InviteLink::getTripId);
     }
 
     /**

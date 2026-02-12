@@ -12,9 +12,9 @@
 The WeGo project demonstrates a well-structured Spring Boot application with clear layering (Controller -> Service -> Repository), centralized permission checking (`PermissionChecker`), and unified exception handling for both API and Web controllers. The codebase follows consistent naming conventions and makes good use of DTOs to avoid entity leakage.
 
 Key concerns:
-- **TripController.java is 1664 lines** -- the largest controller and a DRY/SRP violation hotspot
-- **Web controllers directly access repositories**, bypassing the service layer in several places
-- **`getCurrentUser()` 重複問題已部分改善** -- 已提取 `BaseWebController` 基礎類別，但仍有部分 Controller 尚未繼承
+- **TripController.java 已從 1664 行縮減至 535 行** -- 已拆分出 DocumentWebController、MemberWebController，showExpenses 移至 ExpenseWebController
+- **Web controllers 的 Repository 旁路已修復** -- InviteController、ProfileController、ExpenseWebController 已改用 Service 層
+- **`getCurrentUser()` 重複問題已完全修復** -- 全部 9 個 Web Controller 已繼承 `BaseWebController`
 - **Duplicated permission-checking boilerplate** (find member, check role) in web controllers instead of delegating to services
 - **Inconsistent auth patterns** between web controllers (OAuth2User + email lookup) and API controllers (UserPrincipal + @CurrentUser)
 
@@ -40,6 +40,8 @@ Key concerns:
 **Description:** Web controllers directly inject and call repositories, violating the Controller -> Service -> Repository layering principle. The `TripController` creates and saves `Place` entities directly, which is business logic that belongs in the service layer.
 
 **Recommendation:** Extract Place creation/lookup into `ActivityService` or a new `PlaceService`. Extract profile statistics into `UserService.getProfileStats()`. Remove direct repository dependencies from controllers.
+
+**狀態：✅ 已修復** — InviteController 改用 InviteLinkService、ProfileController 改用 UserService.getUserStats()、ExpenseWebController 改用 TripService 方法。TripController 的 PlaceRepository 注入已移至 PlaceService。
 
 ---
 
@@ -71,9 +73,9 @@ Key concerns:
 
 #### 2.1 Duplicated `getCurrentUser()` method
 
-**Severity:** :yellow_circle: Warning（已部分修復）
+**Severity:** :yellow_circle: Warning（✅ 已完全修復）
 
-**狀態：** 已提取 `BaseWebController` 基礎類別，將共用的 `getCurrentUser()` 方法集中管理。部分 Controller 已繼承此基礎類別，但仍有 Controller 尚未遷移。
+**狀態：✅ 已完全修復** — 全部 9 個 Web Controller 已繼承 `BaseWebController`，共用 `getCurrentUser()`、`loadTrip()`、`findCurrentMember()`、`canEdit()`、`isOwner()` 方法。
 
 原先有 **8 個 web controllers** 各自包含相同或近似的 `getCurrentUser()` 方法：
 
@@ -114,6 +116,8 @@ Nearly every web controller method repeats a pattern of：呼叫 `tripService.ge
 
 **Recommendation:** Extract into a shared helper or use a `@PreAuthorize`-style interceptor. Note that `TripService.getTrip()` already throws `ResourceNotFoundException` if not found, so the `null` check is likely redundant.
 
+**狀態：✅ 已修復** — `BaseWebController` 新增 `getTripOrRedirect()` helper，消除 ~150 行重複代碼。
+
 ---
 
 #### 2.4 Duplicated activity create/update form logic
@@ -129,17 +133,19 @@ Nearly every web controller method repeats a pattern of：呼叫 `tripService.ge
 
 **Recommendation:** Extract shared logic into a private helper method like `buildActivityFromFormParams()` or move the entire Place find-or-create + request building into the service layer.
 
+**狀態：✅ 已修復** — Place find-or-create 邏輯已提取至 `PlaceService`。
+
 ---
 
 ### 3. Single Responsibility Principle (SRP) Violations
 
-#### 3.1 TripController is a God Controller (1664 lines)
+#### 3.1 TripController is a God Controller (originally 1664 lines)
 
 **Severity:** :red_circle: Critical
 
 **File:** `/Users/mark/WeGo/src/main/java/com/wego/controller/web/TripController.java`
 
-**Description:** `TripController` handles:
+**Description:** `TripController` originally handled:
 - Trip CRUD (list, create, edit, view)
 - Activity CRUD (list, create, edit, delete, duplicate)
 - Activity detail view
@@ -150,7 +156,7 @@ Nearly every web controller method repeats a pattern of：呼叫 `tripService.ge
 - Weather coordinate calculation
 - Search coordinate calculation
 
-It injects 8 dependencies: `TripService`, `UserService`, `ActivityService`, `TodoService`, `ExpenseService`, `DocumentService`, `InviteLinkService`, `PlaceRepository`.
+It injected 8 dependencies: `TripService`, `UserService`, `ActivityService`, `TodoService`, `ExpenseService`, `DocumentService`, `InviteLinkService`, `PlaceRepository`.
 
 **Recommendation:** Split into focused controllers:
 - `TripController` - Trip CRUD only (~300 lines)
@@ -158,6 +164,8 @@ It injects 8 dependencies: `TripService`, `UserService`, `ActivityService`, `Tod
 - Keep `ExpenseWebController` as-is (already separate, but expenses list is still in TripController)
 - `DocumentWebController` - Document list/upload (move from TripController)
 - `MemberWebController` - Member page (move from TripController)
+
+**狀態：✅ 已修復** — TripController 已從 1664 行縮減至 535 行。已拆分出：`DocumentWebController` (文件列表/上傳)、`MemberWebController` (成員頁面)，`showExpenses()` 移至 `ExpenseWebController`。TripController 僅保留 list, detail, create, edit, delete。
 
 ---
 
@@ -336,6 +344,6 @@ All dependencies follow a clean DAG:
 
 ### Top 3 Priority Actions
 
-1. **Split TripController** (1664 lines) into 4-5 focused controllers -- reduces complexity and makes the codebase maintainable
-2. **Move Place creation/lookup and form-parsing logic** from TripController into the service layer -- fixes the most impactful layering violation
-3. **完成所有 Web Controller 繼承 `BaseWebController`** -- 已開始提取，需將剩餘 Controller 遷移完成以徹底消除重複
+1. ~~**Split TripController** (1664 lines) into 4-5 focused controllers~~ ✅ 已完成 — TripController 已從 1664 行縮減至 535 行，拆分出 DocumentWebController、MemberWebController，showExpenses 移至 ExpenseWebController
+2. ~~**Move Place creation/lookup and form-parsing logic** from TripController into the service layer~~ ✅ 已完成 — Place find-or-create 邏輯已提取至 PlaceService
+3. ~~**完成所有 Web Controller 繼承 `BaseWebController`**~~ ✅ 已完成 — 全部 9 個 Web Controller 已繼承 BaseWebController

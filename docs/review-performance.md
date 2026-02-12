@@ -31,6 +31,8 @@ However, there are **significant performance issues** in high-traffic paths: the
 - **Description:** `getUserTrips()` calls `getMemberSummaries(trip.getId())` inside a `.map()` on every trip in the paginated result. Each call to `getMemberSummaries` triggers 2 queries: one for `findByTripId` (TripMember) and one for `findAllById` (User). For a page of 20 trips, this produces **40+ additional queries**.
 - **Recommendation:** Create a custom repository method that batch-fetches all `TripMember` rows for the trip IDs in the page, and batch-fetches all referenced `User` entities in a single query. Then assemble member summaries in-memory.
 
+**狀態：✅ 已修復** — 已改用 batch loading 修復。
+
 ### 1.2 N+1 Query in `SettlementService.calculateSettlement`
 
 - **Severity:** YELLOW Warning
@@ -91,12 +93,16 @@ However, there are **significant performance issues** in high-traffic paths: the
 - **Description:** The custom `CacheService` uses a `ConcurrentHashMap` with no maximum size limit. Expired entries are only cleaned on `get()` or `size()` calls, not proactively. Under heavy use with many unique cache keys (e.g., weather for many locations), this map will grow unbounded until expired entries are accessed.
 - **Recommendation:** Replace with the existing Caffeine cache infrastructure (already used for statistics). Caffeine handles eviction, max size, and async cleanup automatically. Alternatively, add a scheduled cleanup task.
 
+**狀態：✅ 已修復** — `CacheService.java` 已刪除。所有快取統一使用 Spring Cache + Caffeine，CacheConfig.java 新增快取定義：weather (6h TTL, max 200)、places (5min, max 500)、directions (10min, max 200)、exchange-rate-all (1h, max 50)、exchange-rate-all-fallback (24h, max 50)。
+
 ### 2.4 Dual Caching Systems
 
 - **Severity:** BLUE Suggestion
 - **File:** `CacheService.java`, `CacheConfig.java`, `ExchangeRateService.java`
 - **Description:** The project has three separate caching systems: (1) Spring Cache with Caffeine via `CacheConfig` for statistics, (2) custom `CacheService` with ConcurrentHashMap for weather, (3) manual ConcurrentHashMap caching in `ExchangeRateService`. This increases maintenance complexity and inconsistency.
 - **Recommendation:** Consolidate on Spring Cache + Caffeine for all caching needs. Define additional cache names in `CacheConfig` for weather (6h TTL) and exchange rates (1h TTL, 24h fallback).
+
+**狀態：✅ 已修復** — 三套快取系統已統一為 Spring Cache + Caffeine。WeatherService、PlaceApiController、DirectionApiController 改用 CacheManager。ExchangeRateService 改用 CacheManager 的 primary + fallback 兩層快取。CacheService.java 已刪除。
 
 ---
 
@@ -210,8 +216,8 @@ The following patterns are well-implemented and should be maintained:
 
 | Priority | Issue | Impact |
 |----------|-------|--------|
-| 1 | Fix N+1 in `getUserTrips` (1.1) | Dashboard/trip list is highest-traffic page |
+| 1 | ~~Fix N+1 in `getUserTrips` (1.1)~~ ✅ 已修復 | Dashboard/trip list is highest-traffic page |
 | 2 | Cache PermissionChecker lookups (2.2) | Reduces 4+ redundant queries per page load |
-| 3 | Consolidate caching systems (2.4) | Reduces memory leak risk and maintenance burden |
+| 3 | ~~Consolidate caching systems (2.4)~~ ✅ 已修復 | Reduces memory leak risk and maintenance burden |
 | 4 | Add `@Async` for background operations (3.1) | Prevents thread blocking on external calls |
 | 5 | Fix `ddl-auto: update` for production (4.1) | Prevents schema corruption risk |

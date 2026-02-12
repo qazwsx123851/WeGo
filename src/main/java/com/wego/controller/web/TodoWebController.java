@@ -6,12 +6,10 @@ import com.wego.entity.Role;
 import com.wego.entity.TodoStatus;
 import com.wego.entity.User;
 import com.wego.service.TodoService;
-import com.wego.service.TripService;
-import com.wego.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +37,6 @@ import java.util.UUID;
 public class TodoWebController extends BaseWebController {
 
     private final TodoService todoService;
-    private final TripService tripService;
 
     /**
      * List all todos for a trip.
@@ -58,21 +55,14 @@ public class TodoWebController extends BaseWebController {
      */
     @GetMapping
     public String listTodos(@PathVariable UUID tripId,
-                           @AuthenticationPrincipal OAuth2User principal,
+                           @CurrentUser UserPrincipal principal,
                            Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }

@@ -1,8 +1,12 @@
 package com.wego.service;
 
+import com.wego.dto.response.UserProfileResponse;
 import com.wego.entity.User;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.UnauthorizedException;
+import com.wego.repository.DocumentRepository;
+import com.wego.repository.ExpenseRepository;
+import com.wego.repository.TripMemberRepository;
 import com.wego.repository.UserRepository;
 import com.wego.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +32,9 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final TripMemberRepository tripMemberRepository;
+    private final DocumentRepository documentRepository;
+    private final ExpenseRepository expenseRepository;
 
     /**
      * Retrieves a user by their UUID.
@@ -125,6 +132,27 @@ public class UserService {
      */
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    /**
+     * Gets the user profile with statistics.
+     *
+     * @contract
+     *   - pre: user != null
+     *   - post: Returns UserProfileResponse with trip, document, and expense counts
+     *   - calls: TripMemberRepository#countByUserId, DocumentRepository#countByUploadedBy,
+     *            ExpenseRepository#countByCreatedBy
+     *   - calledBy: ProfileController#showProfile
+     *
+     * @param user The user entity
+     * @return UserProfileResponse with statistics
+     */
+    public UserProfileResponse getUserProfile(User user) {
+        long tripCount = tripMemberRepository.countByUserId(user.getId());
+        long documentsUploaded = documentRepository.countByUploadedBy(user.getId());
+        long expensesCreated = expenseRepository.countByCreatedBy(user.getId());
+
+        return UserProfileResponse.from(user, tripCount, documentsUploaded, expensesCreated);
     }
 
     /**

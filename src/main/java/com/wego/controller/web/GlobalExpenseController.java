@@ -4,11 +4,10 @@ import com.wego.dto.response.GlobalExpenseOverviewResponse;
 import com.wego.dto.response.TripExpenseSummaryResponse;
 import com.wego.entity.User;
 import com.wego.service.GlobalExpenseService;
-import com.wego.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -48,7 +47,7 @@ public class GlobalExpenseController extends BaseWebController {
      * @return Template name or redirect
      */
     @GetMapping
-    public String showExpenseOverview(@AuthenticationPrincipal OAuth2User principal,
+    public String showExpenseOverview(@CurrentUser UserPrincipal principal,
                                        Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {

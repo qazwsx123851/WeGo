@@ -17,24 +17,20 @@
 const RouteOptimizationApi = {
     /**
      * Gets CSRF token from meta tag.
+     * Delegates to WeGo.getCsrfToken shared utility.
      * @returns {string} CSRF token
-     * @throws {Error} if CSRF token is not found
      */
     getCsrfToken() {
-        const token = document.querySelector('meta[name="_csrf"]');
-        if (!token || !token.getAttribute('content')) {
-            throw new Error('CSRF token not found');
-        }
-        return token.getAttribute('content');
+        return WeGo.getCsrfToken();
     },
 
     /**
      * Gets CSRF header name from meta tag.
-     * @returns {string} CSRF header name (default: X-CSRF-TOKEN)
+     * Delegates to WeGo.getCsrfHeader shared utility.
+     * @returns {string} CSRF header name
      */
     getCsrfHeader() {
-        const header = document.querySelector('meta[name="_csrf_header"]');
-        return header ? header.getAttribute('content') : 'X-CSRF-TOKEN';
+        return WeGo.getCsrfHeader();
     },
 
     /**
@@ -409,14 +405,13 @@ const RouteOptimizationUI = {
 
     /**
      * Escapes HTML to prevent XSS.
+     * Delegates to WeGo.escapeHtml shared utility.
      *
      * @param {string} text - The text to escape
      * @returns {string} The escaped text
      */
     escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return WeGo.escapeHtml(text);
     },
 };
 

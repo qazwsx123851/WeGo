@@ -13,8 +13,8 @@
     <!-- Dark Mode FOUC Prevention -->
     <script>
         (function() {
-            var theme = localStorage.getItem('theme');
-            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             if (theme === 'dark' || (!theme && prefersDark)) {
                 document.documentElement.classList.add('dark');
             }
@@ -686,9 +686,9 @@
     <!-- Reorder Loading Overlay Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            var reorderLottie = document.getElementById('reorder-lottie');
-            var reorderSpinner = document.getElementById('reorder-css-spinner');
-            var reorderAnimation;
+            const reorderLottie = document.getElementById('reorder-lottie');
+            const reorderSpinner = document.getElementById('reorder-css-spinner');
+            let reorderAnimation;
 
             try {
                 if (typeof lottie !== 'undefined' && reorderLottie) {
@@ -714,7 +714,7 @@
 
             window.ReorderLoading = {
                 show: function() {
-                    var overlay = document.getElementById('reorder-loading-overlay');
+                    const overlay = document.getElementById('reorder-loading-overlay');
                     if (overlay) {
                         overlay.classList.remove('opacity-0', 'pointer-events-none');
                         overlay.classList.add('opacity-100');
@@ -722,7 +722,7 @@
                     }
                 },
                 hide: function() {
-                    var overlay = document.getElementById('reorder-loading-overlay');
+                    const overlay = document.getElementById('reorder-loading-overlay');
                     if (overlay) {
                         overlay.classList.add('opacity-0', 'pointer-events-none');
                         overlay.classList.remove('opacity-100');
@@ -741,12 +741,12 @@
     <!-- Activity Group Toggle Script -->
     <script>
         function toggleActivityGroup(header) {
-            var content = header.nextElementSibling;
+            const content = header.nextElementSibling;
             if (!content || !content.classList.contains('activity-group-content')) return;
 
-            var chevron = header.querySelector('.chevron-icon');
-            var isCollapsed = content.classList.contains('max-h-0');
-            var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const chevron = header.querySelector('.chevron-icon');
+            const isCollapsed = content.classList.contains('max-h-0');
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
             // Clean up any stale listener from rapid clicks
             if (content._cleanupTimer) clearTimeout(content._cleanupTimer);
@@ -764,7 +764,7 @@
                 content.style.maxHeight = content.scrollHeight + 'px';
                 if (chevron) chevron.classList.add('rotate-180');
 
-                var cleanup = function() {
+                const cleanup = function() {
                     content.style.maxHeight = '';
                     content.removeEventListener('transitionend', cleanup);
                     content._cleanup = null;
@@ -798,20 +798,20 @@
     <!-- Date Tab Navigation Script -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            var dateTabs = document.querySelectorAll('button[data-date]');
-            var activeClasses = ['bg-primary-500', 'text-white'];
-            var inactiveClasses = ['bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-200'];
+            const dateTabs = document.querySelectorAll('button[data-date]');
+            const activeClasses = ['bg-primary-500', 'text-white'];
+            const inactiveClasses = ['bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-200'];
 
             dateTabs.forEach(function(tab) {
                 tab.addEventListener('click', function() {
-                    var date = this.getAttribute('data-date');
-                    var section = document.getElementById('day-' + date);
+                    const date = this.getAttribute('data-date');
+                    const section = document.getElementById('day-' + date);
                     if (!section) return;
 
                     // Auto-expand if collapsed
-                    var header = section.querySelector('[onclick*="toggleActivityGroup"]');
+                    const header = section.querySelector('[onclick*="toggleActivityGroup"]');
                     if (header) {
-                        var content = header.nextElementSibling;
+                        const content = header.nextElementSibling;
                         if (content && content.classList.contains('activity-group-content')
                             && content.classList.contains('max-h-0')) {
                             toggleActivityGroup(header);

@@ -56,7 +56,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class TripService {
 
-    private static final int MAX_MEMBERS_PER_TRIP = 10;
+    private static final int MAX_MEMBERS_PER_TRIP = com.wego.domain.TripConstants.MAX_MEMBERS_PER_TRIP;
     private static final long MAX_COVER_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
     private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(

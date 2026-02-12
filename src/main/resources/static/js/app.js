@@ -106,11 +106,10 @@ const Toast = {
 
     /**
      * Helper: Escape HTML to prevent XSS
+     * Delegates to WeGo.escapeHtml shared utility.
      */
     escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return WeGo.escapeHtml(text);
     },
 
     // Convenience methods

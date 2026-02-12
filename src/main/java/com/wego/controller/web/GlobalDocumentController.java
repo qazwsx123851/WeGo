@@ -5,12 +5,11 @@ import com.wego.dto.response.GlobalDocumentOverviewResponse;
 import com.wego.dto.response.TripSummary;
 import com.wego.entity.User;
 import com.wego.service.GlobalDocumentService;
-import com.wego.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -59,7 +58,7 @@ public class GlobalDocumentController extends BaseWebController {
      */
     @GetMapping
     public String showDocumentOverview(
-            @AuthenticationPrincipal OAuth2User principal,
+            @CurrentUser UserPrincipal principal,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) UUID tripId,
             @RequestParam(required = false, defaultValue = "all") String type,

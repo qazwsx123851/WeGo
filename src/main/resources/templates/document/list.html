@@ -521,12 +521,12 @@
             closeUploadModal();
 
             // Show fullscreen success overlay
-            var overlay = document.getElementById('upload-success-overlay');
+            const overlay = document.getElementById('upload-success-overlay');
             overlay.classList.remove('opacity-0', 'pointer-events-none');
             overlay.classList.add('opacity-100');
 
             // Check reduced motion preference
-            var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
             if (prefersReducedMotion) {
                 document.getElementById('success-lottie').classList.add('hidden');
@@ -536,10 +536,10 @@
             }
 
             // Lottie animation
-            var container = document.getElementById('success-lottie');
+            const container = document.getElementById('success-lottie');
             try {
                 if (typeof lottie !== 'undefined') {
-                    var anim = lottie.loadAnimation({
+                    const anim = lottie.loadAnimation({
                         container: container,
                         renderer: 'svg',
                         loop: false,
@@ -853,29 +853,29 @@
 
         function closeDeleteConfirmModal() {
             document.getElementById('delete-confirm-modal').classList.add('hidden');
-            var btn = document.getElementById('confirm-delete-btn');
+            const btn = document.getElementById('confirm-delete-btn');
             btn.disabled = false;
             btn.textContent = '刪除';
         }
 
         async function executeDelete() {
-            var deleteBtn = document.getElementById('confirm-delete-btn');
+            const deleteBtn = document.getElementById('confirm-delete-btn');
             deleteBtn.disabled = true;
             deleteBtn.textContent = '刪除中...';
 
             try {
-                var response = await fetch('/api/trips/' + tripId + '/documents/' + currentDocumentId, {
+                const response = await fetch('/api/trips/' + tripId + '/documents/' + currentDocumentId, {
                     method: 'DELETE',
                     headers: { [csrfHeader]: csrfToken }
                 });
 
                 if (response.ok) {
-                    var deletedId = currentDocumentId;
+                    const deletedId = currentDocumentId;
                     closeDeleteConfirmModal();
                     closeDetailModal();
                     showToast('success', '檔案已刪除');
 
-                    var card = document.querySelector('[data-id="' + deletedId + '"]');
+                    const card = document.querySelector('[data-id="' + deletedId + '"]');
                     if (card) {
                         card.style.transition = 'opacity 200ms ease-out, transform 200ms ease-out';
                         card.style.opacity = '0';
@@ -886,7 +886,7 @@
                     deleteBtn.disabled = false;
                     deleteBtn.textContent = '刪除';
                     try {
-                        var error = await response.json();
+                        const error = await response.json();
                         showToast('error', error.message || '刪除失敗');
                     } catch (e) {
                         showToast('error', '刪除失敗，請稍後再試');

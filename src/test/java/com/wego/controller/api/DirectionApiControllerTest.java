@@ -2,7 +2,6 @@ package com.wego.controller.api;
 
 import com.wego.dto.response.DirectionResult;
 import com.wego.entity.TransportMode;
-import com.wego.service.CacheService;
 import com.wego.service.RateLimitService;
 import com.wego.service.external.GoogleMapsClient;
 import com.wego.service.external.GoogleMapsException;
@@ -59,7 +58,7 @@ class DirectionApiControllerTest {
     private RateLimitService rateLimitService;
 
     @MockBean
-    private CacheService cacheService;
+    private org.springframework.cache.CacheManager cacheManager;
 
     private DirectionResult testDirectionResult;
 
@@ -89,8 +88,7 @@ class DirectionApiControllerTest {
         // Configure rate limit service to allow requests by default
         when(rateLimitService.isAllowed(anyString(), anyInt())).thenReturn(true);
 
-        // Configure cache service to return empty (cache miss) by default
-        when(cacheService.get(anyString(), any())).thenReturn(java.util.Optional.empty());
+        // CacheManager mock returns null for getCache() by default = cache miss
     }
 
     @Nested

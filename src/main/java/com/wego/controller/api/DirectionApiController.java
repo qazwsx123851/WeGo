@@ -6,20 +6,19 @@ import com.wego.entity.TransportMode;
 import com.wego.exception.ValidationException;
 import com.wego.security.CurrentUser;
 import com.wego.security.UserPrincipal;
-import com.wego.service.CacheService;
 import com.wego.service.RateLimitService;
 import com.wego.service.external.GoogleMapsClient;
 import com.wego.service.external.GoogleMapsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Optional;
 
 /**
  * REST API controller for direction/routing operations.
@@ -41,11 +40,10 @@ import java.util.Optional;
 public class DirectionApiController {
 
     private static final int RATE_LIMIT_DIRECTIONS = 30; // 30 requests per minute
-    private static final long CACHE_TTL_MS = 10 * 60 * 1000L; // 10 minutes (directions change less frequently)
 
     private final GoogleMapsClient googleMapsClient;
     private final RateLimitService rateLimitService;
-    private final CacheService cacheService;
+    private final CacheManager cacheManager;
 
     /**
      * Gets directions between two geographic coordinates.
@@ -103,12 +101,15 @@ public class DirectionApiController {
         }
 
         // Check cache (round coordinates to 4 decimal places for better cache hits)
-        String cacheKey = String.format("directions:%.4f:%.4f:%.4f:%.4f:%s",
+        String cacheKey = String.format("%.4f:%.4f:%.4f:%.4f:%s",
                 originLat, originLng, destLat, destLng, transportMode);
-        Optional<DirectionResult> cachedResult = cacheService.get(cacheKey, DirectionResult.class);
-        if (cachedResult.isPresent()) {
-            log.debug("Cache hit for directions: {}", cacheKey);
-            return ResponseEntity.ok(ApiResponse.success(cachedResult.get()));
+        Cache cache = cacheManager.getCache("directions");
+        if (cache != null) {
+            Cache.ValueWrapper wrapper = cache.get(cacheKey);
+            if (wrapper != null) {
+                log.debug("Cache hit for directions: {}", cacheKey);
+                return ResponseEntity.ok(ApiResponse.success((DirectionResult) wrapper.get()));
+            }
         }
 
         try {
@@ -118,7 +119,9 @@ public class DirectionApiController {
                     transportMode);
 
             // Cache the result
-            cacheService.put(cacheKey, result, CACHE_TTL_MS);
+            if (cache != null) {
+                cache.put(cacheKey, result);
+            }
 
             return ResponseEntity.ok(ApiResponse.success(result));
         } catch (GoogleMapsException e) {

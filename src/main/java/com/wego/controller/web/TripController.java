@@ -1,26 +1,20 @@
 package com.wego.controller.web;
 
-import com.wego.dto.response.ExpenseResponse;
 import com.wego.dto.response.TripResponse;
-import com.wego.entity.Role;
 import com.wego.entity.User;
 import com.wego.dto.response.TodoResponse;
 import com.wego.entity.TodoStatus;
-import com.wego.dto.response.InviteLinkResponse;
 import com.wego.service.ActivityService;
 import com.wego.service.DocumentService;
 import com.wego.service.ExpenseService;
-import com.wego.service.InviteLinkService;
 import com.wego.service.TodoService;
-import com.wego.service.TripService;
-import com.wego.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -34,14 +28,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -59,18 +49,16 @@ import java.util.stream.Collectors;
 @Slf4j
 public class TripController extends BaseWebController {
 
-    private final TripService tripService;
     private final ActivityService activityService;
     private final TodoService todoService;
     private final ExpenseService expenseService;
     private final DocumentService documentService;
-    private final InviteLinkService inviteLinkService;
 
     /**
      * List all trips for the current user.
      */
     @GetMapping
-    public String listTrips(@AuthenticationPrincipal OAuth2User principal, Model model) {
+    public String listTrips(@CurrentUser UserPrincipal principal, Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
@@ -91,7 +79,7 @@ public class TripController extends BaseWebController {
      * Show create trip form.
      */
     @GetMapping("/create")
-    public String showCreateForm(@AuthenticationPrincipal OAuth2User principal, Model model) {
+    public String showCreateForm(@CurrentUser UserPrincipal principal, Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
@@ -122,7 +110,7 @@ public class TripController extends BaseWebController {
                              @RequestParam LocalDate startDate,
                              @RequestParam LocalDate endDate,
                              @RequestParam(required = false) MultipartFile coverImage,
-                             @AuthenticationPrincipal OAuth2User principal,
+                             @CurrentUser UserPrincipal principal,
                              Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
@@ -222,40 +210,25 @@ public class TripController extends BaseWebController {
      */
     @GetMapping("/{id}")
     public String showTripDetail(@PathVariable UUID id,
-                                  @AuthenticationPrincipal OAuth2User principal,
+                                  @CurrentUser UserPrincipal principal,
                                   Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(id, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", id, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(id, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
         // Find current member's role
-        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
-
-        boolean canEdit = currentMember != null &&
-                (currentMember.getRole() == Role.OWNER ||
-                 currentMember.getRole() == Role.EDITOR);
+        TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
 
         model.addAttribute("trip", trip);
         model.addAttribute("currentMember", currentMember);
-        model.addAttribute("canEdit", canEdit);
-        model.addAttribute("isOwner", currentMember != null &&
-                currentMember.getRole() == Role.OWNER);
+        model.addAttribute("canEdit", canEdit(currentMember));
+        model.addAttribute("isOwner", isOwner(currentMember));
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
 
@@ -422,270 +395,24 @@ public class TripController extends BaseWebController {
     }
 
     /**
-     * Show trip members page.
-     */
-    @GetMapping("/{id}/members")
-    public String showMembersPage(@PathVariable UUID id,
-                                   @AuthenticationPrincipal OAuth2User principal,
-                                   Model model) {
-        User user = getCurrentUser(principal);
-        if (user == null) {
-            return "redirect:/login";
-        }
-
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(id, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", id, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
-        if (trip == null) {
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
-        List<TripResponse.MemberSummary> members = tripService.getTripMembers(id, user.getId());
-
-        TripResponse.MemberSummary currentMember = members.stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
-
-        boolean isOwner = currentMember != null &&
-                currentMember.getRole() == Role.OWNER;
-
-        boolean canEdit = isOwner ||
-                (currentMember != null && currentMember.getRole() == Role.EDITOR);
-
-        model.addAttribute("trip", trip);
-        model.addAttribute("members", members);
-        model.addAttribute("currentMember", currentMember);
-        model.addAttribute("currentUserId", user.getId());
-        model.addAttribute("isOwner", isOwner);
-        model.addAttribute("canEdit", canEdit);
-        model.addAttribute("memberCount", members.size());
-        model.addAttribute("name", user.getNickname());
-        model.addAttribute("picture", user.getAvatarUrl());
-
-        // Invite link attributes
-        model.addAttribute("canInvite", canEdit);
-        try {
-            List<InviteLinkResponse> activeLinks = inviteLinkService.getActiveInviteLinks(id, user.getId());
-            if (activeLinks != null && !activeLinks.isEmpty()) {
-                InviteLinkResponse link = activeLinks.get(0);
-                model.addAttribute("inviteLink", link.getInviteUrl());
-                model.addAttribute("inviteLinkExpiry", link.getExpiresAt());
-            } else {
-                model.addAttribute("inviteLink", null);
-                model.addAttribute("inviteLinkExpiry", null);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to load invite links for trip {}: {}", id, e.getMessage());
-            model.addAttribute("inviteLink", null);
-            model.addAttribute("inviteLinkExpiry", null);
-        }
-
-        return "trip/members";
-    }
-
-    /**
-     * Show trip expenses page.
-     *
-     * @contract
-     *   - pre: id != null, principal != null
-     *   - post: Returns expense list view with expenses and summary
-     *   - calls: TripService#getTrip, ExpenseService#getExpensesByTrip
-     *   - calledBy: Web browser requests
-     */
-    @GetMapping("/{id}/expenses")
-    public String showExpenses(@PathVariable UUID id,
-                               @AuthenticationPrincipal OAuth2User principal,
-                               Model model) {
-        User user = getCurrentUser(principal);
-        if (user == null) {
-            return "redirect:/login";
-        }
-
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(id, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", id, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
-        if (trip == null) {
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
-        // Get expenses for the trip
-        var expenses = expenseService.getExpensesByTrip(id, user.getId());
-
-        // Group expenses by date
-        Function<ExpenseResponse, LocalDate> dateClassifier = e ->
-                e.getExpenseDate() != null
-                        ? e.getExpenseDate()
-                        : (e.getCreatedAt() != null
-                                ? e.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate()
-                                : LocalDate.now());
-
-        Map<LocalDate, List<ExpenseResponse>> expensesByDate =
-                expenses.stream()
-                        .collect(Collectors.groupingBy(
-                                dateClassifier,
-                                () -> new TreeMap<>(Comparator.reverseOrder()),
-                                Collectors.toList()
-                        ));
-
-        // Calculate totals
-        String baseCurrency = trip.getBaseCurrency() != null ? trip.getBaseCurrency() : "TWD";
-        BigDecimal totalExpense = expenseService.getTotalExpense(id, baseCurrency, user.getId());
-
-        int memberCount = trip.getMembers() != null ? trip.getMembers().size() : 1;
-        BigDecimal perPersonAverage = memberCount > 0 && totalExpense.compareTo(BigDecimal.ZERO) > 0
-                ? totalExpense.divide(BigDecimal.valueOf(memberCount), 0, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-
-        // Calculate user balance
-        BigDecimal userBalance;
-        try {
-            userBalance = expenseService.calculateUserBalanceInTrip(user.getId(), id);
-        } catch (Exception e) {
-            log.warn("Failed to calculate user balance for trip {}: {}", id, e.getMessage());
-            userBalance = BigDecimal.ZERO;
-        }
-
-        model.addAttribute("trip", trip);
-        model.addAttribute("expenses", expenses);
-        model.addAttribute("expensesByDate", expensesByDate);
-        model.addAttribute("totalExpense", totalExpense);
-        model.addAttribute("perPersonAverage", perPersonAverage);
-        model.addAttribute("userBalance", userBalance);
-        model.addAttribute("defaultCurrency", baseCurrency);
-        model.addAttribute("name", user.getNickname());
-        model.addAttribute("picture", user.getAvatarUrl());
-
-        return "expense/list";
-    }
-
-    /**
-     * Show trip documents page.
-     *
-     * @contract
-     *   - pre: id != null, principal != null
-     *   - post: Returns document list view
-     *   - calls: TripService#getTrip, DocumentService#getDocumentsByTrip
-     *   - calledBy: Web browser requests
-     */
-    @GetMapping("/{id}/documents")
-    public String showDocuments(@PathVariable UUID id,
-                                @AuthenticationPrincipal OAuth2User principal,
-                                Model model) {
-        User user = getCurrentUser(principal);
-        if (user == null) {
-            return "redirect:/login";
-        }
-
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(id, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", id, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
-        if (trip == null) {
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
-        // Get documents for the trip
-        var documents = documentService.getDocumentsByTrip(id, user.getId());
-
-        model.addAttribute("trip", trip);
-        model.addAttribute("tripId", id);
-        model.addAttribute("documents", documents);
-        model.addAttribute("name", user.getNickname());
-        model.addAttribute("picture", user.getAvatarUrl());
-
-        return "document/list";
-    }
-
-    /**
-     * Show document upload form.
-     *
-     * @contract
-     *   - pre: id != null, principal != null
-     *   - post: Returns document upload form view
-     *   - calls: TripService#getTrip, ActivityService#getActivitiesByTrip
-     *   - calledBy: Web browser GET /trips/{id}/documents/new
-     */
-    @GetMapping("/{id}/documents/new")
-    public String showDocumentUploadForm(@PathVariable UUID id,
-                                          @RequestParam(required = false) UUID activityId,
-                                          @AuthenticationPrincipal OAuth2User principal,
-                                          Model model) {
-        User user = getCurrentUser(principal);
-        if (user == null) {
-            return "redirect:/login";
-        }
-
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(id, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", id, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
-        if (trip == null) {
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
-        var activities = activityService.getActivitiesByTrip(id, user.getId());
-
-        model.addAttribute("trip", trip);
-        model.addAttribute("tripId", id);
-        model.addAttribute("activities", activities);
-        model.addAttribute("activityId", activityId);
-        model.addAttribute("name", user.getNickname());
-        model.addAttribute("picture", user.getAvatarUrl());
-
-        return "document/upload";
-    }
-
-    /**
      * Show edit trip form.
      */
     @GetMapping("/{id}/edit")
     public String showEditForm(@PathVariable UUID id,
-                                @AuthenticationPrincipal OAuth2User principal,
+                                @CurrentUser UserPrincipal principal,
                                 Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(id, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", id, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(id, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
-        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
-
-        if (currentMember == null ||
-            (currentMember.getRole() != Role.OWNER &&
-             currentMember.getRole() != Role.EDITOR)) {
+        TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+        if (!canEdit(currentMember)) {
             return "redirect:/trips/" + id + "?error=access_denied";
         }
 
@@ -715,7 +442,7 @@ public class TripController extends BaseWebController {
                              @RequestParam LocalDate startDate,
                              @RequestParam LocalDate endDate,
                              @RequestParam(required = false) MultipartFile coverImage,
-                             @AuthenticationPrincipal OAuth2User principal,
+                             @CurrentUser UserPrincipal principal,
                              Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
@@ -723,27 +450,15 @@ public class TripController extends BaseWebController {
         }
 
         // Get existing trip to verify permission
-        TripResponse existingTrip;
-        try {
-            existingTrip = tripService.getTrip(id, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {} for update: {}", id, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse existingTrip = loadTrip(id, user.getId());
         if (existingTrip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
         // Check permission
-        TripResponse.MemberSummary currentMember = existingTrip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
+        TripResponse.MemberSummary currentMember = findCurrentMember(existingTrip, user.getId());
 
-        if (currentMember == null ||
-            (currentMember.getRole() != Role.OWNER &&
-             currentMember.getRole() != Role.EDITOR)) {
+        if (!canEdit(currentMember)) {
             return "redirect:/trips/" + id + "?error=access_denied";
         }
 

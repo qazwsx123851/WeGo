@@ -16,14 +16,12 @@ const ExpenseStatistics = {
 
     /**
      * Escapes HTML to prevent XSS attacks.
+     * Delegates to WeGo.escapeHtml shared utility.
      * @param {string} str - String to escape
      * @returns {string} Escaped string
      */
     escapeHtml(str) {
-        if (str == null) return '';
-        const div = document.createElement('div');
-        div.textContent = String(str);
-        return div.innerHTML;
+        return WeGo.escapeHtml(str);
     },
 
     /** Cached data for chart recreation on theme change */

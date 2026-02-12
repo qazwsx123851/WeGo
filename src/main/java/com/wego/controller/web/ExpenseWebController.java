@@ -7,19 +7,16 @@ import com.wego.dto.response.ExpenseResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.Role;
 import com.wego.entity.SplitType;
-import com.wego.entity.TripMember;
 import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
-import com.wego.repository.TripMemberRepository;
 import com.wego.service.ActivityService;
 import com.wego.service.ExpenseService;
-import com.wego.service.TripService;
-import com.wego.service.UserService;
+import com.wego.service.ExpenseViewHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,7 +28,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -45,7 +41,7 @@ import java.util.UUID;
  *   - Uses @RequestParam for form data (not @RequestBody)
  *   - Requires authentication for all endpoints
  *   - Validates user permission (OWNER or EDITOR)
- *   - calls: ExpenseService, TripService, UserService
+ *   - calls: ExpenseService, TripService, ActivityService
  *   - calledBy: Web browser requests, HTML form submissions
  */
 @Controller
@@ -55,9 +51,66 @@ import java.util.UUID;
 public class ExpenseWebController extends BaseWebController {
 
     private final ExpenseService expenseService;
-    private final TripService tripService;
     private final ActivityService activityService;
-    private final TripMemberRepository tripMemberRepository;
+    private final ExpenseViewHelper expenseViewHelper;
+
+    /**
+     * Show trip expenses page.
+     *
+     * @contract
+     *   - pre: tripId != null, principal != null
+     *   - post: Returns expense list view with expenses and summary
+     *   - calls: TripService#getTrip, ExpenseService#getExpensesByTrip
+     *   - calledBy: Web browser GET /trips/{tripId}/expenses
+     */
+    @GetMapping
+    public String showExpenses(@PathVariable UUID tripId,
+                               @CurrentUser UserPrincipal principal,
+                               Model model) {
+        User user = getCurrentUser(principal);
+        if (user == null) {
+            return "redirect:/login";
+        }
+
+        TripResponse trip = loadTrip(tripId, user.getId());
+        if (trip == null) {
+            return "redirect:/dashboard?error=trip_not_found";
+        }
+
+        // Get expenses for the trip
+        var expenses = expenseService.getExpensesByTrip(tripId, user.getId());
+
+        // Group expenses by date
+        Map<LocalDate, List<ExpenseResponse>> expensesByDate = expenseViewHelper.groupExpensesByDate(expenses);
+
+        // Calculate totals
+        String baseCurrency = trip.getBaseCurrency() != null ? trip.getBaseCurrency() : "TWD";
+        BigDecimal totalExpense = expenseService.getTotalExpense(tripId, baseCurrency, user.getId());
+
+        int memberCount = trip.getMembers() != null ? trip.getMembers().size() : 1;
+        BigDecimal perPersonAverage = expenseViewHelper.calculatePerPersonAverage(totalExpense, memberCount);
+
+        // Calculate user balance
+        BigDecimal userBalance;
+        try {
+            userBalance = expenseService.calculateUserBalanceInTrip(user.getId(), tripId);
+        } catch (Exception e) {
+            log.warn("Failed to calculate user balance for trip {}: {}", tripId, e.getMessage());
+            userBalance = BigDecimal.ZERO;
+        }
+
+        model.addAttribute("trip", trip);
+        model.addAttribute("expenses", expenses);
+        model.addAttribute("expensesByDate", expensesByDate);
+        model.addAttribute("totalExpense", totalExpense);
+        model.addAttribute("perPersonAverage", perPersonAverage);
+        model.addAttribute("userBalance", userBalance);
+        model.addAttribute("defaultCurrency", baseCurrency);
+        model.addAttribute("name", user.getNickname());
+        model.addAttribute("picture", user.getAvatarUrl());
+
+        return "expense/list";
+    }
 
     /**
      * Shows the expense creation form.
@@ -77,21 +130,14 @@ public class ExpenseWebController extends BaseWebController {
     @GetMapping({"/create", "/new"})
     public String showCreateForm(@PathVariable UUID tripId,
                                  @RequestParam(required = false) UUID activityId,
-                                 @AuthenticationPrincipal OAuth2User principal,
+                                 @CurrentUser UserPrincipal principal,
                                  Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
@@ -176,7 +222,7 @@ public class ExpenseWebController extends BaseWebController {
                                 @RequestParam(required = false) Map<String, String> customAmounts,
                                 @RequestParam(required = false) String notes,
                                 @RequestParam(required = false) UUID activityId,
-                                @AuthenticationPrincipal OAuth2User principal,
+                                @CurrentUser UserPrincipal principal,
                                 Model model,
                                 RedirectAttributes redirectAttributes) {
         User user = getCurrentUser(principal);
@@ -210,7 +256,7 @@ public class ExpenseWebController extends BaseWebController {
             }
 
             // Determine split type
-            SplitType splitType = parseSplitType(splitMethod);
+            SplitType splitType = expenseViewHelper.parseSplitType(splitMethod);
 
             // Build the request
             CreateExpenseRequest.CreateExpenseRequestBuilder requestBuilder = CreateExpenseRequest.builder()
@@ -225,7 +271,7 @@ public class ExpenseWebController extends BaseWebController {
                     .note(notes);
 
             // Build splits based on split type
-            List<CreateExpenseRequest.SplitRequest> splits = buildSplits(
+            List<CreateExpenseRequest.SplitRequest> splits = expenseViewHelper.buildSplits(
                     splitType, participantIds, percentages, customAmounts, tripId, amount);
 
             if (splitType != SplitType.EQUAL || (participantIds != null && !participantIds.isEmpty())) {
@@ -276,21 +322,14 @@ public class ExpenseWebController extends BaseWebController {
     @GetMapping("/{expenseId}")
     public String showExpenseDetail(@PathVariable UUID tripId,
                                     @PathVariable UUID expenseId,
-                                    @AuthenticationPrincipal OAuth2User principal,
+                                    @CurrentUser UserPrincipal principal,
                                     Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
@@ -338,21 +377,14 @@ public class ExpenseWebController extends BaseWebController {
     @GetMapping("/{expenseId}/edit")
     public String showEditForm(@PathVariable UUID tripId,
                                @PathVariable UUID expenseId,
-                               @AuthenticationPrincipal OAuth2User principal,
+                               @CurrentUser UserPrincipal principal,
                                Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
@@ -421,7 +453,7 @@ public class ExpenseWebController extends BaseWebController {
                                 @RequestParam UUID payerId,
                                 @RequestParam(defaultValue = "EQUAL") String splitMethod,
                                 @RequestParam(required = false) String notes,
-                                @AuthenticationPrincipal OAuth2User principal,
+                                @CurrentUser UserPrincipal principal,
                                 RedirectAttributes redirectAttributes) {
         User user = getCurrentUser(principal);
         if (user == null) {
@@ -439,7 +471,7 @@ public class ExpenseWebController extends BaseWebController {
                 }
             }
 
-            SplitType splitType = parseSplitType(splitMethod);
+            SplitType splitType = expenseViewHelper.parseSplitType(splitMethod);
 
             UpdateExpenseRequest request = UpdateExpenseRequest.builder()
                     .description(description)
@@ -490,21 +522,14 @@ public class ExpenseWebController extends BaseWebController {
      */
     @GetMapping("/statistics")
     public String showStatistics(@PathVariable UUID tripId,
-                                 @AuthenticationPrincipal OAuth2User principal,
+                                 @CurrentUser UserPrincipal principal,
                                  Model model) {
         User user = getCurrentUser(principal);
         if (user == null) {
             return "redirect:/login";
         }
 
-        TripResponse trip;
-        try {
-            trip = tripService.getTrip(tripId, user.getId());
-        } catch (Exception e) {
-            log.warn("Failed to get trip {}: {}", tripId, e.getMessage());
-            return "redirect:/dashboard?error=trip_not_found";
-        }
-
+        TripResponse trip = loadTrip(tripId, user.getId());
         if (trip == null) {
             return "redirect:/dashboard?error=trip_not_found";
         }
@@ -515,112 +540,6 @@ public class ExpenseWebController extends BaseWebController {
         model.addAttribute("picture", user.getAvatarUrl());
 
         return "expense/statistics";
-    }
-
-    /**
-     * Parses split method string to SplitType enum.
-     *
-     * @param splitMethod The split method string
-     * @return The corresponding SplitType
-     */
-    private SplitType parseSplitType(String splitMethod) {
-        if (splitMethod == null) {
-            return SplitType.EQUAL;
-        }
-        return switch (splitMethod.toUpperCase()) {
-            case "PERCENTAGE" -> SplitType.PERCENTAGE;
-            case "CUSTOM" -> SplitType.CUSTOM;
-            case "SHARES" -> SplitType.SHARES;
-            default -> SplitType.EQUAL;
-        };
-    }
-
-    /**
-     * Builds split requests based on split type.
-     *
-     * @param splitType The split type
-     * @param participantIds List of participant IDs for EQUAL split
-     * @param percentages Map of userId to percentage for PERCENTAGE split
-     * @param customAmounts Map of userId to amount for CUSTOM split
-     * @param tripId The trip ID (for getting all members if needed)
-     * @param totalAmount The total expense amount
-     * @return List of split requests
-     */
-    private List<CreateExpenseRequest.SplitRequest> buildSplits(
-            SplitType splitType,
-            List<UUID> participantIds,
-            Map<String, String> percentages,
-            Map<String, String> customAmounts,
-            UUID tripId,
-            BigDecimal totalAmount) {
-
-        List<CreateExpenseRequest.SplitRequest> splits = new ArrayList<>();
-
-        switch (splitType) {
-            case EQUAL -> {
-                // For EQUAL, we may have specific participants
-                if (participantIds != null && !participantIds.isEmpty()) {
-                    for (UUID participantId : participantIds) {
-                        splits.add(CreateExpenseRequest.SplitRequest.builder()
-                                .userId(participantId)
-                                .build());
-                    }
-                }
-                // If no participants specified, ExpenseService will use all trip members
-            }
-            case PERCENTAGE -> {
-                if (percentages != null) {
-                    for (Map.Entry<String, String> entry : percentages.entrySet()) {
-                        String key = entry.getKey();
-                        // Handle Spring's map key format: percentages[userId]=value
-                        if (key.startsWith("percentages[") && key.endsWith("]")) {
-                            key = key.substring(12, key.length() - 1);
-                        }
-                        try {
-                            UUID userId = UUID.fromString(key);
-                            BigDecimal percentage = new BigDecimal(entry.getValue());
-                            if (percentage.compareTo(BigDecimal.ZERO) > 0) {
-                                splits.add(CreateExpenseRequest.SplitRequest.builder()
-                                        .userId(userId)
-                                        .percentage(percentage)
-                                        .build());
-                            }
-                        } catch (Exception e) {
-                            log.warn("Invalid percentage entry: {} = {}", key, entry.getValue());
-                        }
-                    }
-                }
-            }
-            case CUSTOM -> {
-                if (customAmounts != null) {
-                    for (Map.Entry<String, String> entry : customAmounts.entrySet()) {
-                        String key = entry.getKey();
-                        // Handle Spring's map key format: customAmounts[userId]=value
-                        if (key.startsWith("customAmounts[") && key.endsWith("]")) {
-                            key = key.substring(14, key.length() - 1);
-                        }
-                        try {
-                            UUID userId = UUID.fromString(key);
-                            BigDecimal customAmount = new BigDecimal(entry.getValue());
-                            if (customAmount.compareTo(BigDecimal.ZERO) > 0) {
-                                splits.add(CreateExpenseRequest.SplitRequest.builder()
-                                        .userId(userId)
-                                        .amount(customAmount)
-                                        .build());
-                            }
-                        } catch (Exception e) {
-                            log.warn("Invalid custom amount entry: {} = {}", key, entry.getValue());
-                        }
-                    }
-                }
-            }
-            case SHARES -> {
-                // SHARES not implemented in the form yet, but handle it for completeness
-                log.debug("SHARES split type not implemented in form");
-            }
-        }
-
-        return splits;
     }
 
 }

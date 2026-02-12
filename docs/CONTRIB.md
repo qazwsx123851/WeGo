@@ -40,7 +40,7 @@
 | Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 | Unit |
 | Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙 | Unit + E2E |
 
-**測試統計**: ~864 單元測試 + ~118 E2E 測試 (Playwright)
+**測試統計**: ~914 單元測試 + ~118 E2E 測試 (Playwright)
 
 ---
 
@@ -172,7 +172,7 @@ src/
 │   │   ├── WegoApplication.java    # Spring Boot 入口
 │   │   ├── config/                 # 設定類別
 │   │   ├── controller/
-│   │   │   ├── web/                # 頁面控制器
+│   │   │   ├── web/                # 頁面控制器 (含 DocumentWebController, MemberWebController)
 │   │   │   └── api/                # REST API
 │   │   ├── service/                # 業務邏輯
 │   │   ├── repository/             # 資料存取
@@ -187,7 +187,7 @@ src/
 │   │   └── application.yml
 │   └── frontend/                   # Tailwind CSS 原始碼
 └── test/
-    └── java/com/wego/             # 測試類別 (58 個測試檔案)
+    └── java/com/wego/             # 測試類別 (61 個測試檔案)
 ```
 
 ---
@@ -248,9 +248,10 @@ src/
 | `TransportCalculationService` | 交通時間/距離計算、批次重算 | GoogleMapsClient, PlaceRepository |
 | `GlobalExpenseService` | 跨行程支出統計 | ExpenseRepository, TripMemberRepository |
 | `GlobalDocumentService` | 跨行程文件管理 | DocumentRepository, TripMemberRepository |
-| `ExchangeRateService` | 匯率查詢與轉換 (8 種貨幣) | ExchangeRateClient, CacheService |
+| `ExchangeRateService` | 匯率查詢與轉換 (8 種貨幣) | ExchangeRateClient, CacheManager |
 | `StatisticsService` | 支出統計分析 (分類/趨勢/成員) | ExpenseRepository |
-| `WeatherService` | 天氣預報 (5天) | WeatherClient, CacheService |
+| `WeatherService` | 天氣預報 (5天) | WeatherClient, CacheManager |
+| `PlaceService` | 地點查詢與建立 (find-or-create) | PlaceRepository |
 | `PermissionChecker` | 角色權限檢查 | TripMemberRepository |
 | `CustomOAuth2UserService` | OAuth2 使用者處理 | UserRepository |
 | `WebExceptionHandler` | Web 錯誤頁面處理 | - |

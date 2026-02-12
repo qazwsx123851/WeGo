@@ -40,9 +40,13 @@ const ExpenseForm = {
         this.currencySelect = document.getElementById('currency');
         this.splitMethodInput = document.getElementById('splitMethod');
 
-        // Get CSRF token
-        this.csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
-        this.csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+        // Get CSRF token from shared utility
+        try {
+            this.csrfToken = WeGo.getCsrfToken();
+        } catch (e) {
+            this.csrfToken = '';
+        }
+        this.csrfHeader = WeGo.getCsrfHeader();
 
         // Get trip ID from form action or data attribute
         const actionMatch = this.form.action?.match(/\/trips\/([^/]+)/);

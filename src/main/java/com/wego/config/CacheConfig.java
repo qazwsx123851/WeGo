@@ -52,11 +52,23 @@ public class CacheConfig {
                 buildCache("statistics-trend", 5, TimeUnit.MINUTES, 500),
                 buildCache("statistics-members", 5, TimeUnit.MINUTES, 500),
 
-                // Exchange rate cache - 1 hour TTL
+                // Exchange rate caches
                 buildCache("exchange-rate", 1, TimeUnit.HOURS, 200),
+                buildCache("exchange-rate-fallback", 24, TimeUnit.HOURS, 200),
+                buildCache("exchange-rate-all", 1, TimeUnit.HOURS, 50),
+                buildCache("exchange-rate-all-fallback", 24, TimeUnit.HOURS, 50),
 
-                // Exchange rate fallback cache - 24 hour TTL
-                buildCache("exchange-rate-fallback", 24, TimeUnit.HOURS, 200)
+                // Weather cache - 6 hour TTL
+                buildCache("weather", 6, TimeUnit.HOURS, 200),
+
+                // Place search/details cache - 5 minute TTL
+                buildCache("places", 5, TimeUnit.MINUTES, 500),
+
+                // Direction cache - 10 minute TTL
+                buildCache("directions", 10, TimeUnit.MINUTES, 200),
+
+                // Permission check cache - 5 second TTL (request-level dedup)
+                buildCache("permission-check", 5, TimeUnit.SECONDS, 500)
         ));
         return cacheManager;
     }

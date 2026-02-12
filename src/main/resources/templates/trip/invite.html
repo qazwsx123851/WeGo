@@ -63,18 +63,18 @@
 
                 <!-- Trip Name -->
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3"
-                    th:text="${trip?.title}">東京五日遊</h2>
+                    th:text="${tripTitle}">東京五日遊</h2>
 
                 <!-- Trip Details -->
                 <div class="space-y-2 text-sm">
                     <!-- Dates -->
-                    <div th:if="${trip?.startDate != null and trip?.endDate != null}" class="flex items-center text-gray-600 dark:text-gray-300">
+                    <div th:if="${tripStartDate != null and tripEndDate != null}" class="flex items-center text-gray-600 dark:text-gray-300">
                         <svg class="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor"
                              viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        <span th:text="${#temporals.format(trip.startDate, 'yyyy/MM/dd')} + ' - ' + ${#temporals.format(trip.endDate, 'yyyy/MM/dd')}">
+                        <span th:text="${#temporals.format(tripStartDate, 'yyyy/MM/dd')} + ' - ' + ${#temporals.format(tripEndDate, 'yyyy/MM/dd')}">
                             2026/03/25 - 2026/03/30
                         </span>
                     </div>

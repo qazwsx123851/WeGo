@@ -1,18 +1,13 @@
 package com.wego.controller.web;
 
-import com.wego.entity.InviteLink;
-import com.wego.entity.Trip;
+import com.wego.dto.response.InvitePageData;
 import com.wego.entity.User;
 import com.wego.exception.ValidationException;
-import com.wego.repository.InviteLinkRepository;
-import com.wego.repository.TripMemberRepository;
-import com.wego.repository.TripRepository;
 import com.wego.service.InviteLinkService;
-import com.wego.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import com.wego.security.CurrentUser;
+import com.wego.security.UserPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,9 +16,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -34,7 +26,7 @@ import java.util.regex.Pattern;
  * @contract
  *   - pre: All endpoints require authentication (Spring Security handles redirect)
  *   - post: User is added to trip or shown appropriate error
- *   - calls: InviteLinkService, InviteLinkRepository, TripRepository, TripMemberRepository
+ *   - calls: InviteLinkService
  */
 @Controller
 @RequestMapping("/invite")
@@ -45,10 +37,7 @@ public class InviteController extends BaseWebController {
     private static final Pattern TOKEN_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
     private static final int MAX_TOKEN_LENGTH = 64;
 
-    private final InviteLinkRepository inviteLinkRepository;
     private final InviteLinkService inviteLinkService;
-    private final TripRepository tripRepository;
-    private final TripMemberRepository tripMemberRepository;
 
     /**
      * Displays the invite acceptance page.
@@ -59,59 +48,39 @@ public class InviteController extends BaseWebController {
      */
     @GetMapping("/{token}")
     public String showInvitePage(@PathVariable String token,
-                                  @AuthenticationPrincipal OAuth2User principal,
+                                  @CurrentUser UserPrincipal principal,
                                   Model model) {
-        // Validate token format
         if (!isValidTokenFormat(token)) {
             model.addAttribute("error", "邀請連結無效");
             return "trip/invite";
         }
 
-        // Look up invite link
-        Optional<InviteLink> optLink = inviteLinkRepository.findByToken(token);
-        if (optLink.isEmpty()) {
-            model.addAttribute("error", "邀請連結無效或已過期");
-            return "trip/invite";
-        }
-
-        InviteLink link = optLink.get();
-
-        // Check expiry
-        if (link.isExpired()) {
-            model.addAttribute("error", "邀請連結已過期");
-            return "trip/invite";
-        }
-
-        // Get trip info
-        Optional<Trip> optTrip = tripRepository.findById(link.getTripId());
-        if (optTrip.isEmpty()) {
-            model.addAttribute("error", "行程不存在");
-            return "trip/invite";
-        }
-
-        Trip trip = optTrip.get();
         User user = getCurrentUser(principal);
-
         if (user == null) {
             model.addAttribute("error", "使用者帳號尚未建立，請重新登入");
             return "trip/invite";
         }
 
-        // Check if already a member
-        if (user != null && tripMemberRepository.existsByTripIdAndUserId(trip.getId(), user.getId())) {
-            return "redirect:/trips/" + trip.getId();
+        InvitePageData pageData = inviteLinkService.getInvitePageData(token, user.getId());
+
+        if (pageData.getError() != null) {
+            model.addAttribute("error", pageData.getError());
+            return "trip/invite";
         }
 
-        // Populate model for invite page
-        long memberCount = tripMemberRepository.countByTripId(trip.getId());
-        boolean expiresWithin24h = link.getExpiresAt().isBefore(Instant.now().plus(24, ChronoUnit.HOURS));
+        if (pageData.isAlreadyMember()) {
+            return "redirect:/trips/" + pageData.getTripId();
+        }
 
-        model.addAttribute("token", token);
-        model.addAttribute("trip", trip);
-        model.addAttribute("inviteRole", link.getRole().name());
-        model.addAttribute("expiresAt", link.getExpiresAt().atZone(ZoneId.of("Asia/Taipei")));
-        model.addAttribute("memberCount", memberCount);
-        model.addAttribute("expiresWithin24h", expiresWithin24h);
+        model.addAttribute("token", pageData.getToken());
+        model.addAttribute("tripTitle", pageData.getTripTitle());
+        model.addAttribute("tripId", pageData.getTripId());
+        model.addAttribute("tripStartDate", pageData.getTripStartDate());
+        model.addAttribute("tripEndDate", pageData.getTripEndDate());
+        model.addAttribute("inviteRole", pageData.getInviteRole());
+        model.addAttribute("expiresAt", pageData.getExpiresAt());
+        model.addAttribute("memberCount", pageData.getMemberCount());
+        model.addAttribute("expiresWithin24h", pageData.isExpiresWithin24h());
 
         return "trip/invite";
     }
@@ -125,7 +94,7 @@ public class InviteController extends BaseWebController {
      */
     @PostMapping("/{token}/accept")
     public String acceptInvite(@PathVariable String token,
-                                @AuthenticationPrincipal OAuth2User principal,
+                                @CurrentUser UserPrincipal principal,
                                 RedirectAttributes redirectAttributes) {
         if (!isValidTokenFormat(token)) {
             redirectAttributes.addFlashAttribute("error", "邀請連結無效");
@@ -153,10 +122,9 @@ public class InviteController extends BaseWebController {
             };
 
             if ("DUPLICATE_MEMBER".equals(errorCode)) {
-                // Try to find the trip to redirect
-                Optional<InviteLink> optLink = inviteLinkRepository.findByToken(token);
-                if (optLink.isPresent()) {
-                    return "redirect:/trips/" + optLink.get().getTripId();
+                Optional<UUID> tripId = inviteLinkService.findTripIdByToken(token);
+                if (tripId.isPresent()) {
+                    return "redirect:/trips/" + tripId.get();
                 }
             }
 

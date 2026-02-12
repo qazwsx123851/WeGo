@@ -112,22 +112,34 @@ com.wego
 │
 ├── controller/                       # 控制器層
 │   ├── web/                          # 頁面控制器 (37 個 Web 端點)
+│   │   ├── BaseWebController.java    # Web Controller 基礎類別
 │   │   ├── HomeController.java
 │   │   ├── TripController.java
 │   │   ├── AuthController.java
 │   │   ├── GlobalExpenseController.java
 │   │   ├── GlobalDocumentController.java
-│   │   └── ProfileController.java
+│   │   ├── ProfileController.java
+│   │   ├── DocumentWebController.java # 文件列表與上傳
+│   │   ├── MemberWebController.java   # 成員管理頁面
+│   │   ├── ExpenseWebController.java
+│   │   ├── TodoWebController.java
+│   │   ├── SettlementWebController.java
+│   │   └── InviteController.java
 │   └── api/                          # REST API 控制器 (55 個 REST 端點)
 │       ├── TripApiController.java
 │       ├── ActivityApiController.java
 │       ├── ExpenseApiController.java
 │       ├── DocumentApiController.java
 │       ├── TodoApiController.java
+│       ├── ExchangeRateApiController.java
+│       ├── PlaceApiController.java
+│       ├── DirectionApiController.java
+│       ├── WeatherApiController.java
+│       ├── StatisticsApiController.java
 │       ├── HealthController.java
 │       └── AuthApiController.java
 │
-├── service/                          # 服務層 (17 個 Service)
+├── service/                          # 服務層 (18 個 Service)
 │   ├── UserService.java
 │   ├── TripService.java
 │   ├── InviteLinkService.java
@@ -141,6 +153,7 @@ com.wego
 │   ├── GlobalDocumentService.java
 │   ├── StatisticsService.java
 │   ├── ExchangeRateService.java
+│   ├── PlaceService.java
 │   └── external/                     # 外部服務整合 (4 個，各有 Mock 實作)
 │       ├── GoogleMapsService.java
 │       ├── WeatherService.java
@@ -605,12 +618,14 @@ Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMa
 
 ### 6.3 快取策略
 
-| 資料類型 | 快取時間 | 說明 |
-|----------|----------|------|
-| 交通路線 | 24 小時 | 相同起訖點結果不常變動 |
-| 天氣預報 | 6 小時 | 配合 API 更新頻率 |
-| 匯率 | 24 小時 | 每日更新 |
-| 地點搜尋 | 1 小時 | 搜尋結果可能更新 |
+| 資料類型 | 快取時間 | 最大數量 | 說明 |
+|----------|----------|----------|------|
+| 交通路線 | 10 分鐘 | 200 | CacheManager: directions |
+| 天氣預報 | 6 小時 | 200 | CacheManager: weather |
+| 匯率 (全部) | 1 小時 | 50 | CacheManager: exchange-rate-all |
+| 匯率 (備援) | 24 小時 | 50 | CacheManager: exchange-rate-all-fallback |
+| 地點搜尋 | 5 分鐘 | 500 | CacheManager: places |
+| 統計資料 | 5 分鐘 | 100 | CacheManager: statistics |
 
 ### 6.4 資料庫索引設計
 
@@ -762,11 +777,11 @@ Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMa
 
 | 項目 | 數量 |
 |------|------|
-| 單元測試 | ~864 個測試方法，58 個測試檔案 |
+| 單元測試 | ~914 個測試方法，61 個測試檔案 |
 | E2E 測試 | ~118 個測試案例，10 個 spec 檔案 |
 | REST API 端點 | 55 個 |
 | Web 端點 | 37 個 |
-| Service 類別 | 17 個 |
+| Service 類別 | 18 個 |
 | Entity 類別 | 10 個 |
 | Enum 類別 | 6 個 |
 | Repository | 10 個 |

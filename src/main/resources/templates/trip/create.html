@@ -13,8 +13,8 @@
     <!-- Dark Mode FOUC Prevention -->
     <script>
         (function() {
-            var theme = localStorage.getItem('theme');
-            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             if (theme === 'dark' || (!theme && prefersDark)) {
                 document.documentElement.classList.add('dark');
             }
@@ -280,13 +280,13 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Cover image preview
-        var fileInput = document.getElementById('coverImage');
-        var previewImage = document.getElementById('preview-image');
-        var placeholder = document.getElementById('upload-placeholder');
+        const fileInput = document.getElementById('coverImage');
+        const previewImage = document.getElementById('preview-image');
+        const placeholder = document.getElementById('upload-placeholder');
 
         if (fileInput) {
             fileInput.addEventListener('change', function(e) {
-                var file = e.target.files[0];
+                const file = e.target.files[0];
                 if (!file) return;
 
                 // Validate file size (max 5MB)
@@ -297,7 +297,7 @@
                 }
 
                 if (file.type.startsWith('image/')) {
-                    var reader = new FileReader();
+                    const reader = new FileReader();
                     reader.onload = function(ev) {
                         previewImage.src = ev.target.result;
                         previewImage.classList.remove('hidden');
@@ -309,8 +309,8 @@
         }
 
         // Date validation
-        var startDateInput = document.getElementById('startDate');
-        var endDateInput = document.getElementById('endDate');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
 
         function validateDates() {
             if (startDateInput.value && endDateInput.value) {
@@ -335,8 +335,8 @@
         }
 
         // Description character count
-        var descInput = document.getElementById('description');
-        var descCounter = document.getElementById('desc-count');
+        const descInput = document.getElementById('description');
+        const descCounter = document.getElementById('desc-count');
         if (descInput && descCounter) {
             descCounter.textContent = descInput.value.length;
             descInput.addEventListener('input', function() {

@@ -9,9 +9,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.support.NoOpCacheManager;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -32,7 +33,6 @@ class PermissionCheckerTest {
     @Mock
     private TripMemberRepository tripMemberRepository;
 
-    @InjectMocks
     private PermissionChecker permissionChecker;
 
     private UUID tripId;
@@ -43,6 +43,10 @@ class PermissionCheckerTest {
 
     @BeforeEach
     void setUp() {
+        // Use NoOpCacheManager so tests always hit the repository mock
+        CacheManager cacheManager = new NoOpCacheManager();
+        permissionChecker = new PermissionChecker(tripMemberRepository, cacheManager);
+
         tripId = UUID.randomUUID();
         ownerId = UUID.randomUUID();
         editorId = UUID.randomUUID();
@@ -212,8 +216,8 @@ class PermissionCheckerTest {
         @Test
         @DisplayName("OWNER can view")
         void canView_owner_shouldReturnTrue() {
-            when(tripMemberRepository.existsByTripIdAndUserId(tripId, ownerId))
-                    .thenReturn(true);
+            when(tripMemberRepository.findByTripIdAndUserId(tripId, ownerId))
+                    .thenReturn(Optional.of(createMember(ownerId, Role.OWNER)));
 
             assertTrue(permissionChecker.canView(tripId, ownerId));
         }
@@ -221,8 +225,8 @@ class PermissionCheckerTest {
         @Test
         @DisplayName("EDITOR can view")
         void canView_editor_shouldReturnTrue() {
-            when(tripMemberRepository.existsByTripIdAndUserId(tripId, editorId))
-                    .thenReturn(true);
+            when(tripMemberRepository.findByTripIdAndUserId(tripId, editorId))
+                    .thenReturn(Optional.of(createMember(editorId, Role.EDITOR)));
 
             assertTrue(permissionChecker.canView(tripId, editorId));
         }
@@ -230,8 +234,8 @@ class PermissionCheckerTest {
         @Test
         @DisplayName("VIEWER can view")
         void canView_viewer_shouldReturnTrue() {
-            when(tripMemberRepository.existsByTripIdAndUserId(tripId, viewerId))
-                    .thenReturn(true);
+            when(tripMemberRepository.findByTripIdAndUserId(tripId, viewerId))
+                    .thenReturn(Optional.of(createMember(viewerId, Role.VIEWER)));
 
             assertTrue(permissionChecker.canView(tripId, viewerId));
         }
@@ -239,8 +243,8 @@ class PermissionCheckerTest {
         @Test
         @DisplayName("P-008: Non-member cannot view")
         void canView_nonMember_shouldReturnFalse() {
-            when(tripMemberRepository.existsByTripIdAndUserId(tripId, nonMemberId))
-                    .thenReturn(false);
+            when(tripMemberRepository.findByTripIdAndUserId(tripId, nonMemberId))
+                    .thenReturn(Optional.empty());
 
             assertFalse(permissionChecker.canView(tripId, nonMemberId));
         }
@@ -281,8 +285,8 @@ class PermissionCheckerTest {
         @Test
         @DisplayName("Should return true for member")
         void isMember_member_shouldReturnTrue() {
-            when(tripMemberRepository.existsByTripIdAndUserId(tripId, ownerId))
-                    .thenReturn(true);
+            when(tripMemberRepository.findByTripIdAndUserId(tripId, ownerId))
+                    .thenReturn(Optional.of(createMember(ownerId, Role.OWNER)));
 
             assertTrue(permissionChecker.isMember(tripId, ownerId));
         }
@@ -290,8 +294,8 @@ class PermissionCheckerTest {
         @Test
         @DisplayName("Should return false for non-member")
         void isMember_nonMember_shouldReturnFalse() {
-            when(tripMemberRepository.existsByTripIdAndUserId(tripId, nonMemberId))
-                    .thenReturn(false);
+            when(tripMemberRepository.findByTripIdAndUserId(tripId, nonMemberId))
+                    .thenReturn(Optional.empty());
 
             assertFalse(permissionChecker.isMember(tripId, nonMemberId));
         }

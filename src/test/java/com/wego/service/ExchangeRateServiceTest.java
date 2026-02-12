@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -45,6 +47,8 @@ class ExchangeRateServiceTest {
     @Mock
     private ExchangeRateProperties properties;
 
+    private CacheManager cacheManager;
+
     private ExchangeRateService service;
 
     @BeforeEach
@@ -53,7 +57,12 @@ class ExchangeRateServiceTest {
         lenient().when(properties.getCacheTtlHours()).thenReturn(1);
         lenient().when(properties.getFallbackTtlHours()).thenReturn(24);
 
-        service = new ExchangeRateService(exchangeRateClient, properties);
+        // Use real ConcurrentMapCacheManager so caching behavior is testable
+        cacheManager = new ConcurrentMapCacheManager(
+                "exchange-rate", "exchange-rate-fallback",
+                "exchange-rate-all", "exchange-rate-all-fallback");
+
+        service = new ExchangeRateService(exchangeRateClient, properties, cacheManager);
     }
 
     @Nested
@@ -162,7 +171,6 @@ class ExchangeRateServiceTest {
                     "JPY", new BigDecimal("149.5")
             );
             when(exchangeRateClient.getAllRates("USD")).thenReturn(rates);
-            when(exchangeRateClient.getLastUpdateTime()).thenReturn(Instant.now());
 
             // Act
             Map<String, BigDecimal> result = service.getAllRates("USD");
@@ -179,7 +187,6 @@ class ExchangeRateServiceTest {
             // Arrange
             Map<String, BigDecimal> rates = Map.of("USD", BigDecimal.ONE, "TWD", new BigDecimal("31.5"));
             when(exchangeRateClient.getAllRates("USD")).thenReturn(rates);
-            when(exchangeRateClient.getLastUpdateTime()).thenReturn(Instant.now());
 
             // Act - first call
             service.getAllRates("USD");
@@ -201,7 +208,6 @@ class ExchangeRateServiceTest {
                     "TWD", new BigDecimal("31.5")
             );
             when(exchangeRateClient.getAllRates("USD")).thenReturn(rates);
-            when(exchangeRateClient.getLastUpdateTime()).thenReturn(Instant.now());
 
             // Act
             Map<String, BigDecimal> result = service.getAllRates("USD");
@@ -327,7 +333,6 @@ class ExchangeRateServiceTest {
             // Arrange
             Map<String, BigDecimal> rates = Map.of("USD", BigDecimal.ONE, "TWD", new BigDecimal("31.5"));
             when(exchangeRateClient.getAllRates("USD")).thenReturn(rates);
-            when(exchangeRateClient.getLastUpdateTime()).thenReturn(Instant.now());
 
             // Act - populate cache
             service.getAllRates("USD");
@@ -388,7 +393,6 @@ class ExchangeRateServiceTest {
             // Arrange - first call succeeds
             Map<String, BigDecimal> rates = Map.of("USD", BigDecimal.ONE, "TWD", new BigDecimal("31.5"));
             when(exchangeRateClient.getAllRates("USD")).thenReturn(rates);
-            when(exchangeRateClient.getLastUpdateTime()).thenReturn(Instant.now());
 
             // Act - first call populates cache
             service.getAllRates("USD");

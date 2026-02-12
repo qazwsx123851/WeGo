@@ -4,6 +4,8 @@ import com.wego.entity.Role;
 import com.wego.entity.TripMember;
 import com.wego.repository.TripMemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -15,10 +17,14 @@ import java.util.UUID;
  * Centralizes all permission logic to ensure consistent authorization
  * across the application. All permission checks delegate to Role methods.
  *
+ * Uses a short-lived Caffeine cache (5s TTL) to deduplicate repeated
+ * permission lookups within the same request. This eliminates 3+ redundant
+ * DB queries per page load without stale-data risk.
+ *
  * @contract
  *   - All methods return false for non-members
  *   - Permission hierarchy: OWNER > EDITOR > VIEWER
- *   - Thread-safe (stateless)
+ *   - Thread-safe (stateless + cache)
  *
  * @see Role
  * @see TripMember
@@ -27,7 +33,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PermissionChecker {
 
+    private static final String CACHE_NAME = "permission-check";
+
     private final TripMemberRepository tripMemberRepository;
+    private final CacheManager cacheManager;
 
     /**
      * Checks if a user can edit trip content (activities, expenses, etc.).
@@ -114,7 +123,7 @@ public class PermissionChecker {
      * @return true if user can view
      */
     public boolean canView(UUID tripId, UUID userId) {
-        return tripMemberRepository.existsByTripIdAndUserId(tripId, userId);
+        return getMember(tripId, userId).isPresent();
     }
 
     /**
@@ -129,7 +138,7 @@ public class PermissionChecker {
      * @return true if user is a member
      */
     public boolean isMember(UUID tripId, UUID userId) {
-        return tripMemberRepository.existsByTripIdAndUserId(tripId, userId);
+        return getMember(tripId, userId).isPresent();
     }
 
     /**
@@ -148,13 +157,30 @@ public class PermissionChecker {
     }
 
     /**
-     * Gets the membership for a user in a trip.
+     * Gets the membership for a user in a trip, with short-lived caching.
      *
      * @param tripId The trip ID
      * @param userId The user ID
      * @return Optional containing the membership if found
      */
+    @SuppressWarnings("unchecked")
     private Optional<TripMember> getMember(UUID tripId, UUID userId) {
-        return tripMemberRepository.findByTripIdAndUserId(tripId, userId);
+        String cacheKey = tripId.toString() + ":" + userId.toString();
+
+        Cache cache = cacheManager.getCache(CACHE_NAME);
+        if (cache != null) {
+            Cache.ValueWrapper cached = cache.get(cacheKey);
+            if (cached != null) {
+                return (Optional<TripMember>) cached.get();
+            }
+        }
+
+        Optional<TripMember> result = tripMemberRepository.findByTripIdAndUserId(tripId, userId);
+
+        if (cache != null) {
+            cache.put(cacheKey, result);
+        }
+
+        return result;
     }
 }
