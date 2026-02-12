@@ -38,6 +38,7 @@ public class DocumentResponse {
     private String mimeType;
     private String category;
     private UUID relatedActivityId;
+    private String relatedActivityName;
     private Integer relatedDay;
     private String description;
     private UUID uploadedBy;

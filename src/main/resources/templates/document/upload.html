@@ -280,9 +280,21 @@
         </section>
     </main>
 
+    <!-- Upload Success Overlay -->
+    <div id="upload-success-overlay" class="fixed inset-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200 motion-reduce:duration-0">
+        <div id="success-lottie" class="w-48 h-48 sm:w-56 sm:h-56 mb-4"></div>
+        <div id="success-fallback" class="hidden w-48 h-48 sm:w-56 sm:h-56 mb-4 flex items-center justify-center">
+            <svg class="w-20 h-20 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+        </div>
+        <p class="text-lg font-semibold text-gray-800 dark:text-gray-100">上傳成功！</p>
+    </div>
+
     <!-- Toast Container -->
     <div id="toast-container" role="status" aria-live="polite" class="fixed top-4 right-4 z-50 space-y-3"></div>
 
+    <script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
     <script>
         const form = document.getElementById('upload-form');
         const dropZone = document.getElementById('drop-zone');
@@ -454,10 +466,7 @@
 
                 xhr.addEventListener('load', () => {
                     if (xhr.status >= 200 && xhr.status < 300) {
-                        showToast('success', '檔案上傳成功');
-                        setTimeout(() => {
-                            window.location.href = form.dataset.redirectUrl + '?success=uploaded';
-                        }, 1000);
+                        showUploadSuccess();
                     } else {
                         var errorMsg = '上傳失敗，請稍後再試';
                         try {
@@ -487,6 +496,52 @@
                 resetSubmitButton();
             }
         });
+
+        // Upload success animation (fullscreen Lottie overlay)
+        function showUploadSuccess() {
+            var overlay = document.getElementById('upload-success-overlay');
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            overlay.classList.add('opacity-100');
+
+            var redirectUrl = form.dataset.redirectUrl + '?success=uploaded';
+            var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            if (prefersReducedMotion) {
+                document.getElementById('success-lottie').classList.add('hidden');
+                document.getElementById('success-fallback').classList.remove('hidden');
+                setTimeout(function() { window.location.href = redirectUrl; }, 1500);
+                return;
+            }
+
+            var container = document.getElementById('success-lottie');
+            try {
+                if (typeof lottie !== 'undefined') {
+                    var anim = lottie.loadAnimation({
+                        container: container,
+                        renderer: 'svg',
+                        loop: false,
+                        autoplay: true,
+                        path: '/animations/Success.json'
+                    });
+                    anim.addEventListener('complete', function() {
+                        setTimeout(function() { window.location.href = redirectUrl; }, 500);
+                    });
+                    anim.addEventListener('error', function() {
+                        container.classList.add('hidden');
+                        document.getElementById('success-fallback').classList.remove('hidden');
+                        setTimeout(function() { window.location.href = redirectUrl; }, 1500);
+                    });
+                    // Safety timeout
+                    setTimeout(function() { window.location.href = redirectUrl; }, 5000);
+                } else {
+                    throw new Error('lottie not loaded');
+                }
+            } catch (e) {
+                container.classList.add('hidden');
+                document.getElementById('success-fallback').classList.remove('hidden');
+                setTimeout(function() { window.location.href = redirectUrl; }, 1500);
+            }
+        }
 
         function resetSubmitButton() {
             submitBtn.disabled = false;

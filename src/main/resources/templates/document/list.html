@@ -166,6 +166,17 @@
                         </div>
                         <span class="text-xs text-gray-500 dark:text-gray-400 truncate" th:text="${doc.uploaderName}">上傳者</span>
                     </div>
+                    <!-- Related Activity -->
+                    <div th:if="${doc.relatedActivityName}" class="flex items-center gap-1.5 mt-1.5">
+                        <svg class="w-3.5 h-3.5 text-primary-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span class="text-xs text-primary-600 dark:text-primary-400 truncate"
+                              th:text="${doc.relatedActivityName}">景點名稱</span>
+                    </div>
                 </div>
 
                 <!-- Category Badge -->
@@ -346,13 +357,6 @@
             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-shrink-0">
                 <h3 id="detail-title" class="text-base font-semibold text-gray-800 dark:text-gray-100 truncate">document-name.pdf</h3>
                 <div class="flex items-center gap-2">
-                    <a id="detail-download" href="#" download
-                       class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                       aria-label="下載">
-                        <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                        </svg>
-                    </a>
                     <button onclick="closeDetailModal()"
                             class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                             aria-label="關閉">
@@ -379,6 +383,33 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-confirm-modal" class="fixed inset-0 z-[60] hidden" aria-modal="true" role="dialog">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeDeleteConfirmModal()"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl p-6 animate-drawer-up">
+            <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-6"></div>
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 mx-auto mb-4 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                    <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">確定刪除此檔案？</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">此操作無法復原</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeDeleteConfirmModal()"
+                        class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                    取消
+                </button>
+                <button id="confirm-delete-btn" onclick="executeDelete()"
+                        class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors cursor-pointer">
+                    刪除
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Lottie Animation Library -->
     <script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
@@ -717,18 +748,13 @@
                 img.alt = fileName;
                 img.className = 'max-w-full max-h-full object-contain rounded-lg';
                 previewArea.appendChild(img);
-                // Also fetch download URL for download button
-                fetchDownloadUrl(currentDocumentId);
             } else if (isPdf) {
                 // PDF preview - use backend proxy endpoint (same-origin, no CORS/CSP issues)
                 const previewUrl = `/api/trips/${tripId}/documents/${currentDocumentId}/preview`;
                 renderPdfPreview(previewArea, previewUrl);
-                // Fetch download URL in background for download button
-                fetchDownloadUrl(currentDocumentId);
             } else {
                 // Other files - show generic icon
                 renderGenericPreview(previewArea);
-                fetchDownloadUrl(currentDocumentId);
             }
         }
 
@@ -793,20 +819,6 @@
             label.textContent = '無法預覽此檔案';
             wrapper.appendChild(label);
 
-            const downloadBtn = document.createElement('a');
-            downloadBtn.href = document.getElementById('detail-download').href || '#';
-            downloadBtn.className = 'inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition-colors';
-            downloadBtn.setAttribute('download', '');
-            downloadBtn.innerHTML = `
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-            `;
-            const btnText = document.createElement('span');
-            btnText.textContent = '下載查看';
-            downloadBtn.appendChild(btnText);
-            wrapper.appendChild(downloadBtn);
-
             container.appendChild(wrapper);
         }
 
@@ -826,22 +838,6 @@
             container.appendChild(wrapper);
         }
 
-        async function fetchDownloadUrl(documentId) {
-            try {
-                const response = await fetch(`/api/trips/${tripId}/documents/${documentId}/download`);
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success && result.data && result.data.downloadUrl) {
-                        document.getElementById('detail-download').href = result.data.downloadUrl;
-                        return result.data.downloadUrl;
-                    }
-                }
-                return null;
-            } catch (error) {
-                showToast('error', '取得下載連結失敗');
-                return null;
-            }
-        }
 
         function closeDetailModal() {
             document.getElementById('detail-modal').classList.add('hidden');
@@ -850,57 +846,55 @@
         }
 
         // Delete Document
-        async function confirmDelete() {
-            if (!currentDocumentId) {
-                showToast('error', '無法刪除：找不到檔案 ID');
-                return;
-            }
+        function confirmDelete() {
+            if (!currentDocumentId) return;
+            document.getElementById('delete-confirm-modal').classList.remove('hidden');
+        }
 
-            if (!confirm('確定要刪除這個檔案嗎？此操作無法復原。')) {
-                return;
-            }
+        function closeDeleteConfirmModal() {
+            document.getElementById('delete-confirm-modal').classList.add('hidden');
+            var btn = document.getElementById('confirm-delete-btn');
+            btn.disabled = false;
+            btn.textContent = '刪除';
+        }
+
+        async function executeDelete() {
+            var deleteBtn = document.getElementById('confirm-delete-btn');
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = '刪除中...';
 
             try {
-                const response = await fetch(`/api/trips/${tripId}/documents/${currentDocumentId}`, {
+                var response = await fetch('/api/trips/' + tripId + '/documents/' + currentDocumentId, {
                     method: 'DELETE',
-                    headers: {
-                        [csrfHeader]: csrfToken
-                    }
+                    headers: { [csrfHeader]: csrfToken }
                 });
 
                 if (response.ok) {
-                    showToast('success', '檔案已刪除');
+                    var deletedId = currentDocumentId;
+                    closeDeleteConfirmModal();
                     closeDetailModal();
+                    showToast('success', '檔案已刪除');
 
-                    // Remove the card from DOM
-                    const card = document.querySelector(`[data-id="${currentDocumentId}"]`);
+                    var card = document.querySelector('[data-id="' + deletedId + '"]');
                     if (card) {
-                        card.remove();
+                        card.style.transition = 'opacity 200ms ease-out, transform 200ms ease-out';
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.95)';
                     }
-
-                    // Update document count
-                    const countElement = document.querySelector('.text-sm.text-gray-500 .font-medium');
-                    if (countElement) {
-                        const currentCount = parseInt(countElement.textContent) || 0;
-                        countElement.textContent = Math.max(0, currentCount - 1);
-                    }
-
-                    // Check if no documents left, show empty state
-                    const remainingCards = document.querySelectorAll('.document-card');
-                    if (remainingCards.length === 0) {
-                        setTimeout(() => window.location.reload(), 500);
-                    }
-
-                    currentDocumentId = null;
+                    setTimeout(function() { window.location.reload(); }, 500);
                 } else {
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = '刪除';
                     try {
-                        const error = await response.json();
+                        var error = await response.json();
                         showToast('error', error.message || '刪除失敗');
-                    } catch {
+                    } catch (e) {
                         showToast('error', '刪除失敗，請稍後再試');
                     }
                 }
             } catch (error) {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '刪除';
                 showToast('error', '刪除失敗，請稍後再試');
             }
         }
@@ -944,6 +938,7 @@
         // Close modals with Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                closeDeleteConfirmModal();
                 closeUploadModal();
                 closeDetailModal();
             }

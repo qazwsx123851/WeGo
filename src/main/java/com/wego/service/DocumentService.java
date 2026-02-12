@@ -9,7 +9,9 @@ import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
+import com.wego.repository.ActivityRepository;
 import com.wego.repository.DocumentRepository;
+import com.wego.repository.PlaceRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
 import com.wego.service.external.StorageClient;
@@ -68,7 +70,9 @@ public class DocumentService {
             "image/png", new byte[][] { {(byte)0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A} }
     );
 
+    private final ActivityRepository activityRepository;
     private final DocumentRepository documentRepository;
+    private final PlaceRepository placeRepository;
     private final TripRepository tripRepository;
     private final UserRepository userRepository;
     private final StorageClient storageClient;
@@ -507,6 +511,17 @@ public class DocumentService {
             response.setUploadedByName(user.getNickname());
             response.setUploadedByAvatarUrl(user.getAvatarUrl());
         });
+
+        // Add related activity name
+        if (document.getRelatedActivityId() != null) {
+            activityRepository.findById(document.getRelatedActivityId()).ifPresent(activity -> {
+                if (activity.getPlaceId() != null) {
+                    placeRepository.findById(activity.getPlaceId()).ifPresent(place ->
+                        response.setRelatedActivityName(place.getName())
+                    );
+                }
+            });
+        }
 
         return response;
     }
