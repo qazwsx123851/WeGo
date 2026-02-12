@@ -367,7 +367,14 @@ const ExpenseForm = {
 
         // Validate split method totals
         const method = this.splitMethodInput?.value || 'EQUAL';
-        if (method === 'PERCENTAGE') {
+        if (method === 'EQUAL') {
+            const checked = document.querySelectorAll('.participant-checkbox:checked');
+            if (checked.length === 0) {
+                e.preventDefault();
+                this.showError('請至少選擇一位分攤成員');
+                return;
+            }
+        } else if (method === 'PERCENTAGE') {
             let total = 0;
             document.querySelectorAll('.percentage-input').forEach(input => {
                 total += parseFloat(input.value) || 0;
@@ -391,10 +398,32 @@ const ExpenseForm = {
 
         // Show loading state on submit button
         const submitBtn = this.form.querySelector('button[type="submit"]');
-        if (submitBtn) {
+        if (typeof Loading !== 'undefined') {
+            Loading.start(submitBtn);
+        } else if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="animate-spin">⏳</span> 處理中...';
         }
+
+        // Disable cancel button to prevent navigation during submit
+        const cancelBtn = document.querySelector('.fixed.bottom-0 a');
+        if (cancelBtn) {
+            cancelBtn.classList.add('pointer-events-none', 'opacity-50');
+        }
+
+        // Full-screen overlay to block all interaction
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 bg-black/20 z-40 flex items-center justify-center';
+        overlay.id = 'submit-overlay';
+        overlay.innerHTML = `
+            <div class="bg-white rounded-2xl px-6 py-4 shadow-lg flex items-center gap-3">
+                <svg class="animate-spin w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-gray-700 font-medium">正在儲存...</span>
+            </div>
+        `;
+        document.body.appendChild(overlay);
     },
 
     /**

@@ -256,12 +256,20 @@ public class ExpenseService {
             List<ExpenseSplit> newSplits = createExpenseSplits(expense, createRequest, expense.getTripId());
             expenseSplitRepository.saveAll(newSplits);
         } else if (request.getAmount() != null && expense.getSplitType() == SplitType.EQUAL) {
-            // Recalculate equal splits if amount changed
+            // Recalculate equal splits if amount changed, preserving existing split members
+            List<ExpenseSplit> existingSplits = expenseSplitRepository.findByExpenseId(expenseId);
+            List<CreateExpenseRequest.SplitRequest> existingParticipants = existingSplits.stream()
+                    .map(s -> CreateExpenseRequest.SplitRequest.builder()
+                            .userId(s.getUserId())
+                            .build())
+                    .toList();
+
             expenseSplitRepository.deleteByExpenseId(expenseId);
 
             CreateExpenseRequest createRequest = CreateExpenseRequest.builder()
                     .amount(expense.getAmount())
                     .splitType(SplitType.EQUAL)
+                    .splits(existingParticipants)
                     .build();
 
             List<ExpenseSplit> newSplits = createExpenseSplits(expense, createRequest, expense.getTripId());
@@ -375,8 +383,19 @@ public class ExpenseService {
 
         switch (expense.getSplitType()) {
             case EQUAL -> {
-                List<TripMember> members = tripMemberRepository.findByTripId(tripId);
-                if (members.isEmpty()) {
+                // Use selected participants if provided, otherwise fall back to all trip members
+                List<UUID> participantUserIds;
+                if (request.getSplits() != null && !request.getSplits().isEmpty()) {
+                    participantUserIds = request.getSplits().stream()
+                            .map(CreateExpenseRequest.SplitRequest::getUserId)
+                            .toList();
+                } else {
+                    participantUserIds = tripMemberRepository.findByTripId(tripId).stream()
+                            .map(TripMember::getUserId)
+                            .toList();
+                }
+
+                if (participantUserIds.isEmpty()) {
                     // If no members yet, create a single split for the payer
                     splits.add(ExpenseSplit.builder()
                             .expenseId(expense.getId())
@@ -385,14 +404,13 @@ public class ExpenseService {
                             .build());
                 } else {
                     BigDecimal splitAmount = expense.getAmount()
-                            .divide(BigDecimal.valueOf(members.size()), 2, RoundingMode.HALF_UP);
+                            .divide(BigDecimal.valueOf(participantUserIds.size()), 2, RoundingMode.HALF_UP);
 
                     // Handle rounding remainder
                     BigDecimal remainder = expense.getAmount()
-                            .subtract(splitAmount.multiply(BigDecimal.valueOf(members.size())));
+                            .subtract(splitAmount.multiply(BigDecimal.valueOf(participantUserIds.size())));
 
-                    for (int i = 0; i < members.size(); i++) {
-                        TripMember member = members.get(i);
+                    for (int i = 0; i < participantUserIds.size(); i++) {
                         BigDecimal amount = splitAmount;
                         // Add remainder to first split
                         if (i == 0) {
@@ -400,7 +418,7 @@ public class ExpenseService {
                         }
                         splits.add(ExpenseSplit.builder()
                                 .expenseId(expense.getId())
-                                .userId(member.getUserId())
+                                .userId(participantUserIds.get(i))
                                 .amount(amount)
                                 .build());
                     }
