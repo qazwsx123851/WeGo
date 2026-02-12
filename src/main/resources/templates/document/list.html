@@ -116,6 +116,9 @@
                  th:data-id="${doc.id}"
                  th:data-category="${doc.category}"
                  th:data-mime="${doc.mimeType}"
+                 th:data-date="${doc.createdAt}"
+                 th:data-size="${doc.fileSize}"
+                 th:data-name="${doc.originalFileName}"
                  onclick="openDocumentDetail(this)">
                 <!-- Thumbnail/Icon -->
                 <div class="aspect-square rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3 overflow-hidden">
@@ -308,7 +311,7 @@
 
             <!-- Modal Footer -->
             <div class="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3">
-                <button type="button" onclick="closeUploadModal()"
+                <button type="button" id="cancel-btn" onclick="closeUploadModal()"
                         class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
                     取消
                 </button>
@@ -377,6 +380,9 @@
         let currentDocumentId = null;
         let currentDocumentData = null;
 
+        // Upload state lock
+        let isUploading = false;
+
         // Upload Modal Functions
         function openUploadModal() {
             document.getElementById('upload-modal').classList.remove('hidden');
@@ -384,6 +390,7 @@
         }
 
         function closeUploadModal() {
+            if (isUploading) return;
             document.getElementById('upload-modal').classList.add('hidden');
             document.body.style.overflow = '';
             clearFileSelection();
@@ -444,10 +451,21 @@
 
         // Reset upload UI after upload completes or fails
         function resetUploadUI() {
+            isUploading = false;
             document.getElementById('upload-progress').classList.add('hidden');
             document.getElementById('progress-bar').style.width = '0%';
             document.getElementById('progress-text').textContent = '0%';
-            document.getElementById('submit-btn').disabled = false;
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = false;
+            submitBtn.textContent = '上傳';
+            submitBtn.classList.remove('flex', 'items-center', 'justify-center', 'gap-2');
+
+            const cancelBtn = document.getElementById('cancel-btn');
+            cancelBtn.classList.remove('opacity-50', 'pointer-events-none');
+
+            document.getElementById('category').disabled = false;
+            document.getElementById('description').disabled = false;
         }
 
         // AJAX Upload Handler
@@ -475,10 +493,21 @@
             const metadata = { category, description };
             formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
 
-            // Show progress bar and disable submit button
+            // Lock modal and show loading state
+            isUploading = true;
             document.getElementById('upload-progress').classList.remove('hidden');
             document.getElementById('file-preview').classList.add('hidden');
-            document.getElementById('submit-btn').disabled = true;
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> 上傳中...';
+            submitBtn.classList.add('flex', 'items-center', 'justify-center', 'gap-2');
+
+            const cancelBtn = document.getElementById('cancel-btn');
+            cancelBtn.classList.add('opacity-50', 'pointer-events-none');
+
+            document.getElementById('category').disabled = true;
+            document.getElementById('description').disabled = true;
 
             try {
                 const xhr = new XMLHttpRequest();
@@ -853,6 +882,30 @@
                 closeDetailModal();
             }
         });
+
+        // Sort functionality
+        document.getElementById('sort-select').addEventListener('change', function() {
+            sortDocuments(this.value);
+        });
+
+        function sortDocuments(sortBy) {
+            const grid = document.querySelector('.grid');
+            if (!grid) return;
+            const cards = Array.from(grid.querySelectorAll('.document-card'));
+
+            cards.sort((a, b) => {
+                switch (sortBy) {
+                    case 'date-desc': return b.dataset.date.localeCompare(a.dataset.date);
+                    case 'date-asc':  return a.dataset.date.localeCompare(b.dataset.date);
+                    case 'name-asc':  return a.dataset.name.localeCompare(b.dataset.name, 'zh-TW');
+                    case 'name-desc': return b.dataset.name.localeCompare(a.dataset.name, 'zh-TW');
+                    case 'size-desc': return Number(b.dataset.size) - Number(a.dataset.size);
+                    default: return 0;
+                }
+            });
+
+            cards.forEach(card => grid.appendChild(card));
+        }
     </script>
 
     <style>
@@ -881,6 +934,16 @@
         /* Make document cards relative for badge positioning */
         .document-card {
             position: relative;
+        }
+
+        /* Respect reduced motion preference */
+        @media (prefers-reduced-motion: reduce) {
+            .animate-spin {
+                animation: none;
+            }
+            .animate-drawer-up {
+                animation: none;
+            }
         }
     </style>
 </body>
