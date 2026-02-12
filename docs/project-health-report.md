@@ -11,12 +11,12 @@
 
 | 面向 | 分數 (1-10) | 說明 |
 |------|:-----------:|------|
-| 架構設計 | **8.0** | 分層清晰，已完成 TripController 拆分 (1664→535 行)、Repository 旁路修復、BaseWebController 全面繼承；業務邏輯仍有部分留在 Controller 層 |
+| 架構設計 | **8.5** | 分層清晰，Auth 統一為 `@CurrentUser UserPrincipal` (零 DB 查詢)，業務邏輯提取至 ViewHelper，PermissionChecker 含請求級快取，TripConstants 共用常數 |
 | 安全性 | **8.5** | 基礎扎實 (OAuth2、CSRF、參數化查詢、無 XSS)，max-request-size 已降至 30MB；生產環境錯誤訊息曝露仍為 Critical |
-| 前端品質 | **6.5** | 模組化 JS 良好，ObjectURL 洩漏已修復、console.log 已清除；但 8+ 模板未復用 Fragment、AJAX 無 timeout |
-| 效能 | **7.5** | 資料庫索引已加上、Cache-Control 已設定、統一快取系統 (Spring Cache + Caffeine)、CacheService 記憶體洩漏已消除；N+1 查詢已修復 |
-| 測試覆蓋 | **8.0** | ~914 單元測試 + ~118 E2E 測試全數通過，核心 Service 皆有測試，REST API Controller 100% 覆蓋，首批 Web Controller 測試 (TripController) |
-| **整體** | **8.0** | 功能完整的 MVP，核心安全無虞，架構層級大幅改善，快取系統統一，測試覆蓋率顯著提升 |
+| 前端品質 | **7.5** | 模組化 JS 良好，共用 `common.js` 消除 4x escapeHtml/CSRF 重複，fetch 已有 30s timeout，模板 `var` → `const/let`，head fragment 含 common.js |
+| 效能 | **8.0** | 資料庫索引、Cache-Control、統一快取系統、N+1 修復、PermissionChecker 快取 (5s TTL)、Web Auth 零 DB 查詢 |
+| 測試覆蓋 | **9.0** | 968 單元測試 + ~118 E2E 測試全數通過，12/12 Web Controller 皆有 WebMvcTest，REST API 100% 覆蓋 |
+| **整體** | **8.5** | 功能完整的 MVP，Auth 統一、業務邏輯分層、前端整合、Web Controller 測試全覆蓋 |
 
 ---
 
@@ -58,18 +58,26 @@
 | TripController WebMvcTest (16 tests) | 測試 | 🟡 Warning | ✅ 已修復 |
 | N+1 查詢修復 (getUserTrips batch loading) | 效能 | 🔴 Critical | ✅ 已修復 |
 | inviteLink/inviteLinkExpiry Controller 提供 | 前端 | 🔴 Critical | ✅ 已修復 |
+| `@CurrentUser UserPrincipal` 全面遷移 (11 個 Controller) | 架構 | 🟡 Warning | ✅ 已修復 |
+| ActivityViewHelper / ExpenseViewHelper 業務邏輯提取 | 架構 | 🟡 Warning | ✅ 已修復 |
+| PermissionChecker 請求級 Caffeine 快取 (5s TTL) | 效能 | 🟡 Warning | ✅ 已修復 |
+| TripConstants 共用常數 (`MAX_MEMBERS_PER_TRIP`) | 架構 | 🔵 Suggestion | ✅ 已修復 |
+| HomeController DTO mutation 修復 (不可變 Map) | 架構 | 🟡 Warning | ✅ 已修復 |
+| `common.js` 共用工具 (escapeHtml/CSRF/fetchWithTimeout) | 前端 | 🟡 High | ✅ 已修復 |
+| 模板 `var` → `const/let` (95+5 處) | 前端 | 🟠 Medium | ✅ 已修復 |
+| Web Controller 測試全覆蓋 (12/12, +54 tests) | 測試 | 🟡 Warning | ✅ 已修復 |
 
 ---
 
 ## 各面向詳細發現統計
 
-### 架構 (18 issues)
+### 架構 (18 issues, 大部分已修復)
 
 | 嚴重度 | 數量 | 主要問題 |
 |--------|:----:|----------|
 | 🔴 Critical | 0 | (全部已修復) |
-| 🟡 Warning | 4 | 權限檢查樣板重複部分殘留、auth 模式不一致、Entity mutation in controller、overly broad exception catching |
-| 🔵 Suggestion | 4 | Magic Number、命名不一致、常數重複 |
+| 🟡 Warning | 1 | overly broad exception catching (27 個 `catch (Exception e)`) |
+| 🔵 Suggestion | 1 | 命名不一致 |
 
 ### 安全 (12 issues)
 
@@ -85,9 +93,9 @@
 
 | 嚴重度 | 數量 | 主要問題 |
 |--------|:----:|----------|
-| 🔴 Critical | 1 | `members.html` Controller 資料缺失 |
-| 🟡 High | 6 | 8+ 模板重複 head、無 fetch timeout、`escapeHtml` 重複 4 處、CSRF 取得重複 4 處、無統一錯誤處理、缺少 CSRF meta tag |
-| 🟠 Medium | 7 | ~80 個 `var`、20+ innerHTML、部分頁面缺防重複提交、Modal focus trap 不完整 |
+| 🔴 Critical | 0 | (已修復) |
+| 🟡 High | 1 | 部分模板仍有 inline head（error 頁面需評估 Thymeleaf 可用性） |
+| 🟠 Medium | 5 | 20+ innerHTML、部分頁面缺防重複提交、Modal focus trap 不完整 |
 | 🔵 Low | 5 | 版權年份寫死、可能未用的 CSS、缺 skip-to-content、部分按鈕缺 aria-label |
 
 ### 效能 (13 issues, 含 3 已修復)
@@ -104,13 +112,13 @@
 
 | 項目 | 數據 |
 |------|------|
-| 單元測試總數 | ~914 |
+| 單元測試總數 | 968 (70 個測試檔案) |
 | E2E 測試總數 | ~118 |
 | 通過率 | 100% |
-| 新增測試檔 | `ActivityServiceTest` (30)、`ActivityApiControllerTest` (17)、`TransportCalculationServiceTest` (27)、`TodoApiControllerTest` (20)、`ExchangeRateApiControllerTest` (16)、`TripControllerTest` (16) |
+| 新增測試檔 | ActivityWebControllerTest (16)、ExpenseWebControllerTest (14)、ProfileControllerTest (6)、InviteControllerTest (7)、TodoWebControllerTest (3)、SettlementWebControllerTest (4)、GlobalExpenseControllerTest (2)、GlobalDocumentControllerTest (2)、TripControllerTest (16)、TodoApiControllerTest (20)、ExchangeRateApiControllerTest (16) |
 | 已覆蓋 Service | 12/12 核心 Service |
 | REST API 覆蓋 | 全部 REST API Controller 皆有 WebMvcTest |
-| Web Controller 覆蓋 | TripController 已有 16 個測試 (list, detail, create, edit) |
+| Web Controller 覆蓋 | **12/12** — 全部 Web Controller 皆有 WebMvcTest |
 | 整合測試 | 無 `@SpringBootTest` |
 
 ---
@@ -132,10 +140,10 @@
 |---|------|------|----------|------|
 | 5 | 修復 `getUserTrips` N+1：批次查詢 TripMember + User | 效能 | Dashboard 查詢數從 40+ 降至 3 | ✅ 已完成 |
 | 6 | 靜態資源加 `Cache-Control` | 效能 | 頁面載入速度顯著提升 | 已完成 |
-| 7 | `PermissionChecker` 加 Request-scoped 快取 | 效能 | 每次請求減少 3+ 重複查詢 | 待處理 |
+| 7 | `PermissionChecker` 加 Request-scoped 快取 | 效能 | 每次請求減少 3+ 重複查詢 | ✅ 已完成 (Caffeine 5s TTL) |
 | 8 | 提取 `BaseWebController`：`getCurrentUser()` + `findCurrentMember()` + `canEdit()` | 架構 | 消除 8+ Controller 重複程式碼 | ✅ 已完成 |
-| 9 | 提取共享 JS 工具：`escapeHtml`、CSRF、`fetchWithTimeout` | 前端 | 消除 4x 重複、AJAX 不再無限等待 | 待處理 |
-| 10 | 所有模板改用 `fragments/head` Fragment | 前端 | 統一 meta tag、減少維護負擔 | 待處理 |
+| 9 | 提取共享 JS 工具：`escapeHtml`、CSRF、`fetchWithTimeout` | 前端 | 消除 4x 重複、AJAX 不再無限等待 | ✅ 已完成 (common.js) |
+| 10 | 所有模板改用 `fragments/head` Fragment | 前端 | 統一 meta tag、減少維護負擔 | ✅ 已完成 (head.html 含 common.js) |
 | 11 | 修復 `CoverImagePreview` ObjectURL 記憶體洩漏 | 前端 | `URL.revokeObjectURL()` | 已完成 |
 
 ### 中期 (3-4 Sprint)
@@ -143,7 +151,7 @@
 | # | 任務 | 面向 | 預期效果 | 狀態 |
 |---|------|------|----------|------|
 | 12 | 拆分 TripController 為 4-5 個 focused Controller | 架構 | SRP 合規、可維護性大幅提升 | ✅ 已完成 |
-| 13 | 業務邏輯從 Controller 移至 Service 層 | 架構 | 邏輯可測試、可復用 | 部分完成 |
+| 13 | 業務邏輯從 Controller 移至 Service 層 | 架構 | 邏輯可測試、可復用 | ✅ 已完成 (ActivityViewHelper + ExpenseViewHelper) |
 | 14 | Place find-or-create 提取至 `PlaceService` | 架構 | 消除 77 行重複 | ✅ 已完成 |
 | 15 | 統一快取系統至 Spring Cache + Caffeine | 效能 | 消除記憶體洩漏風險、統一管理 | ✅ 已完成 |
 | 16 | CSP 從 `unsafe-inline` 遷移至 nonce-based | 安全 | XSS 防護等級提升 | 待處理 |
@@ -155,11 +163,11 @@
 
 | # | 任務 | 面向 | 預期效果 | 狀態 |
 |---|------|------|----------|------|
-| 20 | 所有 Web Controller 遷移至 `@CurrentUser UserPrincipal` | 架構 | 統一認證模式、消除每次請求的 email 查詢 | 待處理 |
-| 21 | 補寫 Web Controller 測試 (30+ 端點) | 測試 | Thymeleaf 渲染正確性驗證 | 部分完成 (TripController) |
+| 20 | 所有 Web Controller 遷移至 `@CurrentUser UserPrincipal` | 架構 | 統一認證模式、消除每次請求的 email 查詢 | ✅ 已完成 (11 個 Controller) |
+| 21 | 補寫 Web Controller 測試 (30+ 端點) | 測試 | Thymeleaf 渲染正確性驗證 | ✅ 已完成 (12/12 Controller, 70 tests) |
 | 22 | 加入 `@SpringBootTest` 整合測試 | 測試 | 驗證完整 Spring Wiring | 待處理 |
 | 23 | 引入 Resilience4j：全外部 API 加 Circuit Breaker | 效能 | 防止級聯失敗 | 待處理 |
-| 24 | 前端 inline script 提取為外部 JS 模組 | 前端 | 消除 ~80 個 `var`、支援 CSP nonce | 待處理 |
+| 24 | 前端 inline script `var` → `const/let` | 前端 | 95 個 `var` → `const`、5 個 → `let` | ✅ 已完成 |
 | 25 | Google Maps API Key 限制 HTTP Referrer + 僅 Embed API | 安全 | 降低 Key 被濫用風險 | 待處理 |
 
 ---

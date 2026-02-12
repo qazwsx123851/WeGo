@@ -139,7 +139,7 @@ com.wego
 │       ├── HealthController.java
 │       └── AuthApiController.java
 │
-├── service/                          # 服務層 (18 個 Service)
+├── service/                          # 服務層 (20 個 Service)
 │   ├── UserService.java
 │   ├── TripService.java
 │   ├── InviteLinkService.java
@@ -154,6 +154,8 @@ com.wego
 │   ├── StatisticsService.java
 │   ├── ExchangeRateService.java
 │   ├── PlaceService.java
+│   ├── ActivityViewHelper.java       # Activity 顯示邏輯（從 Controller 提取）
+│   ├── ExpenseViewHelper.java        # Expense 顯示邏輯（從 Controller 提取）
 │   └── external/                     # 外部服務整合 (4 個，各有 Mock 實作)
 │       ├── GoogleMapsService.java
 │       ├── WeatherService.java
@@ -189,7 +191,8 @@ com.wego
 │   ├── response/                     # 回應 DTO
 │   └── mapper/                       # 映射器
 │
-├── domain/                           # 領域邏輯 (4 個 Domain 元件)
+├── domain/                           # 領域邏輯 (5 個 Domain 元件)
+│   ├── TripConstants.java            # 共用常數 (MAX_MEMBERS_PER_TRIP)
 │   ├── settlement/
 │   │   ├── DebtSimplifier.java       # 債務簡化演算法
 │   │   └── Settlement.java           # 結算結果
@@ -197,7 +200,7 @@ com.wego
 │   │   └── RouteOptimizer.java       # 路線優化演算法
 │   ├── permission/
 │   │   ├── Permission.java
-│   │   └── PermissionChecker.java
+│   │   └── PermissionChecker.java    # 含請求級 Caffeine 快取
 │   └── expense/
 │       └── ExpenseAggregator.java    # 支出聚合
 │
@@ -306,6 +309,8 @@ com.wego
 #### 權限檢查邏輯
 
 PermissionChecker 透過查詢 TripMember 的角色來判斷權限。`canEdit` 方法允許 OWNER 和 EDITOR 角色編輯行程；`canDelete` 方法僅允許 OWNER 角色刪除行程。所有權限檢查皆先驗證使用者是否為行程成員，再根據角色判斷操作權限。
+
+**請求級快取**：PermissionChecker 使用 Caffeine 快取（`permission-check`，5 秒 TTL，最大 500 筆）避免同一請求內多次查詢 DB。快取 key 格式為 `"tripId:userId"`。測試環境使用 `NoOpCacheManager` 繞過快取。
 
 ### 3.3 活動模組 (Activity Module)
 
@@ -626,6 +631,7 @@ Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMa
 | 匯率 (備援) | 24 小時 | 50 | CacheManager: exchange-rate-all-fallback |
 | 地點搜尋 | 5 分鐘 | 500 | CacheManager: places |
 | 統計資料 | 5 分鐘 | 100 | CacheManager: statistics |
+| 權限檢查 | 5 秒 | 500 | CacheManager: permission-check |
 
 ### 6.4 資料庫索引設計
 
@@ -694,6 +700,8 @@ Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMa
 ```
 
 ### 7.2 授權檢查
+
+所有 Web Controller 使用 `@CurrentUser UserPrincipal` 註解取得已認證使用者，透過 `principal.getUser()` 直接取得 User 實體（零 DB 查詢）。API Controller 則透過 `sub` attribute 解析 UUID。
 
 系統使用 AOP 切面（PermissionAspect）搭配自訂 `@RequiresPermission` 註解進行授權檢查。切面在方法執行前從請求中提取 tripId 和 userId，透過 PermissionChecker 驗證使用者是否具備所需權限（如 EDIT、DELETE），若無權限則拋出 ForbiddenException。
 
@@ -777,17 +785,17 @@ Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMa
 
 | 項目 | 數量 |
 |------|------|
-| 單元測試 | ~914 個測試方法，61 個測試檔案 |
+| 單元測試 | 968 個測試方法，70 個測試檔案 |
 | E2E 測試 | ~118 個測試案例，10 個 spec 檔案 |
 | REST API 端點 | 55 個 |
 | Web 端點 | 37 個 |
-| Service 類別 | 18 個 |
+| Service 類別 | 20 個 (含 2 個 ViewHelper) |
 | Entity 類別 | 10 個 |
 | Enum 類別 | 6 個 |
 | Repository | 10 個 |
 | HTML 模板 | 27 個 |
-| JS 模組 | 6 個 |
-| Domain 元件 | 4 個 |
+| JS 模組 | 7 個 (含 common.js 共用工具) |
+| Domain 元件 | 5 個 (含 TripConstants) |
 | 外部服務整合 | 4 個 |
 
 ### 9.3 參考文件

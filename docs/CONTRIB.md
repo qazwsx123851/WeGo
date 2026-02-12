@@ -3,6 +3,7 @@
 > 最後更新: 2026-02-12 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-12: Auth 遷移 (`@CurrentUser UserPrincipal`)、新增 ViewHelper/common.js、Web Controller 測試全覆蓋、PermissionChecker 快取
 > - 2026-02-12: 更新測試統計、移除程式碼範例、Service/E2E 表格更新
 > - 2026-02-11: 新增 CSRF Token 使用方式、前後端開發注意事項、API 對照表連結
 > - 2026-02-04: Phase 4 完成 - 安全強化、深色模式、E2E 測試、無障礙支援
@@ -40,7 +41,7 @@
 | Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 | Unit |
 | Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙 | Unit + E2E |
 
-**測試統計**: ~914 單元測試 + ~118 E2E 測試 (Playwright)
+**測試統計**: 968 單元測試 (70 個測試檔案) + ~118 E2E 測試 (Playwright)
 
 ---
 
@@ -183,11 +184,11 @@ src/
 │   │   └── security/               # OAuth2 相關
 │   ├── resources/
 │   │   ├── templates/              # Thymeleaf 模板 (27 個)
-│   │   ├── static/                 # 靜態資源 (6 個 JS 模組)
+│   │   ├── static/                 # 靜態資源 (7 個 JS 模組)
 │   │   └── application.yml
 │   └── frontend/                   # Tailwind CSS 原始碼
 └── test/
-    └── java/com/wego/             # 測試類別 (61 個測試檔案)
+    └── java/com/wego/             # 測試類別 (70 個測試檔案)
 ```
 
 ---
@@ -252,7 +253,9 @@ src/
 | `StatisticsService` | 支出統計分析 (分類/趨勢/成員) | ExpenseRepository |
 | `WeatherService` | 天氣預報 (5天) | WeatherClient, CacheManager |
 | `PlaceService` | 地點查詢與建立 (find-or-create) | PlaceRepository |
-| `PermissionChecker` | 角色權限檢查 | TripMemberRepository |
+| `ActivityViewHelper` | Activity 顯示邏輯（分組、日期、交通驗證） | - (純邏輯) |
+| `ExpenseViewHelper` | Expense 顯示邏輯（分組、人均、分帳） | - (純邏輯) |
+| `PermissionChecker` | 角色權限檢查 (含請求級 Caffeine 快取) | TripMemberRepository, CacheManager |
 | `CustomOAuth2UserService` | OAuth2 使用者處理 | UserRepository |
 | `WebExceptionHandler` | Web 錯誤頁面處理 | - |
 
@@ -340,7 +343,7 @@ src/
 
 ### 前端 JavaScript 使用方式
 
-從 Thymeleaf 模板注入的 `<meta>` 標籤取得 CSRF token。在 `fetch` 請求中，將 `meta[name="_csrf"]` 的 content 作為 token 值，`meta[name="_csrf_header"]` 的 content 作為 header 名稱，附加到所有 POST/PUT/DELETE 請求的 headers 中。
+從 Thymeleaf 模板注入的 `<meta>` 標籤取得 CSRF token。共用工具函式位於 `static/js/common.js`，提供 `WeGo.getCsrfToken()` 和 `WeGo.getCsrfHeader()` 取得 CSRF token/header 名稱，以及 `WeGo.fetchWithTimeout()` 附帶 30 秒 timeout 的 fetch 包裝器。所有 JS 模組已統一委託至 `common.js` 的共用實作。
 
 ### 規則
 
@@ -375,12 +378,14 @@ Activity/Expense 的 CRUD 路徑存在不一致：
 
 這是有意的設計 (update/delete 透過 resourceId 即可唯一識別)，但開發新端點時請保持一致。
 
-### 認證方式差異
+### 認證方式
 
 | 介面 | 識別使用者方式 | 取得方式 |
 |------|---------------|----------|
-| Web Controller | `email` attribute | `getUserByEmail(principal.getAttribute("email"))` |
+| Web Controller | `@CurrentUser UserPrincipal` | `principal.getUser()` (零 DB 查詢) |
 | API Controller | `sub` attribute | `UUID.fromString(principal.getAttribute("sub"))` |
+
+> **注意**: Web Controller 已於 2026-02-12 從 `@AuthenticationPrincipal OAuth2User` + `getUserByEmail()` 遷移至 `@CurrentUser UserPrincipal` + `principal.getUser()`，消除每次 Web 請求的額外 DB 查詢。
 
 ---
 
