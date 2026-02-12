@@ -4,13 +4,17 @@ import com.wego.config.SupabaseProperties;
 import com.wego.domain.permission.PermissionChecker;
 import com.wego.dto.request.CreateDocumentRequest;
 import com.wego.dto.response.DocumentResponse;
+import com.wego.entity.Activity;
 import com.wego.entity.Document;
+import com.wego.entity.Place;
 import com.wego.entity.Role;
 import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
+import com.wego.repository.ActivityRepository;
 import com.wego.repository.DocumentRepository;
+import com.wego.repository.PlaceRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
 import com.wego.service.external.StorageClient;
@@ -68,7 +72,13 @@ import static org.mockito.Mockito.when;
 class DocumentServiceTest {
 
     @Mock
+    private ActivityRepository activityRepository;
+
+    @Mock
     private DocumentRepository documentRepository;
+
+    @Mock
+    private PlaceRepository placeRepository;
 
     @Mock
     private TripRepository tripRepository;
@@ -344,6 +354,8 @@ class DocumentServiceTest {
                     .relatedDay(1)
                     .build();
 
+            UUID placeId = UUID.randomUUID();
+
             when(permissionChecker.canEdit(tripId, userId)).thenReturn(true);
             when(documentRepository.sumFileSizeByTripId(tripId)).thenReturn(0L);
             when(storageClient.uploadFile(anyString(), anyString(), any(byte[].class), anyString()))
@@ -355,12 +367,19 @@ class DocumentServiceTest {
             });
             when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
 
+            Activity mockActivity = Activity.builder().placeId(placeId).build();
+            when(activityRepository.findById(activityId)).thenReturn(Optional.of(mockActivity));
+
+            Place mockPlace = Place.builder().name("測試景點").build();
+            when(placeRepository.findById(placeId)).thenReturn(Optional.of(mockPlace));
+
             // When
             DocumentResponse response = documentService.uploadDocument(tripId, userId, file, request);
 
             // Then
             assertThat(response.getRelatedActivityId()).isEqualTo(activityId);
             assertThat(response.getRelatedDay()).isEqualTo(1);
+            assertThat(response.getRelatedActivityName()).isEqualTo("測試景點");
 
             ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
             verify(documentRepository).save(docCaptor.capture());
