@@ -5,10 +5,10 @@
 | 項目 | 內容 |
 |------|------|
 | 建立日期 | 2026-02-11 |
-| 最後更新 | 2026-02-11 |
-| 後端 REST endpoint 總數 | ~50 |
+| 最後更新 | 2026-02-12 |
+| 後端 REST endpoint 總數 | 55 |
 | 前端實際使用的 endpoint | ~24 |
-| Orphan endpoints (API-only) | ~26 |
+| Orphan endpoints (API-only) | ~31 |
 
 ---
 
@@ -63,7 +63,7 @@
 
 ---
 
-## B. Orphan Endpoints (後端有但前端未使用, ~26 個)
+## B. Orphan Endpoints (後端有但前端未使用, ~31 個)
 
 以下 endpoint 後端已實作但前端目前未使用，標記為 **API-only**，供未來 mobile app / SPA 使用：
 
@@ -73,11 +73,13 @@
 | Trip CRUD | `POST /api/trips`, `GET /api/trips`, `GET /api/trips/{tripId}`, `PUT /api/trips/{tripId}`, `DELETE /api/trips/{tripId}` | Trip 操作，前端用 web form |
 | Trip Members | `GET /api/trips/{tripId}/members`, `DELETE /api/trips/{tripId}/members/me`, `GET /api/trips/{tripId}/invites`, `POST /api/invites/{token}/accept` | 部分前端用 inline JS |
 | Activity CRUD | `POST /api/trips/{tripId}/activities`, `PUT /api/activities/{activityId}`, `DELETE /api/activities/{activityId}` | 前端用 web form |
+| Activity Documents | `GET /api/trips/{tripId}/activities/{activityId}/documents` | 取得景點關聯文件列表 |
 | Expense CRUD | `POST /api/trips/{tripId}/expenses`, `PUT /api/expenses/{expenseId}` | 前端用 web form |
 | Settlement | `GET /api/trips/{tripId}/settlement`, `PUT /api/expense-splits/{splitId}/settle`, `PUT /api/expense-splits/{splitId}/unsettle`, `PUT /api/trips/{tripId}/settlement/unsettle` | 前端只用 batch settle |
 | Document | `GET /api/trips/{tripId}/documents/{id}` (single), `GET /api/trips/{tripId}/documents/storage`, `GET /api/activities/{id}/documents` | 細粒度查詢 |
 | Place/Direction | `GET /api/places/{placeId}`, `GET /api/directions` | 前端用 web form 建景點 |
 | Exchange Rate | `GET /api/exchange-rates/latest`, `GET /api/exchange-rates/convert`, `GET /api/exchange-rates/currencies` | 前端只用基本匯率查詢 |
+| Statistics | `GET /api/trips/{tripId}/statistics/category`, `GET /api/trips/{tripId}/statistics/trend`, `GET /api/trips/{tripId}/statistics/members` | 支出統計分析端點 |
 | Todo | `GET /api/trips/{tripId}/todos/stats` | Todo 統計 |
 | Weather | `GET /api/weather` (單一日期) | 前端用 forecast |
 | Health | `GET /api/health` | 健康檢查 |
@@ -125,21 +127,7 @@
 
 ### 前端取得方式
 
-```javascript
-// 從 <meta> 標籤取得 (Thymeleaf 模板)
-const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
-const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
-
-// 在 fetch 請求中使用
-fetch(url, {
-    method: 'POST',
-    headers: {
-        [csrfHeader]: csrfToken,
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(data)
-});
-```
+前端透過 Thymeleaf 模板中的 `<meta>` 標籤取得 CSRF Token（`_csrf` 和 `_csrf_header`），在發送 POST/PUT/DELETE 請求時，從 meta 標籤讀取 token 值並設定於請求的 HTTP header 中。
 
 ### 規則
 

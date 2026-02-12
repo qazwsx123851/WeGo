@@ -4,8 +4,8 @@
 
 | 項目 | 內容 |
 |------|------|
-| 版本 | 2.0.0 |
-| 更新日期 | 2024-01 |
+| 版本 | 2.1.0 |
+| 更新日期 | 2026-02-12 |
 | 設計系統 | UI/UX Pro Max |
 
 ---
@@ -24,9 +24,7 @@
 
 ### 設計關鍵字
 
-```
-輕盈 · 活潑 · 直覺 · 協作 · 信任 · 冒險
-```
+輕盈、活潑、直覺、協作、信任、冒險
 
 ### 選用風格
 
@@ -42,122 +40,66 @@
 
 ### 主色調 - 旅遊冒險主題
 
-```css
-/* Primary - 天空藍（代表旅行、探索、自由） */
---primary-50:  #F0F9FF;
---primary-100: #E0F2FE;
---primary-200: #BAE6FD;
---primary-300: #7DD3FC;
---primary-400: #38BDF8;
---primary-500: #0EA5E9;  /* 主要按鈕、連結 */
---primary-600: #0284C7;
---primary-700: #0369A1;
---primary-800: #075985;
---primary-900: #0C4A6E;  /* 主要文字 */
+**Primary - 天空藍**（代表旅行、探索、自由）
 
-/* Secondary - 冒險橘（代表熱情、活力、CTA） */
---secondary-50:  #FFF7ED;
---secondary-100: #FFEDD5;
---secondary-200: #FED7AA;
---secondary-300: #FDBA74;
---secondary-400: #FB923C;
---secondary-500: #F97316;  /* CTA 按鈕 */
---secondary-600: #EA580C;
---secondary-700: #C2410C;
-```
+| 色階 | 色碼 | 用途 |
+|------|------|------|
+| primary-50 | #F0F9FF | 極淺背景 |
+| primary-100 | #E0F2FE | 淺背景 |
+| primary-200 | #BAE6FD | 邊框、標記 |
+| primary-300 | #7DD3FC | 淺色強調 |
+| primary-400 | #38BDF8 | Dark Mode 主色 |
+| primary-500 | #0EA5E9 | 主要按鈕、連結 |
+| primary-600 | #0284C7 | Hover 狀態 |
+| primary-700 | #0369A1 | Active 狀態 |
+| primary-800 | #075985 | 深色強調 |
+| primary-900 | #0C4A6E | 主要文字 |
+
+**Secondary - 冒險橘**（代表熱情、活力、CTA）
+
+| 色階 | 色碼 | 用途 |
+|------|------|------|
+| adventure-50 | #FFF7ED | 極淺背景 |
+| adventure-100 | #FFEDD5 | 淺背景 |
+| adventure-200 | #FED7AA | 邊框、標記 |
+| adventure-300 | #FDBA74 | 淺色強調 |
+| adventure-400 | #FB923C | Dark Mode CTA |
+| adventure-500 | #F97316 | CTA 按鈕 |
+| adventure-600 | #EA580C | Hover 狀態 |
+| adventure-700 | #C2410C | Active 狀態 |
 
 ### 語意色彩
 
-```css
-/* 成功 - 完成任務、分帳結清 */
---success-light: #DCFCE7;
---success: #22C55E;
---success-dark: #166534;
-
-/* 警告 - 提醒、截止日期接近 */
---warning-light: #FEF9C3;
---warning: #EAB308;
---warning-dark: #854D0E;
-
-/* 錯誤 - 操作失敗、必填欄位 */
---error-light: #FEE2E2;
---error: #EF4444;
---error-dark: #991B1B;
-
-/* 資訊 - 提示訊息 */
---info-light: #DBEAFE;
---info: #3B82F6;
---info-dark: #1E40AF;
-```
+| 類型 | 淺色 | 標準色 | 深色 | 用途 |
+|------|------|--------|------|------|
+| 成功 | #DCFCE7 | #22C55E | #166534 | 完成任務、分帳結清 |
+| 警告 | #FEF9C3 | #EAB308 | #854D0E | 提醒、截止日期接近 |
+| 錯誤 | #FEE2E2 | #EF4444 | #991B1B | 操作失敗、必填欄位 |
+| 資訊 | #DBEAFE | #3B82F6 | #1E40AF | 提示訊息 |
 
 ### 中性色
 
-```css
-/* 用於文字、背景、邊框 */
---gray-50:  #F8FAFC;  /* 頁面背景 */
---gray-100: #F1F5F9;  /* 卡片背景 (Light) */
---gray-200: #E2E8F0;  /* 邊框、分隔線 */
---gray-300: #CBD5E1;
---gray-400: #94A3B8;  /* Placeholder 文字 */
---gray-500: #64748B;  /* 次要文字 */
---gray-600: #475569;  /* 次要文字 (重要) */
---gray-700: #334155;  /* 主要文字 */
---gray-800: #1E293B;  /* 標題文字 */
---gray-900: #0F172A;  /* 深色背景 */
-```
+| 色階 | 色碼 | 用途 |
+|------|------|------|
+| gray-50 | #F8FAFC | 頁面背景 |
+| gray-100 | #F1F5F9 | 卡片背景 (Light) |
+| gray-200 | #E2E8F0 | 邊框、分隔線 |
+| gray-300 | #CBD5E1 | 一般裝飾 |
+| gray-400 | #94A3B8 | Placeholder 文字 |
+| gray-500 | #64748B | 次要文字 |
+| gray-600 | #475569 | 次要文字（重要） |
+| gray-700 | #334155 | 主要文字 |
+| gray-800 | #1E293B | 標題文字 |
+| gray-900 | #0F172A | 深色背景 |
 
-### Tailwind 配置
+### Glassmorphism 效果
 
-```javascript
-// tailwind.config.js
-module.exports = {
-  darkMode: 'class',
-  theme: {
-    extend: {
-      colors: {
-        primary: {
-          50: '#F0F9FF',
-          100: '#E0F2FE',
-          200: '#BAE6FD',
-          300: '#7DD3FC',
-          400: '#38BDF8',
-          500: '#0EA5E9',
-          600: '#0284C7',
-          700: '#0369A1',
-          800: '#075985',
-          900: '#0C4A6E',
-        },
-        adventure: {
-          50: '#FFF7ED',
-          100: '#FFEDD5',
-          200: '#FED7AA',
-          300: '#FDBA74',
-          400: '#FB923C',
-          500: '#F97316',
-          600: '#EA580C',
-          700: '#C2410C',
-        },
-      },
-      fontFamily: {
-        sans: ['Noto Sans TC', 'Plus Jakarta Sans', 'sans-serif'],
-        heading: ['Plus Jakarta Sans', 'Noto Sans TC', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
-      },
-    },
-  },
-}
-```
-
-### Glassmorphism 效果變數
-
-```css
-/* 玻璃效果 */
---glass-bg-light: rgba(255, 255, 255, 0.7);
---glass-bg-dark: rgba(15, 23, 42, 0.7);
---glass-blur: 12px;
---glass-border: rgba(255, 255, 255, 0.2);
---glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-```
+| 屬性 | Light Mode | Dark Mode |
+|------|------------|-----------|
+| 玻璃背景 | rgba(255, 255, 255, 0.7) | rgba(15, 23, 42, 0.7) |
+| 模糊半徑 | 12px | 12px |
+| 邊框 | rgba(255, 255, 255, 0.2) | rgba(255, 255, 255, 0.2) |
+| 陰影 | 0 8px 32px rgba(0, 0, 0, 0.1) | 0 8px 32px rgba(0, 0, 0, 0.1) |
 
 ### 深色模式 (Dark Mode) - Phase 4
 
@@ -178,14 +120,11 @@ module.exports = {
 
 ### 字體選擇
 
-```css
-/* 主要字體 - 中文優先 */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
-
---font-sans: 'Noto Sans TC', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
---font-heading: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
---font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-```
+| 用途 | 字體家族 |
+|------|----------|
+| 主要字體 | Noto Sans TC, Plus Jakarta Sans, 系統字體 |
+| 標題字體 | Plus Jakarta Sans, Noto Sans TC, sans-serif |
+| 等寬字體 | JetBrains Mono, Fira Code, monospace |
 
 ### 字級系統
 
@@ -201,31 +140,17 @@ module.exports = {
 
 ### 文字顏色使用
 
-```html
-<!-- 主要文字 -->
-<p class="text-gray-800 dark:text-gray-100">行程名稱</p>
-
-<!-- 次要文字 -->
-<p class="text-gray-500 dark:text-gray-400">3 天 2 夜 · 5 位成員</p>
-
-<!-- 強調文字 -->
-<p class="text-primary-600 dark:text-primary-400 font-medium">查看詳情</p>
-
-<!-- 金額 -->
-<span class="text-gray-800 dark:text-gray-100 font-mono font-semibold">$12,500</span>
-
-<!-- 錯誤文字 -->
-<span class="text-error dark:text-red-400">此欄位必填</span>
-```
+| 類型 | Light Mode | Dark Mode |
+|------|------------|-----------|
+| 主要文字 | gray-800 | gray-100 |
+| 次要文字 | gray-500 | gray-400 |
+| 強調文字 | primary-600, font-medium | primary-400, font-medium |
+| 金額文字 | gray-800, font-mono, font-semibold | gray-100, font-mono, font-semibold |
+| 錯誤文字 | error | red-400 |
 
 ### 行長度限制
 
-```css
-/* 最佳閱讀體驗：65-75 字元 */
-.prose {
-  max-width: 65ch;
-}
-```
+最佳閱讀體驗為 65-75 字元寬度，使用 `max-width: 65ch` 限制。
 
 ---
 
@@ -247,17 +172,15 @@ module.exports = {
 
 ### 響應式斷點
 
-```css
-/* Tailwind 斷點 */
-sm: 640px   /* 大手機 */
-md: 768px   /* 平板 */
-lg: 1024px  /* 小筆電 */
-xl: 1280px  /* 桌機 */
-2xl: 1536px /* 大螢幕 */
+| 斷點 | 寬度 | 用途 |
+|------|------|------|
+| sm | 640px | 大手機 |
+| md | 768px | 平板 |
+| lg | 1024px | 小筆電 |
+| xl | 1280px | 桌機 |
+| 2xl | 1536px | 大螢幕 |
 
-/* 測試必須涵蓋 */
-320px, 375px, 768px, 1024px, 1280px, 1440px
-```
+測試必須涵蓋：320px, 375px, 768px, 1024px, 1280px, 1440px
 
 ### 頁面佈局模式
 
@@ -277,7 +200,7 @@ xl: 1280px  /* 桌機 */
 └────────────────────────┘
 ```
 
-#### 平板/桌機版（≥ 768px）
+#### 平板/桌機版（>= 768px）
 
 ```
 ┌──────────────────────────────────────┐
@@ -293,13 +216,8 @@ xl: 1280px  /* 桌機 */
 
 ### 響應式 Padding
 
-```html
-<!-- 容器 padding -->
-<div class="px-4 sm:px-6 lg:px-8">
-
-<!-- 卡片 padding -->
-<div class="p-4 sm:p-6">
-```
+- 容器 padding：手機 16px / 平板 24px / 桌機 32px（Tailwind: `px-4 sm:px-6 lg:px-8`）
+- 卡片 padding：手機 16px / 平板以上 24px（Tailwind: `p-4 sm:p-6`）
 
 ---
 
@@ -307,544 +225,61 @@ xl: 1280px  /* 桌機 */
 
 ### 5.1 按鈕 (Buttons)
 
-#### 主要按鈕 (CTA)
+所有按鈕最小觸控高度為 44px，圓角使用 `rounded-xl`，過渡動畫 200ms。
 
-```html
-<button class="
-  bg-adventure-500 hover:bg-adventure-600 active:bg-adventure-700
-  text-white font-medium
-  px-4 py-2.5 min-h-[44px]
-  rounded-xl
-  shadow-md hover:shadow-lg
-  transition-all duration-200
-  active:scale-[0.98]
-  focus:outline-none focus:ring-2 focus:ring-adventure-500/50
-  cursor-pointer
-">
-  建立行程
-</button>
-```
-
-#### 次要按鈕
-
-```html
-<button class="
-  bg-white hover:bg-gray-50 active:bg-gray-100
-  dark:bg-gray-800 dark:hover:bg-gray-700
-  text-gray-700 dark:text-gray-200 font-medium
-  px-4 py-2.5 min-h-[44px]
-  rounded-xl
-  border border-gray-200 dark:border-gray-600
-  transition-all duration-200
-  active:scale-[0.98]
-  focus:outline-none focus:ring-2 focus:ring-primary-500/50
-  cursor-pointer
-">
-  取消
-</button>
-```
-
-#### 危險按鈕
-
-```html
-<button class="
-  bg-error hover:bg-red-600 active:bg-red-700
-  text-white font-medium
-  px-4 py-2.5 min-h-[44px]
-  rounded-xl
-  transition-all duration-200
-  active:scale-[0.98]
-  cursor-pointer
-">
-  刪除行程
-</button>
-```
-
-#### 文字按鈕
-
-```html
-<button class="
-  text-primary-600 dark:text-primary-400
-  hover:text-primary-700 dark:hover:text-primary-300
-  font-medium
-  px-2 py-1
-  rounded-lg
-  hover:bg-primary-50 dark:hover:bg-primary-900/20
-  transition-colors duration-200
-  cursor-pointer
-">
-  查看更多
-</button>
-```
-
-#### 圖示按鈕
-
-```html
-<button
-  aria-label="關閉"
-  class="
-    p-2.5 min-w-[44px] min-h-[44px]
-    rounded-full
-    text-gray-500 hover:text-gray-700
-    hover:bg-gray-100 dark:hover:bg-gray-800
-    transition-colors duration-200
-    cursor-pointer
-    focus:outline-none focus:ring-2 focus:ring-primary-500/50
-  "
->
-  <svg class="w-5 h-5"><!-- Heroicons/Lucide icon --></svg>
-</button>
-```
+| 類型 | 背景色 | 文字色 | 特殊效果 | 用途 |
+|------|--------|--------|----------|------|
+| 主要按鈕 (CTA) | adventure-500 | white | 陰影 + hover 加深 + active 縮放 | 建立行程等主要操作 |
+| 次要按鈕 | white / gray-800 (dark) | gray-700 / gray-200 (dark) | 邊框 + hover 變色 | 取消等次要操作 |
+| 危險按鈕 | error (red) | white | active 縮放 | 刪除等破壞性操作 |
+| 文字按鈕 | 透明 | primary-600 / primary-400 (dark) | hover 加淺背景 | 查看更多等輕量操作 |
+| 圖示按鈕 | 透明 | gray-500 | 圓形 44x44px、hover 加背景 | 關閉、選單等 |
 
 ### 5.2 卡片 (Cards)
 
-#### 玻璃效果卡片 (Glassmorphism)
+**玻璃效果卡片 (Glassmorphism)**：使用半透明白色背景 + 模糊效果 + 白色半透明邊框，圓角 `rounded-2xl`，hover 時加深陰影和背景不透明度。
 
-```html
-<div class="
-  bg-white/70 dark:bg-gray-800/70
-  backdrop-blur-xl
-  border border-white/20 dark:border-gray-700/50
-  rounded-2xl
-  shadow-lg
-  p-6
-  transition-all duration-300
-  hover:shadow-xl hover:bg-white/80 dark:hover:bg-gray-800/80
-  cursor-pointer
-">
-  <!-- 內容 -->
-</div>
-```
+**行程卡片**：包含 16:9 封面圖（支援 hover 放大效果、lazy loading）、標題、日期、成員頭像堆疊。
 
-#### 行程卡片
-
-```html
-<div class="
-  bg-white dark:bg-gray-800
-  rounded-2xl
-  shadow-md hover:shadow-xl
-  transition-all duration-300
-  overflow-hidden
-  cursor-pointer
-  group
-">
-  <!-- 封面圖 -->
-  <div class="aspect-[16/9] bg-gray-100 dark:bg-gray-700 overflow-hidden">
-    <img
-      src="cover.jpg"
-      alt="東京五日遊封面"
-      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-      loading="lazy"
-    />
-  </div>
-
-  <!-- 內容 -->
-  <div class="p-4 space-y-3">
-    <h3 class="text-base font-semibold text-gray-800 dark:text-gray-100">
-      東京五日遊
-    </h3>
-    <p class="text-sm text-gray-500 dark:text-gray-400">
-      2024/03/15 - 2024/03/19
-    </p>
-
-    <!-- 成員頭像 -->
-    <div class="flex -space-x-2">
-      <img class="w-8 h-8 rounded-full ring-2 ring-white dark:ring-gray-800" alt="成員 1" />
-      <img class="w-8 h-8 rounded-full ring-2 ring-white dark:ring-gray-800" alt="成員 2" />
-      <span class="
-        w-8 h-8 rounded-full
-        bg-gray-100 dark:bg-gray-700
-        flex items-center justify-center
-        text-xs font-medium text-gray-600 dark:text-gray-300
-        ring-2 ring-white dark:ring-gray-800
-      ">
-        +3
-      </span>
-    </div>
-  </div>
-</div>
-```
-
-#### 景點卡片
-
-```html
-<div class="
-  bg-white dark:bg-gray-800
-  rounded-xl
-  border border-gray-100 dark:border-gray-700
-  p-3
-  flex gap-3
-  hover:bg-gray-50 dark:hover:bg-gray-750
-  active:bg-gray-100 dark:active:bg-gray-700
-  transition-colors duration-200
-  cursor-pointer
-  touch-action-manipulation
-">
-  <!-- 序號 -->
-  <div class="
-    w-10 h-10
-    rounded-full
-    bg-primary-100 dark:bg-primary-900/30
-    text-primary-600 dark:text-primary-400
-    flex items-center justify-center
-    font-semibold text-sm
-    flex-shrink-0
-  ">
-    1
-  </div>
-
-  <!-- 內容 -->
-  <div class="flex-1 min-w-0">
-    <h4 class="font-medium text-gray-800 dark:text-gray-100 truncate">
-      淺草寺
-    </h4>
-    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-      10:00 - 12:00 · 2 小時
-    </p>
-  </div>
-
-  <!-- 拖曳手把 -->
-  <div class="text-gray-300 dark:text-gray-600 cursor-grab active:cursor-grabbing" aria-label="拖曳排序">
-    <svg class="w-5 h-5"><!-- grip-vertical icon --></svg>
-  </div>
-</div>
-
-<!-- 交通時間連接線 -->
-<div class="flex items-center gap-2 py-2 pl-5">
-  <div class="w-0.5 h-4 bg-gray-200 dark:bg-gray-700"></div>
-  <span class="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
-    <svg class="w-3.5 h-3.5"><!-- transit icon --></svg>
-    25 分鐘
-  </span>
-</div>
-```
+**景點卡片**：水平排列，包含圓形序號、景點名稱與時段、拖曳手把。卡片之間以交通時間連接線串聯。
 
 ### 5.3 表單元件 (Form Elements)
 
-#### 輸入框
+所有表單元件共用特徵：全寬、padding 16px 水平 / 12px 垂直、`rounded-xl` 圓角、`gray-200` 邊框、聚焦時顯示 `primary-500` 的 ring。
 
-```html
-<div class="space-y-1.5">
-  <label for="trip-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-    行程名稱
-  </label>
-  <input
-    id="trip-name"
-    type="text"
-    inputmode="text"
-    autocomplete="off"
-    class="
-      w-full px-4 py-3
-      bg-white dark:bg-gray-800
-      border border-gray-200 dark:border-gray-700
-      rounded-xl
-      text-gray-800 dark:text-gray-100
-      placeholder:text-gray-400 dark:placeholder:text-gray-500
-      focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
-      transition-all duration-200
-    "
-    placeholder="輸入行程名稱"
-  />
-  <!-- 錯誤訊息 -->
-  <p class="text-xs text-error hidden" role="alert">此欄位必填</p>
-</div>
-```
-
-#### 下拉選單
-
-```html
-<div class="space-y-1.5">
-  <label for="transport" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-    交通方式
-  </label>
-  <select
-    id="transport"
-    class="
-      w-full px-4 py-3
-      bg-white dark:bg-gray-800
-      border border-gray-200 dark:border-gray-700
-      rounded-xl
-      text-gray-800 dark:text-gray-100
-      focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
-      cursor-pointer
-    "
-  >
-    <option value="driving">開車</option>
-    <option value="transit">大眾運輸</option>
-    <option value="walking">步行</option>
-  </select>
-</div>
-```
-
-#### 日期選擇器
-
-```html
-<div class="space-y-1.5">
-  <label for="start-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-    開始日期
-  </label>
-  <input
-    id="start-date"
-    type="date"
-    class="
-      w-full px-4 py-3
-      bg-white dark:bg-gray-800
-      border border-gray-200 dark:border-gray-700
-      rounded-xl
-      text-gray-800 dark:text-gray-100
-      focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
-    "
-  />
-</div>
-```
+| 元件 | 特殊設定 |
+|------|----------|
+| 輸入框 | 搭配 label、placeholder、錯誤訊息（role="alert"） |
+| 下拉選單 | 加 `cursor-pointer` |
+| 日期選擇器 | 原生 `type="date"` |
 
 ### 5.4 底部抽屜 (Bottom Drawer)
 
-```html
-<!-- 背景遮罩 -->
-<div
-  class="
-    fixed inset-0 bg-black/40 backdrop-blur-sm
-    z-40
-    transition-opacity duration-300
-  "
-  aria-hidden="true"
-></div>
+底部抽屜由背景遮罩 + 抽屜本體組成：
 
-<!-- 抽屜本體 -->
-<div
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="drawer-title"
-  class="
-    fixed bottom-0 left-0 right-0
-    bg-white dark:bg-gray-900
-    rounded-t-3xl
-    max-h-[85vh]
-    z-50
-    overflow-hidden
-    transform transition-transform duration-300 ease-out
-    shadow-2xl
-  "
->
-  <!-- 拖曳指示條 -->
-  <div class="flex justify-center py-3">
-    <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-  </div>
-
-  <!-- 標題 -->
-  <div class="px-6 pb-4 border-b border-gray-100 dark:border-gray-800">
-    <h2 id="drawer-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100">
-      景點詳情
-    </h2>
-  </div>
-
-  <!-- 內容 -->
-  <div class="px-6 py-4 overflow-y-auto max-h-[60vh]">
-    <!-- ... -->
-  </div>
-
-  <!-- 底部按鈕 -->
-  <div class="px-6 py-4 border-t border-gray-100 dark:border-gray-800 pb-safe">
-    <button class="w-full bg-primary-500 text-white py-3 rounded-xl font-medium">
-      確認
-    </button>
-  </div>
-</div>
-```
+- 背景遮罩：黑色 40% 透明度 + 模糊效果，z-index 40
+- 抽屜本體：白色背景、`rounded-t-3xl` 頂部圓角、最大高度 85vh、z-index 50
+- 頂部拖曳指示條（12px 寬灰色圓條）
+- 標題區、可捲動內容區（最大高度 60vh）、底部按鈕區（包含 safe-area padding）
+- 使用 `role="dialog"` 和 `aria-modal="true"` 支援無障礙
 
 ### 5.5 底部導覽列 (Bottom Navigation)
 
-```html
-<nav class="
-  fixed bottom-0 left-0 right-0
-  bg-white/80 dark:bg-gray-900/80
-  backdrop-blur-xl
-  border-t border-gray-100 dark:border-gray-800
-  px-2 pb-safe
-  z-30
-">
-  <div class="flex justify-around max-w-md mx-auto">
-    <!-- 導覽項目 - 選中 -->
-    <a
-      href="#"
-      class="
-        flex flex-col items-center
-        py-2 px-4
-        text-primary-600 dark:text-primary-400
-        min-w-[64px] min-h-[56px]
-      "
-      aria-current="page"
-    >
-      <svg class="w-6 h-6" aria-hidden="true"><!-- icon --></svg>
-      <span class="text-xs mt-1 font-medium">行程</span>
-    </a>
+固定於底部，使用玻璃效果背景（白色 80% 透明度 + 模糊），z-index 30。
 
-    <!-- 導覽項目 - 未選中 -->
-    <a
-      href="#"
-      class="
-        flex flex-col items-center
-        py-2 px-4
-        text-gray-400 dark:text-gray-500
-        hover:text-gray-600 dark:hover:text-gray-300
-        transition-colors duration-200
-        min-w-[64px] min-h-[56px]
-      "
-    >
-      <svg class="w-6 h-6" aria-hidden="true"><!-- icon --></svg>
-      <span class="text-xs mt-1">分帳</span>
-    </a>
-
-    <!-- 中央新增按鈕 -->
-    <button
-      aria-label="新增"
-      class="
-        -mt-5
-        w-14 h-14
-        bg-adventure-500 hover:bg-adventure-600
-        rounded-full
-        text-white
-        shadow-lg shadow-adventure-500/30
-        flex items-center justify-center
-        transition-all duration-200
-        active:scale-95
-        cursor-pointer
-      "
-    >
-      <svg class="w-7 h-7" aria-hidden="true"><!-- plus icon --></svg>
-    </button>
-
-    <a href="#" class="...">檔案</a>
-    <a href="#" class="...">設定</a>
-  </div>
-</nav>
-```
+包含 5 個項目：行程、分帳、中央新增按鈕、檔案、設定。選中項目使用 primary 色，未選中使用 gray-400。中央新增按鈕為圓形浮起按鈕（adventure-500 背景、-mt-5 偏移、陰影）。每個項目最小寬度 64px、高度 56px。
 
 ### 5.6 Toast 訊息通知
 
-```html
-<!-- Toast 容器 -->
-<div
-  role="status"
-  aria-live="polite"
-  class="fixed top-4 right-4 z-50 space-y-3"
->
-  <!-- 成功 Toast -->
-  <div class="
-    flex items-center gap-3
-    bg-white dark:bg-gray-800
-    rounded-xl shadow-lg
-    border-l-4 border-success
-    px-4 py-3
-    min-w-[280px]
-    animate-slide-in
-  ">
-    <svg class="w-5 h-5 text-success flex-shrink-0" aria-hidden="true"><!-- check icon --></svg>
-    <div class="flex-1">
-      <p class="font-medium text-gray-800 dark:text-gray-100">儲存成功</p>
-      <p class="text-sm text-gray-500 dark:text-gray-400">行程已更新</p>
-    </div>
-    <button
-      aria-label="關閉通知"
-      class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 cursor-pointer"
-    >
-      <svg class="w-4 h-4"><!-- x icon --></svg>
-    </button>
-  </div>
-</div>
-```
+固定於右上角（top-4 right-4），z-index 50。包含左側色條（語意色）、圖示、標題與描述、關閉按鈕。使用 slide-in 動畫進入。最小寬度 280px。使用 `role="status"` 和 `aria-live="polite"` 支援無障礙。
 
 ### 5.7 確認對話框 (Confirm Dialog)
 
-```html
-<!-- 背景遮罩 -->
-<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-
-  <!-- 對話框 -->
-  <div
-    role="alertdialog"
-    aria-modal="true"
-    aria-labelledby="dialog-title"
-    aria-describedby="dialog-desc"
-    class="
-      bg-white dark:bg-gray-800
-      rounded-2xl shadow-2xl
-      w-full max-w-sm
-      overflow-hidden
-    "
-  >
-    <!-- 標題與內容 -->
-    <div class="px-6 pt-6 pb-4">
-      <h3 id="dialog-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100">
-        確定要刪除此景點？
-      </h3>
-      <p id="dialog-desc" class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-        刪除後將無法復原，關聯的檔案也會解除關聯。
-      </p>
-    </div>
-
-    <!-- 按鈕 -->
-    <div class="px-6 pb-6 flex gap-3">
-      <button class="
-        flex-1 px-4 py-2.5
-        rounded-xl
-        border border-gray-200 dark:border-gray-600
-        text-gray-700 dark:text-gray-200 font-medium
-        hover:bg-gray-50 dark:hover:bg-gray-700
-        transition-colors duration-200
-        cursor-pointer
-      ">
-        取消
-      </button>
-      <button class="
-        flex-1 px-4 py-2.5
-        rounded-xl
-        bg-error hover:bg-red-600
-        text-white font-medium
-        transition-colors duration-200
-        cursor-pointer
-      ">
-        刪除
-      </button>
-    </div>
-  </div>
-</div>
-```
+置中彈出，背景遮罩黑色 50% + 模糊，z-index 50。對話框最大寬度 `max-w-sm`、`rounded-2xl`。包含標題、描述、取消與確認按鈕（並排 flex）。使用 `role="alertdialog"` 和 `aria-modal="true"` 支援無障礙。
 
 ### 5.8 錯誤狀態頁面
 
-```html
-<div class="
-  min-h-screen flex flex-col items-center justify-center
-  px-4 text-center
-  bg-gray-50 dark:bg-gray-900
-">
-  <!-- Lottie 動畫：迷路的旅人 -->
-  <div class="w-48 h-48 mb-6">
-    <lottie-player src="/animations/lost-traveler.json" loop autoplay></lottie-player>
-  </div>
-
-  <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-    找不到這個頁面
-  </h1>
-  <p class="text-gray-500 dark:text-gray-400 mb-6 max-w-xs">
-    這個行程可能已被刪除或連結有誤
-  </p>
-
-  <a
-    href="/"
-    class="
-      bg-primary-500 hover:bg-primary-600
-      text-white font-medium
-      px-6 py-3 rounded-xl
-      transition-colors duration-200
-    "
-  >
-    回到首頁
-  </a>
-</div>
-```
+全螢幕置中佈局，包含 Lottie 動畫（如迷路旅人）、錯誤標題、說明文字、回到首頁按鈕。
 
 ---
 
@@ -854,12 +289,12 @@ xl: 1280px  /* 桌機 */
 
 | 規則 | 做法 | 避免 |
 |------|------|------|
-| **觸控目標大小** | 最小 44x44px (`min-h-[44px] min-w-[44px]`) | 小於 44px 的按鈕 |
-| **觸控間距** | 按鈕間最少 8px 間距 (`gap-2`) | 緊貼的可點擊元素 |
+| **觸控目標大小** | 最小 44x44px | 小於 44px 的按鈕 |
+| **觸控間距** | 按鈕間最少 8px 間距 | 緊貼的可點擊元素 |
 | **Hover vs Tap** | 使用 click/tap 為主要互動 | 僅依賴 hover 效果 |
-| **點擊反饋** | 所有可點擊元素加 `cursor-pointer` | 無游標變化 |
+| **點擊反饋** | 所有可點擊元素加 cursor-pointer | 無游標變化 |
 | **按鈕狀態** | 異步操作時 disable 按鈕 | 允許重複點擊 |
-| **300ms 延遲** | 使用 `touch-action: manipulation` | 預設觸控處理 |
+| **300ms 延遲** | 使用 touch-action: manipulation | 預設觸控處理 |
 
 ### 6.2 無障礙 (Critical)
 
@@ -868,10 +303,10 @@ xl: 1280px  /* 桌機 */
 | **色彩對比** | 最少 4.5:1 對比度 | 低對比文字 |
 | **Focus 狀態** | 明顯的 focus ring | 移除 outline |
 | **Alt 文字** | 有意義的圖片加 alt | 空白或無意義的 alt |
-| **ARIA 標籤** | 圖示按鈕加 `aria-label` | 無標籤的圖示按鈕 |
+| **ARIA 標籤** | 圖示按鈕加 aria-label | 無標籤的圖示按鈕 |
 | **鍵盤導航** | Tab 順序符合視覺順序 | tabindex 亂跳 |
 | **表單標籤** | label 搭配 for 屬性 | 無標籤的輸入框 |
-| **Reduced Motion** | 檢查 `prefers-reduced-motion` | 強制動畫 |
+| **Reduced Motion** | 檢查 prefers-reduced-motion | 強制動畫 |
 
 ### 6.3 效能 (High)
 
@@ -888,74 +323,22 @@ xl: 1280px  /* 桌機 */
 |------|------|------|
 | **微互動時長** | 150-300ms | 過慢 (>500ms) 或無過渡 |
 | **連續動畫** | 僅用於載入指示器 | 裝飾性無限動畫 |
-| **緩動函數** | `ease-out` 用於進入, `ease-in` 用於離開 | linear 或不自然的緩動 |
+| **緩動函數** | ease-out 用於進入, ease-in 用於離開 | linear 或不自然的緩動 |
 
 ---
 
 ## 7. 動效設計 (Animation)
 
-### CSS 動畫
+### 動畫規格
 
-```css
-/* 轉場動效 */
-.transition-base {
-  transition: all 200ms ease-out;
-}
+| 動畫名稱 | 效果 | 時長 | 緩動函數 |
+|----------|------|------|----------|
+| 基礎過渡 | 所有屬性過渡 | 200ms | ease-out |
+| Toast 滑入 | 從右側滑入 + 淡入 | 300ms | ease-out |
+| 抽屜展開 | 從底部滑入 | 300ms | cubic-bezier(0.32, 0.72, 0, 1) |
+| 骨架屏閃爍 | 漸層左右移動 | 1.5s | infinite |
 
-/* Toast 滑入 */
-@keyframes slide-in {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-.animate-slide-in {
-  animation: slide-in 300ms ease-out;
-}
-
-/* 抽屜展開 */
-@keyframes drawer-up {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-.animate-drawer-up {
-  animation: drawer-up 300ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-/* 骨架屏閃爍 */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-.animate-shimmer {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-/* Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-```
+所有動畫須尊重 `prefers-reduced-motion` 系統設定，在 reduced motion 模式下動畫時長降至接近 0。
 
 ### Lottie 動畫使用場景
 
@@ -1015,15 +398,7 @@ xl: 1280px  /* 桌機 */
 
 ### 圖示使用規範
 
-```html
-<!-- 正確：使用 SVG 圖示 -->
-<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-  <!-- path -->
-</svg>
-
-<!-- 錯誤：使用 Emoji -->
-<span>🎨</span> <!-- 不要這樣做 -->
-```
+所有圖示統一使用 SVG 格式（Heroicons 或 Lucide），禁止使用 Emoji 替代。
 
 ---
 
@@ -1035,7 +410,7 @@ xl: 1280px  /* 桌機 */
 - [ ] **圖示一致** - 全部來自同一圖示庫
 - [ ] **品牌 Logo 正確** - 從 Simple Icons 驗證
 - [ ] **Hover 狀態穩定** - 不造成版面位移
-- [ ] **使用主題色彩** - 直接用 `bg-primary-500` 而非 `var()`
+- [ ] **使用主題色彩** - 直接用 Tailwind class（如 `bg-primary-500`）
 
 ### 互動
 
@@ -1099,30 +474,7 @@ xl: 1280px  /* 桌機 */
 
 ---
 
-## 附錄：快速參考卡片
-
-### Tailwind 常用 Class
-
-```html
-<!-- 容器 -->
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-<!-- 卡片 -->
-<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
-
-<!-- 按鈕 -->
-<button class="bg-primary-500 text-white px-4 py-2.5 rounded-xl font-medium min-h-[44px]">
-
-<!-- 輸入框 -->
-<input class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary-500/50">
-
-<!-- 文字 -->
-<h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">
-<p class="text-sm text-gray-500 dark:text-gray-400">
-
-<!-- Glassmorphism -->
-<div class="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl border border-white/20 rounded-2xl">
-```
+## 附錄：快速參考
 
 ### Z-Index 規範
 
@@ -1138,96 +490,21 @@ xl: 1280px  /* 桌機 */
 
 ### Tailwind CSS 建構與 JIT 模式
 
-#### 建構指令
+**建構指令**：在 `src/main/frontend` 目錄下執行 `npm run watch`（開發模式）或 `npm run build`（生產版本），建構後將 `dist/styles.css` 複製至 `src/main/resources/static/css/styles.css`。
 
-```bash
-cd src/main/frontend
+**JIT 掃描範圍**：Tailwind JIT 掃描 Thymeleaf 模板（`templates/**/*.html`）和 JavaScript 檔案（`static/js/**/*.js`）中出現的 class 來生成 CSS。
 
-# 開發模式（監聽變更）
-npm run watch
+**動態類別的問題**：在 JavaScript 中動態組合的 Tailwind class，若建構時不存在於原始碼中，CSS 就不會生成。
 
-# 建構生產版本
-npm run build
+| 解決方案 | 適用場景 | 優缺點 |
+|----------|----------|--------|
+| **組件類別** | 複雜響應式元件 | 可維護性高、可重用 |
+| **Safelist** | 少量特定 class | 簡單，但增加 CSS 大小 |
+| **模板佔位** | 偶爾使用的 class | 無需修改配置，但不直觀 |
 
-# 複製到 static 目錄
-cp dist/styles.css ../resources/static/css/styles.css
-```
+推薦使用組件類別方案：在 `src/main/frontend/src/input.css` 中以 `@layer components` 定義可重用的元件樣式。
 
-#### JIT 掃描範圍
-
-Tailwind JIT 只會生成在掃描範圍內出現的 class：
-
-```javascript
-// tailwind.config.js
-content: [
-  '../resources/templates/**/*.html',  // Thymeleaf 模板
-  '../resources/static/js/**/*.js',    // JavaScript 檔案
-]
-```
-
-#### ⚠️ 動態類別的問題
-
-**問題**：在 JavaScript 中動態組合的 Tailwind class，如果建構時不存在於原始碼中，CSS 就不會生成。
-
-```javascript
-// ❌ 這些 class 在建構時可能不存在，導致樣式失效
-return `<div class="sm:!flex-1 sm:!w-auto">...</div>`;
-```
-
-**解決方案**：
-
-| 方案 | 適用場景 | 優缺點 |
-|------|----------|--------|
-| **組件類別** | 複雜響應式元件 | ✅ 可維護性高、可重用 |
-| **Safelist** | 少量特定 class | ✅ 簡單、❌ 增加 CSS 大小 |
-| **模板佔位** | 偶爾使用的 class | ✅ 無需修改配置、❌ 不直觀 |
-
-**方案一：組件類別（推薦）**
-
-```css
-/* src/main/frontend/src/input.css */
-@layer components {
-  .weather-card {
-    @apply flex-shrink-0 p-3 rounded-xl bg-gray-50;
-    width: 72px;
-  }
-
-  @screen sm {
-    .weather-card {
-      flex: 1 1 0%;
-      width: auto;
-      min-width: 0;
-    }
-  }
-
-  .dark .weather-card {
-    @apply bg-gray-800/50;
-  }
-}
-```
-
-**方案二：Safelist**
-
-```javascript
-// tailwind.config.js
-module.exports = {
-  safelist: [
-    'sm:flex-1',
-    'sm:w-auto',
-    'sm:min-w-0',
-    { pattern: /^sm:(flex-1|w-auto|min-w-0)$/ }
-  ],
-}
-```
-
-**方案三：模板佔位**
-
-```html
-<!-- 在模板中隱藏使用，確保 JIT 掃描到 -->
-<div class="hidden sm:flex-1 sm:w-auto sm:min-w-0"></div>
-```
-
-#### 現有組件類別
+### 現有組件類別
 
 | 類別 | 用途 | 響應式 |
 |------|------|--------|

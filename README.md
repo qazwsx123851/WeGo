@@ -2,43 +2,71 @@
 
 專為好友、小團體設計的「重協作」旅遊規劃平台，解決行程排版混亂、交通時間難估算、憑證分散以及分帳麻煩等痛點。
 
+---
+
 ## 功能特色
 
 ### 行程管理
-- **拖拽排序** - 長按景點卡片即可拖動調整順序
-- **交通預估** - 自動計算景點間距離與抵達時間（支援步行/開車/大眾運輸/騎車/高鐵/飛機）
-- **智慧排序** - 一鍵優化當日路線
-- **天氣預報** - 顯示景點未來天氣
+- **拖拽排序** - 長按景點卡片即可拖動調整順序，支援跨日移動
+- **交通預估** - 自動計算景點間距離與抵達時間，支援 7 種交通方式（步行、開車、大眾運輸、騎車、高鐵、飛機、手動輸入）
+- **智慧排序** - 一鍵優化當日路線（Greedy Nearest Neighbor 演算法）
+- **天氣預報** - 顯示景點未來天氣，支援 5 天預報
 
 ### 協作功能
-- **多人共編** - 支援 Owner/Editor/Viewer 三種角色
-- **邀請連結** - 透過連結快速加入行程
-- **代辦事項** - 分配任務、追蹤進度
+- **多人共編** - 支援 Owner / Editor / Viewer 三種角色，細粒度權限控制
+- **邀請連結** - 透過連結快速加入行程，可設定角色與有效期限
+- **代辦事項** - 分配任務、指派成員、追蹤完成進度
 
 ### 分帳系統
-- **多幣別支援** - 即時匯率轉換（TWD/USD/JPY/EUR 等 8 種貨幣）
-- **多種分帳方式** - 均分、百分比、自訂金額
-- **債務簡化** - 自動計算最少轉帳次數
-- **統計圖表** - 類別分析、趨勢圖、成員統計
+- **多幣別支援** - 即時匯率轉換，支援 TWD、USD、JPY、EUR 等 8 種貨幣
+- **多種分帳方式** - 均分（EQUAL）、百分比（PERCENTAGE）、自訂金額（CUSTOM）、按比例（SHARES）
+- **債務簡化** - Greedy 配對演算法，自動計算最少轉帳次數
+- **統計圖表** - 類別分析、趨勢圖、成員消費統計（Chart.js）
+- **結算管理** - 逐筆或批次標記結清
 
 ### 檔案管理
-- **憑證上傳** - 支援 PDF、JPG、PNG、HEIC
+- **憑證上傳** - 支援 PDF、JPG、PNG、HEIC，單檔上限 10MB
 - **快速關聯** - 檔案可綁定至日期或景點
+- **即時預覽** - 檔案預覽含安全沙箱（CSP 隔離）
+- **儲存空間** - 每行程 100MB 額度，使用量即時顯示
 
 ### 使用者體驗
-- **深色模式** - 支援系統偏好設定與手動切換
-- **響應式設計** - 適配桌面與行動裝置
-- **無障礙支援** - WCAG 2.1 標準
+- **深色模式** - 支援系統偏好設定與手動切換，FOUC 防護
+- **響應式設計** - Mobile-first，適配 375px 至 1440px+
+- **Glassmorphism 風格** - 毛玻璃卡片、底部導覽、Lottie 動畫
+- **無障礙支援** - 觸控目標 44x44px、色彩對比 4.5:1、ARIA 標籤
+
+---
 
 ## 技術架構
 
 | 層級 | 技術 |
 |------|------|
-| 後端 | Spring Boot 3.2 (Java 17) |
-| 前端 | Thymeleaf + Tailwind CSS |
-| 資料庫 | Supabase (PostgreSQL) |
+| 後端 | Spring Boot 3.x（Java 17+） |
+| 前端 | Thymeleaf + Tailwind CSS + Chart.js |
+| 資料庫 | Supabase（PostgreSQL 15+） |
+| 檔案儲存 | Supabase Storage |
 | 部署 | Railway |
 | 外部 API | Google Maps、OpenWeatherMap、ExchangeRate-API |
+| 認證 | Google OAuth 2.0 + Spring Security |
+| 快取 | Caffeine（統計、匯率）+ ConcurrentHashMap（天氣） |
+| 限流 | Bucket4j（IP 層）+ 應用層限流 |
+
+### 專案規模
+
+| 指標 | 數量 |
+|------|------|
+| REST API 端點 | 55 個 |
+| Web 頁面端點 | 37 個 |
+| Service 類別 | 17 個 |
+| Entity / Enum | 10 / 6 個 |
+| Repository | 10 個 |
+| HTML 模板 | 27 個 |
+| JS 模組 | 6 個 |
+| 單元測試 | ~864 個（58 個測試檔案） |
+| E2E 測試 | ~118 個（10 個 Playwright spec） |
+
+---
 
 ## 快速開始
 
@@ -46,79 +74,86 @@
 
 - Java 17+
 - Maven 3.8+
-
-### 環境變數
-
-複製 `.env.example` 為 `.env` 並填入：
-
-```bash
-# 必須
-DATABASE_URL=jdbc:postgresql://...
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJ...  # 必須是 service_role key
-GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-xxx
-
-# 可選（有 Mock 替代）
-GOOGLE_MAPS_API_KEY=
-OPENWEATHERMAP_API_KEY=
-EXCHANGERATE_API_KEY=
-```
-
-### 執行
-
-```bash
-# 開發
-./mvnw spring-boot:run
-
-# 單元測試
-./mvnw test
-
-# E2E 測試（需要 Node.js）
-cd e2e && npm install && npx playwright test
-
-# 建置
-./mvnw clean package -DskipTests
-```
-
-應用程式將在 `http://localhost:8080` 啟動。
+- Node.js 18+（E2E 測試用）
 
 ## 專案結構
 
 ```
 wego/
 ├── src/main/java/com/wego/
-│   ├── config/          # 設定（Security, Cache, OAuth）
-│   ├── controller/      # Web & API Controllers
-│   ├── service/         # 業務邏輯
-│   ├── domain/          # 領域邏輯（演算法）
-│   ├── repository/      # 資料存取
-│   ├── entity/          # JPA Entities
-│   └── dto/             # DTOs
+│   ├── config/          # 設定（Security, Cache, OAuth, Rate Limit）
+│   ├── controller/      # Web Controllers + API Controllers
+│   │   └── api/         # REST API 端點
+│   ├── service/         # 業務邏輯（17 個 Service）
+│   ├── domain/          # 領域邏輯（DebtSimplifier, RouteOptimizer, PermissionChecker, ExpenseAggregator）
+│   ├── repository/      # 資料存取（10 個 Repository）
+│   ├── entity/          # JPA Entities（10 個）
+│   ├── dto/             # Request / Response DTOs
+│   └── external/        # 外部 API 整合（4 組 Interface + Impl + Mock）
 ├── src/main/resources/
-│   ├── templates/       # Thymeleaf 模板
-│   └── static/          # CSS, JS
-├── src/test/            # 單元測試（786 tests）
-└── e2e/                 # E2E 測試（Playwright, 89 tests）
+│   ├── templates/       # Thymeleaf 模板（27 個）
+│   └── static/          # CSS, JS, Images
+├── src/test/            # 單元測試（~864 tests）
+├── e2e/                 # E2E 測試（Playwright, ~118 tests）
+└── docs/                # 專案文件（19 份）
 ```
+
+---
 
 ## 開發進度
 
 | Phase | 狀態 | 功能 |
 |-------|:----:|------|
-| Phase 1 | ✅ | OAuth 登入、行程 CRUD、景點管理、交通預估、邀請連結、基本分帳 |
-| Phase 2 | ✅ | 權限模型、代辦事項、智慧排序、天氣預報 |
-| Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 |
-| Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙支援 |
+| Phase 1 | 完成 | OAuth 登入、行程 CRUD、景點管理、交通預估、邀請連結、基本分帳 |
+| Phase 2 | 完成 | 權限模型、代辦事項、智慧排序、天氣預報、檔案管理 |
+| Phase 3 | 完成 | 多幣別匯率、統計圖表、債務簡化、Caffeine 快取 |
+| Phase 4 | 完成 | 安全強化、深色模式、E2E 測試、無障礙支援、效能優化 |
 
-## 文件
+---
+
+## 文件索引
+
+### 核心文件
 
 | 文件 | 說明 |
 |------|------|
-| [CLAUDE.md](CLAUDE.md) | AI 開發指南 |
+| [CLAUDE.md](CLAUDE.md) | AI 開發指南與 Thymeleaf SpEL 規範 |
+| [docs/software-design-document.md](docs/software-design-document.md) | 軟體設計文件（架構、ADR、Entity 設計） |
 | [docs/requirements.md](docs/requirements.md) | 需求規格書 |
-| [docs/software-design-document.md](docs/software-design-document.md) | 軟體設計文件 |
+| [docs/CONTRIB.md](docs/CONTRIB.md) | 貢獻指南與開發流程 |
+
+### 開發指南
+
+| 文件 | 說明 |
+|------|------|
+| [docs/api-reference.md](docs/api-reference.md) | API 端點參考 |
+| [docs/api-keys-setup.md](docs/api-keys-setup.md) | 外部 API Key 設定指南 |
+| [docs/tdd-guide.md](docs/tdd-guide.md) | TDD 測試開發指南 |
+| [docs/test-cases.md](docs/test-cases.md) | 測試案例規格書 |
+| [docs/ui-design-guide.md](docs/ui-design-guide.md) | UI 設計指南 |
+| [docs/ai-coding-guidelines.md](docs/ai-coding-guidelines.md) | AI 輔助開發規範 |
+
+### 運維與品質
+
+| 文件 | 說明 |
+|------|------|
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | 運維手冊 |
 | [docs/bug.md](docs/bug.md) | Bug 追蹤與安全審查 |
+| [docs/plan.md](docs/plan.md) | 開發計畫與里程碑 |
+| [docs/task.md](docs/task.md) | 任務追蹤 |
+
+### 審查報告
+
+| 文件 | 說明 |
+|------|------|
+| [docs/project-health-report.md](docs/project-health-report.md) | 專案健康度報告（綜合評分 7.0/10） |
+| [docs/review-architecture.md](docs/review-architecture.md) | 架構審查 |
+| [docs/review-security.md](docs/review-security.md) | 安全審查 |
+| [docs/review-frontend.md](docs/review-frontend.md) | 前端審查 |
+| [docs/review-performance.md](docs/review-performance.md) | 效能審查 |
+| [docs/review-testing.md](docs/review-testing.md) | 測試審查 |
+
+---
 
 ## 授權
 

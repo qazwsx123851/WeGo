@@ -6,7 +6,7 @@
 |------|------|
 | 專案名稱 | WeGo - 旅遊規劃協作平台 |
 | 版本 | 1.0.0 |
-| 最後更新 | 2026-02-11 |
+| 最後更新 | 2026-02-12 |
 | 狀態 | Draft |
 
 ---
@@ -106,34 +106,48 @@ com.wego
 │
 ├── config/                           # 設定類別
 │   ├── SecurityConfig.java           # Spring Security 設定
-│   ├── OAuth2Config.java             # OAuth2 設定
 │   ├── WebConfig.java                # Web MVC 設定
-│   └── CacheConfig.java              # 快取設定
+│   ├── CacheConfig.java              # 快取設定
+│   └── SupabaseProperties.java       # Supabase 設定
 │
 ├── controller/                       # 控制器層
-│   ├── web/                          # 頁面控制器
+│   ├── web/                          # 頁面控制器 (37 個 Web 端點)
 │   │   ├── HomeController.java
 │   │   ├── TripController.java
-│   │   └── AuthController.java
-│   └── api/                          # REST API 控制器
+│   │   ├── AuthController.java
+│   │   ├── GlobalExpenseController.java
+│   │   ├── GlobalDocumentController.java
+│   │   └── ProfileController.java
+│   └── api/                          # REST API 控制器 (55 個 REST 端點)
 │       ├── TripApiController.java
 │       ├── ActivityApiController.java
 │       ├── ExpenseApiController.java
-│       └── DocumentApiController.java
+│       ├── DocumentApiController.java
+│       ├── TodoApiController.java
+│       ├── HealthController.java
+│       └── AuthApiController.java
 │
-├── service/                          # 服務層
+├── service/                          # 服務層 (17 個 Service)
+│   ├── UserService.java
 │   ├── TripService.java
+│   ├── InviteLinkService.java
 │   ├── ActivityService.java
 │   ├── ExpenseService.java
 │   ├── SettlementService.java
 │   ├── DocumentService.java
 │   ├── TodoService.java
-│   └── external/                     # 外部服務整合
+│   ├── TransportCalculationService.java
+│   ├── GlobalExpenseService.java
+│   ├── GlobalDocumentService.java
+│   ├── StatisticsService.java
+│   ├── ExchangeRateService.java
+│   └── external/                     # 外部服務整合 (4 個，各有 Mock 實作)
 │       ├── GoogleMapsService.java
 │       ├── WeatherService.java
-│       └── ExchangeRateService.java
+│       ├── ExchangeRateClient.java
+│       └── StorageClient.java
 │
-├── repository/                       # 資料存取層
+├── repository/                       # 資料存取層 (10 個 Repository)
 │   ├── UserRepository.java
 │   ├── TripRepository.java
 │   ├── TripMemberRepository.java
@@ -142,9 +156,10 @@ com.wego
 │   ├── ExpenseRepository.java
 │   ├── ExpenseSplitRepository.java
 │   ├── DocumentRepository.java
-│   └── TodoRepository.java
+│   ├── TodoRepository.java
+│   └── InviteLinkRepository.java
 │
-├── entity/                           # JPA 實體
+├── entity/                           # JPA 實體 (10 個 Entity)
 │   ├── User.java
 │   ├── Trip.java
 │   ├── TripMember.java
@@ -158,32 +173,24 @@ com.wego
 │
 ├── dto/                              # 資料傳輸物件
 │   ├── request/                      # 請求 DTO
-│   │   ├── CreateTripRequest.java
-│   │   ├── UpdateTripRequest.java
-│   │   ├── CreateActivityRequest.java
-│   │   └── CreateExpenseRequest.java
 │   ├── response/                     # 回應 DTO
-│   │   ├── TripResponse.java
-│   │   ├── TripDetailResponse.java
-│   │   ├── ActivityResponse.java
-│   │   └── SettlementResponse.java
 │   └── mapper/                       # 映射器
-│       ├── TripMapper.java
-│       ├── ActivityMapper.java
-│       └── ExpenseMapper.java
 │
-├── domain/                           # 領域邏輯
-│   ├── settlement/                   # 分帳領域
+├── domain/                           # 領域邏輯 (4 個 Domain 元件)
+│   ├── settlement/
 │   │   ├── DebtSimplifier.java       # 債務簡化演算法
 │   │   └── Settlement.java           # 結算結果
-│   ├── route/                        # 路線領域
+│   ├── route/
 │   │   └── RouteOptimizer.java       # 路線優化演算法
-│   └── permission/                   # 權限領域
-│       ├── Permission.java
-│       └── PermissionChecker.java
+│   ├── permission/
+│   │   ├── Permission.java
+│   │   └── PermissionChecker.java
+│   └── expense/
+│       └── ExpenseAggregator.java    # 支出聚合
 │
 ├── exception/                        # 例外處理
 │   ├── GlobalExceptionHandler.java
+│   ├── WebExceptionHandler.java
 │   ├── BusinessException.java
 │   ├── ResourceNotFoundException.java
 │   ├── UnauthorizedException.java
@@ -194,9 +201,13 @@ com.wego
 │   ├── UserPrincipal.java
 │   └── CurrentUser.java              # 自訂註解
 │
-└── util/                             # 工具類別
-    ├── DateUtils.java
-    └── CurrencyUtils.java
+└── enum/                             # 列舉類別 (6 個 Enum)
+    ├── Role.java
+    ├── TransportMode.java
+    ├── TransportSource.java
+    ├── TransportWarning.java
+    ├── ExpenseCategory.java
+    └── TodoStatus.java
 ```
 
 ---
@@ -280,21 +291,8 @@ com.wego
 ```
 
 #### 權限檢查邏輯
-```java
-public class PermissionChecker {
 
-    public boolean canEdit(UUID tripId, UUID userId) {
-        TripMember member = memberRepository.findByTripAndUser(tripId, userId);
-        return member != null &&
-               (member.getRole() == Role.OWNER || member.getRole() == Role.EDITOR);
-    }
-
-    public boolean canDelete(UUID tripId, UUID userId) {
-        TripMember member = memberRepository.findByTripAndUser(tripId, userId);
-        return member != null && member.getRole() == Role.OWNER;
-    }
-}
-```
+PermissionChecker 透過查詢 TripMember 的角色來判斷權限。`canEdit` 方法允許 OWNER 和 EDITOR 角色編輯行程；`canDelete` 方法僅允許 OWNER 角色刪除行程。所有權限檢查皆先驗證使用者是否為行程成員，再根據角色判斷操作權限。
 
 ### 3.3 活動模組 (Activity Module)
 
@@ -335,44 +333,8 @@ public class PermissionChecker {
 ```
 
 #### 路線優化演算法
-```java
-public class RouteOptimizer {
 
-    /**
-     * 使用貪婪最近鄰居演算法優化路線
-     * 時間複雜度: O(n²)
-     */
-    public List<Activity> optimize(List<Activity> activities) {
-        if (activities.size() <= 2) {
-            return activities;
-        }
-
-        List<Activity> optimized = new ArrayList<>();
-        Set<Activity> remaining = new HashSet<>(activities);
-
-        // 從第一個景點開始
-        Activity current = activities.get(0);
-        optimized.add(current);
-        remaining.remove(current);
-
-        while (!remaining.isEmpty()) {
-            Activity nearest = findNearest(current, remaining);
-            optimized.add(nearest);
-            remaining.remove(nearest);
-            current = nearest;
-        }
-
-        return optimized;
-    }
-
-    private Activity findNearest(Activity from, Set<Activity> candidates) {
-        return candidates.stream()
-            .min(Comparator.comparing(a ->
-                calculateDistance(from.getPlace(), a.getPlace())))
-            .orElseThrow();
-    }
-}
-```
+RouteOptimizer 使用貪婪最近鄰居演算法（Greedy Nearest Neighbor）優化路線，時間複雜度為 O(n^2)。演算法流程如下：若景點數量小於等於 2 則直接返回原順序；否則從第一個景點出發，每次選擇距離最近的未拜訪景點作為下一個目標，重複此過程直到所有景點都被拜訪。距離計算使用景點的地理座標，透過 Haversine 公式或 Google Maps API 取得實際距離。
 
 ### 3.4 分帳模組 (Expense Module)
 
@@ -415,63 +377,14 @@ public class RouteOptimizer {
 ```
 
 #### 債務簡化演算法
-```java
-public class DebtSimplifier {
 
-    /**
-     * 簡化債務關係，最小化交易次數
-     * 使用貪婪演算法配對最大債權人與最大債務人
-     */
-    public List<Settlement> simplify(List<ExpenseSplit> splits,
-                                      Map<UUID, BigDecimal> payments) {
-        // 計算每人淨額（正數=應收，負數=應付）
-        Map<UUID, BigDecimal> balances = calculateBalances(splits, payments);
+DebtSimplifier 使用貪婪演算法簡化債務關係，以最小化交易次數為目標。演算法流程：
 
-        // 分離債權人與債務人
-        PriorityQueue<Balance> creditors = new PriorityQueue<>(
-            Comparator.comparing(Balance::getAmount).reversed());
-        PriorityQueue<Balance> debtors = new PriorityQueue<>(
-            Comparator.comparing(Balance::getAmount));
+1. **計算淨額**：根據所有支出分攤記錄與實際付款金額，計算每位成員的淨額（正數表示應收款，負數表示應付款）。
+2. **分離債權人與債務人**：使用優先佇列（PriorityQueue）分別存放債權人（按應收金額降序）和債務人（按應付金額降序）。
+3. **貪婪配對**：每次從兩個佇列中各取出最大金額的債權人與債務人進行配對，取兩者金額中的較小值作為本次結算金額，並將剩餘金額放回對應的佇列。重複此過程直到所有債務結清。
 
-        balances.forEach((userId, amount) -> {
-            if (amount.compareTo(BigDecimal.ZERO) > 0) {
-                creditors.add(new Balance(userId, amount));
-            } else if (amount.compareTo(BigDecimal.ZERO) < 0) {
-                debtors.add(new Balance(userId, amount.abs()));
-            }
-        });
-
-        // 貪婪配對
-        List<Settlement> settlements = new ArrayList<>();
-        while (!creditors.isEmpty() && !debtors.isEmpty()) {
-            Balance creditor = creditors.poll();
-            Balance debtor = debtors.poll();
-
-            BigDecimal amount = creditor.getAmount()
-                .min(debtor.getAmount());
-
-            settlements.add(new Settlement(
-                debtor.getUserId(),   // from
-                creditor.getUserId(), // to
-                amount
-            ));
-
-            // 處理餘額
-            BigDecimal creditorRemaining = creditor.getAmount().subtract(amount);
-            BigDecimal debtorRemaining = debtor.getAmount().subtract(amount);
-
-            if (creditorRemaining.compareTo(BigDecimal.ZERO) > 0) {
-                creditors.add(new Balance(creditor.getUserId(), creditorRemaining));
-            }
-            if (debtorRemaining.compareTo(BigDecimal.ZERO) > 0) {
-                debtors.add(new Balance(debtor.getUserId(), debtorRemaining));
-            }
-        }
-
-        return settlements;
-    }
-}
-```
+此演算法可有效將 N 人之間的複雜債務關係簡化為最少 N-1 筆交易。
 
 ---
 
@@ -488,9 +401,9 @@ public class DebtSimplifier {
 
 | 項目 | 數量 | 說明 |
 |------|------|------|
-| 後端 REST endpoint 總數 | ~50 | 含 Web Controller + API Controller |
+| 後端 REST endpoint 總數 | 55 | 含 Web Controller + API Controller |
+| Web 端點 | 37 | Thymeleaf 頁面控制器 |
 | 前端實際使用的 endpoint | ~24 | JavaScript 模組 + Thymeleaf inline 呼叫 |
-| Orphan endpoints (API-only) | ~26 | 後端有但前端未使用，供未來 mobile/SPA 使用 |
 
 > 詳細前後端 API 對照表請參考 [docs/api-reference.md](./api-reference.md)
 
@@ -510,33 +423,8 @@ public class DebtSimplifier {
 | REST API | `controller/api/*` | `@RequestBody` | JSON (ApiResponse) | 供未來 mobile/SPA 使用 |
 
 #### 統一回應格式
-```java
-public class ApiResponse<T> {
-    private boolean success;
-    private T data;
-    private String message;
-    private String errorCode;
-    private LocalDateTime timestamp;
-}
 
-// 成功回應
-{
-    "success": true,
-    "data": { ... },
-    "message": null,
-    "errorCode": null,
-    "timestamp": "2024-01-15T10:30:00"
-}
-
-// 錯誤回應
-{
-    "success": false,
-    "data": null,
-    "message": "行程不存在",
-    "errorCode": "TRIP_NOT_FOUND",
-    "timestamp": "2024-01-15T10:30:00"
-}
-```
+ApiResponse 物件包含以下欄位：`success`（布林值）、`data`（泛型資料）、`message`（訊息字串）、`errorCode`（錯誤碼）、`timestamp`（時間戳記）。成功時 `success` 為 `true` 並攜帶 `data`；失敗時 `success` 為 `false` 並攜帶 `message` 與 `errorCode`。
 
 ### 4.2 錯誤碼定義
 
@@ -564,49 +452,13 @@ public class ApiResponse<T> {
 
 #### 驗證錯誤回應格式
 
-```json
-{
-    "success": false,
-    "data": null,
-    "message": "驗證失敗",
-    "errorCode": "VALIDATION_ERROR",
-    "errors": [
-        {
-            "field": "title",
-            "message": "行程名稱不可為空",
-            "rejectedValue": null
-        },
-        {
-            "field": "endDate",
-            "message": "結束日期不可早於開始日期",
-            "rejectedValue": "2024-01-01"
-        }
-    ],
-    "timestamp": "2024-01-15T10:30:00"
-}
-```
+驗證失敗時回傳 `VALIDATION_ERROR` 錯誤碼，並在 `errors` 陣列中列出每個欄位的驗證錯誤，包含 `field`（欄位名稱）、`message`（錯誤訊息）、`rejectedValue`（被拒絕的值）三個屬性。
 
 ### 4.3 分頁與查詢參數
 
 #### 分頁回應格式
 
-```java
-public class PagedResponse<T> {
-    private boolean success;
-    private List<T> data;
-    private PaginationMeta pagination;
-    private LocalDateTime timestamp;
-}
-
-public class PaginationMeta {
-    private int page;           // 當前頁碼（0-based）
-    private int size;           // 每頁筆數
-    private int totalPages;     // 總頁數
-    private long totalElements; // 總筆數
-    private boolean hasNext;
-    private boolean hasPrevious;
-}
-```
+分頁回應使用 PagedResponse 物件，包含 `data`（資料列表）和 `pagination`（分頁資訊）。分頁資訊包括：`page`（當前頁碼，0-based）、`size`（每頁筆數）、`totalPages`（總頁數）、`totalElements`（總筆數）、`hasNext`（是否有下一頁）、`hasPrevious`（是否有上一頁）。
 
 #### 查詢參數規範
 
@@ -632,22 +484,11 @@ public class PaginationMeta {
 
 #### 回應標頭
 
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1704067200
-```
+Rate Limiting 回應包含三個標頭：`X-RateLimit-Limit`（限制次數）、`X-RateLimit-Remaining`（剩餘次數）、`X-RateLimit-Reset`（重置時間戳記）。
 
 #### 超過限制回應
 
-```json
-{
-    "success": false,
-    "message": "請求過於頻繁，請稍後再試",
-    "errorCode": "RATE_LIMIT_EXCEEDED",
-    "retryAfter": 60
-}
-```
+超過限制時回傳 HTTP 429，錯誤碼為 `RATE_LIMIT_EXCEEDED`，並包含 `retryAfter`（重試等待秒數）欄位。
 
 ### 4.5 Health Check 端點
 
@@ -657,70 +498,17 @@ X-RateLimit-Reset: 1704067200
 | `GET /actuator/health/liveness` | Kubernetes 存活探針 | 無 |
 | `GET /actuator/health/readiness` | Kubernetes 就緒探針 | 無 |
 
-#### 回應範例
+Health Check 回傳 JSON 格式，基本端點回傳 `status: "UP"`；readiness 端點額外包含 `components` 物件，顯示各依賴服務（如 db、diskSpace）的狀態。
 
-```json
-// GET /actuator/health
-{
-    "status": "UP"
-}
+### 4.6 DTO 設計
 
-// GET /actuator/health/readiness（檢查依賴服務）
-{
-    "status": "UP",
-    "components": {
-        "db": { "status": "UP" },
-        "diskSpace": { "status": "UP" }
-    }
-}
-```
+Request DTO 使用 Jakarta Validation 註解進行輸入驗證，包括 `@NotBlank`、`@Size`、`@NotNull`、`@FutureOrPresent`、`@Pattern` 等。Response DTO 僅包含前端所需的欄位，避免洩漏內部實作細節。
 
-### 4.6 DTO 設計範例
-
-```java
-// Request DTO - 使用 Validation
-@Data
-public class CreateTripRequest {
-
-    @NotBlank(message = "行程名稱不可為空")
-    @Size(max = 100, message = "行程名稱不可超過100字")
-    private String title;
-
-    @Size(max = 500, message = "描述不可超過500字")
-    private String description;
-
-    @NotNull(message = "開始日期不可為空")
-    @FutureOrPresent(message = "開始日期不可為過去")
-    private LocalDate startDate;
-
-    @NotNull(message = "結束日期不可為空")
-    private LocalDate endDate;
-
-    @Pattern(regexp = "^[A-Z]{3}$", message = "幣別格式錯誤")
-    private String baseCurrency = "TWD";
-}
-
-// Response DTO - 只包含需要的欄位
-@Data
-@Builder
-public class TripResponse {
-    private UUID id;
-    private String title;
-    private LocalDate startDate;
-    private LocalDate endDate;
-    private String coverImageUrl;
-    private int memberCount;
-    private List<MemberSummary> members;
-
-    @Data
-    @Builder
-    public static class MemberSummary {
-        private UUID userId;
-        private String nickname;
-        private String avatarUrl;
-    }
-}
-```
+主要 DTO 設計規範：
+- Request DTO 命名格式：`Create{Entity}Request`、`Update{Entity}Request`
+- Response DTO 命名格式：`{Entity}Response`、`{Entity}DetailResponse`
+- 使用 Builder 模式建構 Response DTO
+- 巢狀物件使用內部靜態類別（如 `TripResponse.MemberSummary`）
 
 ---
 
@@ -802,86 +590,18 @@ public class TripResponse {
 | GET | `/api/weather?lat={lat}&lng={lng}&date={date}` | 取得天氣預報 | OpenWeatherMap |
 | GET | `/api/exchange-rates?from={}&to={}` | 取得匯率 | ExchangeRate-API |
 
-#### 回應範例
+### 6.2 外部服務整合架構
 
-```json
-// GET /api/directions?origin=台北車站&dest=淺草寺&mode=transit
-{
-    "success": true,
-    "data": {
-        "distance": "2,180 km",
-        "distanceMeters": 2180000,
-        "duration": "3 小時 45 分",
-        "durationSeconds": 13500,
-        "mode": "transit"
-    },
-    "cached": true,
-    "cacheExpires": "2024-01-16T10:30:00"
-}
+系統整合 4 個外部服務，每個服務皆透過介面抽象化，並提供 Mock 實作供開發與測試使用：
 
-// GET /api/weather?lat=35.6895&lng=139.6917&date=2024-03-15
-{
-    "success": true,
-    "data": {
-        "date": "2024-03-15",
-        "tempHigh": 18,
-        "tempLow": 10,
-        "condition": "晴",
-        "icon": "01d",
-        "rainProbability": 5
-    }
-}
+| 服務 | 介面 | 正式實作 | Mock 實作 | 用途 |
+|------|------|----------|-----------|------|
+| Google Maps | GoogleMapsClient | GoogleMapsClientImpl | MockGoogleMapsClient (Haversine) | 地點搜尋、交通路線計算 |
+| OpenWeatherMap | WeatherClient | OpenWeatherMapClient | MockWeatherClient | 5 天天氣預報 |
+| ExchangeRate-API | ExchangeRateClient | ExchangeRateApiClient | MockExchangeRateClient (固定匯率) | 匯率查詢與轉換 |
+| Supabase Storage | StorageClient | SupabaseStorageClient | MockStorageClient | 檔案上傳/下載 |
 
-// GET /api/exchange-rates?from=JPY&to=TWD
-{
-    "success": true,
-    "data": {
-        "from": "JPY",
-        "to": "TWD",
-        "rate": 0.22,
-        "updatedAt": "2024-01-15T00:00:00Z"
-    }
-}
-```
-
-### 6.2 Google Maps API 實作
-
-```java
-@Service
-public class GoogleMapsService {
-
-    private final RestTemplate restTemplate;
-    private final String apiKey;
-
-    /**
-     * 計算兩點間的交通時間與距離
-     * 結果快取 24 小時
-     */
-    @Cacheable(value = "directions", key = "#origin + '-' + #destination + '-' + #mode")
-    public DirectionResult getDirections(String origin,
-                                         String destination,
-                                         TravelMode mode) {
-        String url = String.format(
-            "https://maps.googleapis.com/maps/api/distancematrix/json" +
-            "?origins=%s&destinations=%s&mode=%s&key=%s",
-            origin, destination, mode.getValue(), apiKey
-        );
-
-        // 呼叫 API 並解析回應
-        // ...
-    }
-
-    /**
-     * 搜尋地點
-     */
-    public List<PlaceResult> searchPlaces(String query,
-                                          double lat,
-                                          double lng,
-                                          int radius) {
-        // ...
-    }
-}
-```
+Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMatrix），使用 Header `X-Goog-Api-Key` 進行認證，並支援 TRANSIT 至 DRIVING 的自動降級。
 
 ### 6.3 快取策略
 
@@ -909,21 +629,9 @@ public class GoogleMapsService {
 | `expense_split` | `idx_split_user` | (user_id, is_settled) | INDEX | 用戶待結清查詢 |
 | `document` | `idx_document_trip` | (trip_id) | INDEX | 行程檔案查詢 |
 | `document` | `idx_document_activity` | (related_activity_id) | INDEX | 景點關聯檔案 |
-| `todo` | `idx_todo_trip_status` | (trip_id, status, due_date) | INDEX | 代辦清單排序 |
+| `todo` | `idx_todo_trip_status` | (trip_id, status, due_date) | INDEX | 代辦清單排序（部分索引，僅索引未完成項目） |
 | `invite_link` | `idx_invite_token` | (token) | UNIQUE | 邀請連結查詢 |
 | `invite_link` | `idx_invite_expires` | (expires_at) | INDEX | 過期連結清理 |
-
-#### 索引 SQL 範例
-
-```sql
--- PostgreSQL 索引建立範例
-CREATE UNIQUE INDEX idx_user_provider ON "user" (provider, provider_id);
-CREATE UNIQUE INDEX idx_trip_member_unique ON trip_member (trip_id, user_id);
-CREATE INDEX idx_activity_trip_day ON activity (trip_id, day, sort_order);
-CREATE INDEX idx_expense_trip ON expense (trip_id, created_at DESC);
-CREATE INDEX idx_todo_trip_status ON todo (trip_id, status, due_date)
-    WHERE status != 'completed';  -- 部分索引，只索引未完成項目
-```
 
 #### 索引維護注意事項
 
@@ -972,34 +680,12 @@ CREATE INDEX idx_todo_trip_status ON todo (trip_id, status, due_date)
 
 ### 7.2 授權檢查
 
-```java
-@Aspect
-@Component
-public class PermissionAspect {
+系統使用 AOP 切面（PermissionAspect）搭配自訂 `@RequiresPermission` 註解進行授權檢查。切面在方法執行前從請求中提取 tripId 和 userId，透過 PermissionChecker 驗證使用者是否具備所需權限（如 EDIT、DELETE），若無權限則拋出 ForbiddenException。
 
-    @Around("@annotation(requiresPermission)")
-    public Object checkPermission(ProceedingJoinPoint joinPoint,
-                                   RequiresPermission requiresPermission)
-            throws Throwable {
-
-        UUID tripId = extractTripId(joinPoint);
-        UUID userId = getCurrentUserId();
-        Permission required = requiresPermission.value();
-
-        if (!permissionChecker.hasPermission(tripId, userId, required)) {
-            throw new ForbiddenException("無權限執行此操作");
-        }
-
-        return joinPoint.proceed();
-    }
-}
-
-// 使用方式
-@RequiresPermission(Permission.EDIT)
-public void updateActivity(UUID tripId, UpdateActivityRequest request) {
-    // ...
-}
-```
+授權檢查涵蓋三個層級：
+- **OWNER**：完整權限（刪除行程、管理成員、變更角色）
+- **EDITOR**：編輯權限（新增/修改景點、支出、文件、代辦事項）
+- **VIEWER**：唯讀權限（僅能檢視行程內容）
 
 ---
 
@@ -1034,7 +720,7 @@ public void updateActivity(UUID tripId, UpdateActivityRequest request) {
 **決策**: 使用貪婪最近鄰居演算法 (Greedy Nearest Neighbor)
 
 **理由**:
-- 實作簡單，時間複雜度 O(n²) 可接受
+- 實作簡單，時間複雜度 O(n^2) 可接受
 - 景點數量有限（每日 < 15 個）
 - 結果品質在可接受範圍內
 
@@ -1072,7 +758,24 @@ public void updateActivity(UUID tripId, UpdateActivityRequest request) {
 | ExpenseSplit | 單筆支出的分攤明細 |
 | Settlement | 結算後的債務關係（誰付給誰多少） |
 
-### 9.2 參考文件
+### 9.2 專案統計
+
+| 項目 | 數量 |
+|------|------|
+| 單元測試 | ~864 個測試方法，58 個測試檔案 |
+| E2E 測試 | ~118 個測試案例，10 個 spec 檔案 |
+| REST API 端點 | 55 個 |
+| Web 端點 | 37 個 |
+| Service 類別 | 17 個 |
+| Entity 類別 | 10 個 |
+| Enum 類別 | 6 個 |
+| Repository | 10 個 |
+| HTML 模板 | 27 個 |
+| JS 模組 | 6 個 |
+| Domain 元件 | 4 個 |
+| 外部服務整合 | 4 個 |
+
+### 9.3 參考文件
 
 - [Spring Boot Reference](https://docs.spring.io/spring-boot/docs/current/reference/html/)
 - [Spring Security OAuth2](https://docs.spring.io/spring-security/reference/servlet/oauth2/index.html)

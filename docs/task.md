@@ -1,6 +1,6 @@
 ## 開發規範提醒
 
-1. **遵循現有模式** - 參考 `WeatherClient`/`OpenWeatherMapClient`/`MockWeatherClient`
+1. **遵循現有模式** - 參考 WeatherClient/OpenWeatherMapClient/MockWeatherClient 的介面抽象化模式
 2. **TDD 流程** - 先寫測試 (RED)，再寫實作 (GREEN)，最後重構 (REFACTOR)
 3. **契約註解** - 所有 public 方法須包含 `@contract` 註解
 4. **授權檢查** - 統計 API 必須在資料存取前檢查權限
@@ -29,6 +29,7 @@
 | 2026-02-04 | Phase 4.2 完成 | 深色模式實作：Navbar 切換、FOUC 防護、Chart.js 主題響應，786 tests 通過 |
 | 2026-02-04 | Phase 4.3 完成 | E2E 測試全部完成，89 passed (chromium)，786 unit tests 通過 |
 | 2026-02-04 | Phase 4.4 完成 | 安全強化、無障礙修復、文件更新，**Phase 4 全部完成** |
+| 2026-02-12 | 文件更新 | 測試統計更新為 ~864 unit tests + ~118 E2E tests |
 | - | - | - |
 
 ---
@@ -124,7 +125,7 @@
 ### Phase 4.3: E2E 測試 (Week 4)
 
 > 測試框架: Playwright + e2e profile
-> 測試結果: **89 passed** (chromium)
+> 測試結果: **~118 passed** (chromium)
 
 | ID | 項目 | 狀態 |
 |----|------|:----:|
@@ -136,8 +137,10 @@
 | P4-E2E-008 | CI 整合 (Maven exec) | ⬜ |
 | P4-E2E-009 | todo.spec.ts | ✅ (14 tests) |
 | P4-E2E-010 | statistics.spec.ts | ⏳ 已含於 expense.spec.ts |
-| P4-E2E-011 | settlement.spec.ts | ⏳ 已含於 expense.spec.ts |
+| P4-E2E-011 | settlement.spec.ts | ✅ (6 tests) |
 | P4-E2E-012 | dark-mode.spec.ts | ✅ (28 tests) |
+| P4-E2E-013 | member.spec.ts | ✅ (8 tests) |
+| P4-E2E-014 | profile.spec.ts | ✅ (5 tests) |
 
 ### ~~Phase 4.4: PWA 離線支援~~ (已移除)
 
@@ -147,7 +150,7 @@
 
 | ID | 項目 | 狀態 |
 |----|------|:----:|
-| P4-FIN-001 | 全面回歸測試 | ✅ (786 unit + 89 E2E) |
+| P4-FIN-001 | 全面回歸測試 | ✅ (~864 unit + ~118 E2E) |
 | P4-FIN-002 | 文件更新 | ✅ (README.md 更新) |
 | P4-FIN-003 | Lighthouse 審計 (Performance >= 90) | ⬜ |
 | P4-FIN-004 | 安全滲透測試 | ✅ (Rate Limit 記憶體洩漏修復) |
@@ -160,42 +163,17 @@
 
 ### 深色模式色彩系統 (Tailwind)
 
-> 建議：保留現有 gray 色系，不引入 slate
+> 保留現有 gray 色系，不引入 slate
 
-```
-Light Mode (現有):
-- Background: gray-50
-- Surface: white
-- Text: gray-900
-- Muted: gray-600
-- Border: gray-200
+Light Mode 使用 gray-50 背景、white 表面、gray-900 文字、gray-600 輔助文字、gray-200 邊框。
 
-Dark Mode:
-- Background: gray-900
-- Surface: gray-800
-- Text: gray-100
-- Muted: gray-400
-- Border: gray-700
-- CTA: adventure-500 (品牌一致性)
-```
+Dark Mode 使用 gray-900 背景、gray-800 表面、gray-100 文字、gray-400 輔助文字、gray-700 邊框。CTA 按鈕使用 adventure-500 保持品牌一致性。
 
 ### 安全修復模式
 
-```html
-<!-- th:onclick → data-* -->
-<button th:data-val="${val}" onclick="fn(this.dataset.val)">
-```
+前端安全修復統一使用 `th:data-*` 屬性搭配 `this.dataset.*` 存取，取代直接在 `th:onclick` 中拼接值。
 
-```java
-// 認證繞過修復
-if (principal == null) {
-    throw new UnauthorizedException("認證已過期");
-}
-
-// 建議：使用 AOP 攔截器
-@RequiresTripMembership
-public ResponseEntity<?> getExpenses(@PathVariable Long tripId) { ... }
-```
+後端認證修復在所有 API Controller 方法中加入 principal null 檢查，null 時拋出 UnauthorizedException。建議後續可使用 AOP 攔截器（`@RequiresTripMembership`）統一處理。
 
 ---
 
@@ -208,4 +186,3 @@ public ResponseEntity<?> getExpenses(@PathVariable Long tripId) { ... }
 | Tailwind 配置 | `src/main/frontend/tailwind.config.js` |
 | DarkMode 控制器 | `src/main/resources/static/js/app.js` |
 | E2E 測試 | `e2e/tests/*.spec.ts` |
-| 需修復 XSS | `src/main/resources/templates/document/list.html:609` |

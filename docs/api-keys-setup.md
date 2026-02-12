@@ -1,5 +1,7 @@
 # WeGo API Keys 設定指南
 
+> 更新日期：2026-02-12
+
 ## 概述
 
 本專案使用多個外部 API，本文件說明各 API 的申請方式、開發階段的替代方案，以及安全性注意事項。
@@ -10,11 +12,11 @@
 
 | 優先級 | API | 階段 | 費用 | 說明 |
 |--------|-----|------|------|------|
-| 🔴 P0 | Supabase | MVP | 免費方案可用 | 資料庫，核心必須 |
-| 🔴 P0 | Google OAuth | MVP | 免費 | 用戶登入 |
-| 🟡 P1 | Google Maps | MVP | 免費額度 $200/月 | 可先 mock 開發 |
-| 🟢 P2 | OpenWeatherMap | Phase 2 | 免費方案可用 | 天氣預報 |
-| 🟢 P3 | ExchangeRate-API | Phase 3 | 免費方案可用 | 匯率轉換 |
+| P0 | Supabase | MVP | 免費方案可用 | 資料庫，核心必須 |
+| P0 | Google OAuth | MVP | 免費 | 用戶登入 |
+| P1 | Google Maps | MVP | 免費額度 $200/月 | 可先 mock 開發 |
+| P2 | OpenWeatherMap | Phase 2 | 免費方案可用 | 天氣預報 |
+| P3 | ExchangeRate-API | Phase 3 | 免費方案可用 | 匯率轉換 |
 
 ---
 
@@ -27,7 +29,7 @@
 3. 點擊「New Project」
 4. 設定：
    - Project name: `wego`
-   - Database password: （記下來）
+   - Database password:（記下來）
    - Region: `Northeast Asia (Tokyo)` 或最近的區域
 5. 等待專案建立完成（約 2 分鐘）
 
@@ -47,11 +49,11 @@
 
 ### 2.4 環境變數
 
-```bash
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres
-SUPABASE_URL=https://[REF].supabase.co
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIs...
-```
+| 變數名稱 | 說明 | 範例 |
+|----------|------|------|
+| `DATABASE_URL` | PostgreSQL 連線字串 | `postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres` |
+| `SUPABASE_URL` | Supabase 專案 URL | `https://[REF].supabase.co` |
+| `SUPABASE_SERVICE_KEY` | Service Role 金鑰（JWT 格式） | `eyJhbGciOiJIUzI1NiIs...` |
 
 ---
 
@@ -66,12 +68,8 @@ SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIs...
 5. 設定：
    - Application type: `Web application`
    - Name: `WeGo Web Client`
-   - Authorized JavaScript origins:
-     - `http://localhost:8080`
-     - `https://your-domain.com`（部署後）
-   - Authorized redirect URIs:
-     - `http://localhost:8080/login/oauth2/code/google`
-     - `https://your-domain.com/login/oauth2/code/google`
+   - Authorized JavaScript origins: `http://localhost:8080`（部署後加上正式網域）
+   - Authorized redirect URIs: `http://localhost:8080/login/oauth2/code/google`（部署後加上正式網域）
 6. 複製 Client ID 和 Client Secret
 
 ### 3.2 設定 OAuth 同意畫面
@@ -83,10 +81,10 @@ SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIs...
 
 ### 3.3 環境變數
 
-```bash
-GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-xxx
-```
+| 變數名稱 | 說明 | 範例 |
+|----------|------|------|
+| `GOOGLE_CLIENT_ID` | OAuth Client ID | `xxx.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | OAuth Client Secret | `GOCSPX-xxx` |
 
 ---
 
@@ -115,44 +113,16 @@ GOOGLE_CLIENT_SECRET=GOCSPX-xxx
 
 ### 4.3 開發階段替代方案
 
-在沒有 API Key 時，可使用 Mock 服務：
+在沒有 API Key 時，系統自動載入 Mock 服務（透過 Spring Profile `dev`）。Mock 服務的行為：
 
-```java
-@Profile("dev")
-@Service
-public class MockGoogleMapsService implements GoogleMapsService {
-
-    @Override
-    public DirectionResult getDirections(String origin, String destination, TravelMode mode) {
-        // 回傳模擬資料
-        return DirectionResult.builder()
-            .distance("5.2 km")
-            .duration("15 mins")
-            .durationSeconds(900)
-            .build();
-    }
-
-    @Override
-    public List<PlaceResult> searchPlaces(String query, double lat, double lng) {
-        // 回傳預設景點
-        return List.of(
-            PlaceResult.builder()
-                .placeId("mock-place-1")
-                .name(query)
-                .address("模擬地址")
-                .lat(lat + 0.01)
-                .lng(lng + 0.01)
-                .build()
-        );
-    }
-}
-```
+- **地圖方向**：回傳固定模擬資料（距離 5.2 km、時間 15 分鐘）
+- **地點搜尋**：回傳以查詢字串為名稱的模擬地點，座標為輸入座標的微偏移
 
 ### 4.4 環境變數
 
-```bash
-GOOGLE_MAPS_API_KEY=AIzaSy...
-```
+| 變數名稱 | 說明 | 範例 |
+|----------|------|------|
+| `GOOGLE_MAPS_API_KEY` | Google Maps API 金鑰 | `AIzaSy...` |
 
 ---
 
@@ -167,30 +137,13 @@ GOOGLE_MAPS_API_KEY=AIzaSy...
 
 ### 5.2 開發階段替代方案
 
-```java
-@Profile("dev")
-@Service
-public class MockWeatherService implements WeatherService {
-
-    @Override
-    public WeatherForecast getForecast(double lat, double lng, LocalDate date) {
-        return WeatherForecast.builder()
-            .date(date)
-            .tempHigh(25)
-            .tempLow(18)
-            .condition("晴")
-            .icon("01d")
-            .rainProbability(10)
-            .build();
-    }
-}
-```
+在沒有 API Key 時，Mock 服務回傳固定的天氣預報資料（晴天、最高溫 25 度、最低溫 18 度、降雨機率 10%）。
 
 ### 5.3 環境變數
 
-```bash
-OPENWEATHERMAP_API_KEY=xxx
-```
+| 變數名稱 | 說明 | 範例 |
+|----------|------|------|
+| `OPENWEATHERMAP_API_KEY` | 天氣 API 金鑰 | `xxx` |
 
 ---
 
@@ -205,35 +158,21 @@ OPENWEATHERMAP_API_KEY=xxx
 
 ### 6.2 開發階段替代方案
 
-使用固定匯率表：
+在沒有 API Key 時，Mock 服務使用固定匯率表進行換算：
 
-```java
-@Profile("dev")
-@Service
-public class MockExchangeRateService implements ExchangeRateService {
-
-    private static final Map<String, BigDecimal> RATES_TO_TWD = Map.of(
-        "USD", new BigDecimal("31.5"),
-        "JPY", new BigDecimal("0.21"),
-        "EUR", new BigDecimal("34.2"),
-        "KRW", new BigDecimal("0.024"),
-        "TWD", BigDecimal.ONE
-    );
-
-    @Override
-    public BigDecimal getRate(String from, String to) {
-        BigDecimal fromRate = RATES_TO_TWD.getOrDefault(from, BigDecimal.ONE);
-        BigDecimal toRate = RATES_TO_TWD.getOrDefault(to, BigDecimal.ONE);
-        return toRate.divide(fromRate, 6, RoundingMode.HALF_UP);
-    }
-}
-```
+| 幣別 | 對 TWD 匯率 |
+|------|-------------|
+| USD | 31.5 |
+| JPY | 0.21 |
+| EUR | 34.2 |
+| KRW | 0.024 |
+| TWD | 1 |
 
 ### 6.3 環境變數
 
-```bash
-EXCHANGERATE_API_KEY=xxx
-```
+| 變數名稱 | 說明 | 範例 |
+|----------|------|------|
+| `EXCHANGERATE_API_KEY` | 匯率 API 金鑰 | `xxx` |
 
 ---
 
@@ -241,90 +180,36 @@ EXCHANGERATE_API_KEY=xxx
 
 ### 7.1 環境變數檔案
 
-建立 `.env.local`（已加入 .gitignore）：
+建立 `.env.local`（已加入 .gitignore），包含以下變數：
 
-```bash
-# === 必須 ===
-DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJ...
+**必須變數：**
 
-GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-xxx
+| 變數名稱 | 說明 |
+|----------|------|
+| `DATABASE_URL` | Supabase PostgreSQL 連線字串 |
+| `SUPABASE_URL` | Supabase 專案 URL |
+| `SUPABASE_SERVICE_KEY` | Service Role 金鑰 |
+| `GOOGLE_CLIENT_ID` | OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | OAuth Client Secret |
 
-# === 可選（沒有則使用 Mock）===
-GOOGLE_MAPS_API_KEY=
-OPENWEATHERMAP_API_KEY=
-EXCHANGERATE_API_KEY=
-```
+**可選變數（無則使用 Mock）：**
+
+| 變數名稱 | 說明 |
+|----------|------|
+| `GOOGLE_MAPS_API_KEY` | Google Maps API 金鑰 |
+| `OPENWEATHERMAP_API_KEY` | 天氣 API 金鑰 |
+| `EXCHANGERATE_API_KEY` | 匯率 API 金鑰 |
 
 ### 7.2 Spring Profile 設定
 
-```yaml
-# application.yml
-spring:
-  profiles:
-    active: ${SPRING_PROFILE:dev}
+專案使用 Spring Profile 控制外部 API 的載入行為：
 
----
-# application-dev.yml（開發環境，使用 Mock）
-spring:
-  config:
-    activate:
-      on-profile: dev
-
-wego:
-  external-api:
-    google-maps:
-      enabled: ${GOOGLE_MAPS_API_KEY:}
-      mock-enabled: true  # 沒有 key 時使用 mock
-    weather:
-      enabled: ${OPENWEATHERMAP_API_KEY:}
-      mock-enabled: true
-    exchange-rate:
-      enabled: ${EXCHANGERATE_API_KEY:}
-      mock-enabled: true
-
----
-# application-prod.yml（生產環境，必須有真實 key）
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-wego:
-  external-api:
-    google-maps:
-      enabled: true
-      mock-enabled: false
-    weather:
-      enabled: true
-      mock-enabled: false
-    exchange-rate:
-      enabled: true
-      mock-enabled: false
-```
+- **dev Profile**：預設使用 Mock 服務，當環境變數未設定時自動啟用 mock-enabled
+- **prod Profile**：必須提供所有真實 API Key，mock-enabled 為 false
 
 ### 7.3 條件式 Bean 載入
 
-```java
-@Configuration
-public class ExternalApiConfig {
-
-    @Bean
-    @ConditionalOnProperty(name = "wego.external-api.google-maps.mock-enabled", havingValue = "true")
-    public GoogleMapsService mockGoogleMapsService() {
-        return new MockGoogleMapsService();
-    }
-
-    @Bean
-    @ConditionalOnProperty(name = "wego.external-api.google-maps.mock-enabled", havingValue = "false")
-    public GoogleMapsService realGoogleMapsService(
-            @Value("${GOOGLE_MAPS_API_KEY}") String apiKey) {
-        return new GoogleMapsServiceImpl(apiKey);
-    }
-}
-```
+外部 API 服務使用 `@ConditionalOnProperty` 依據 `mock-enabled` 屬性決定載入真實服務或 Mock 服務。每個外部 API（Google Maps、Weather、Exchange Rate）都有對應的 Mock 實作和真實實作，透過設定檔自動切換。
 
 ---
 
@@ -332,37 +217,18 @@ public class ExternalApiConfig {
 
 ### 8.1 絕對不要做的事
 
-- ❌ 將 API Key 寫死在程式碼中
-- ❌ 將 `.env` 檔案提交到 Git
-- ❌ 在前端 JavaScript 中暴露 Secret Key
-- ❌ 使用無限制的 API Key
+- 將 API Key 寫死在程式碼中
+- 將 `.env` 檔案提交到 Git
+- 在前端 JavaScript 中暴露 Secret Key
+- 使用無限制的 API Key
 
 ### 8.2 應該做的事
 
-- ✅ 使用環境變數
-- ✅ 將 `.env*` 加入 `.gitignore`
-- ✅ 設定 API Key 使用限制（IP、Referrer、API 範圍）
-- ✅ 定期輪換 Key
-- ✅ 監控 API 使用量
-
-### 8.3 .gitignore 設定
-
-```gitignore
-# Environment files
-.env
-.env.local
-.env.*.local
-*.env
-
-# IDE
-.idea/
-*.iml
-.vscode/
-
-# Build
-target/
-build/
-```
+- 使用環境變數管理所有金鑰
+- 將 `.env*` 加入 `.gitignore`
+- 設定 API Key 使用限制（IP、Referrer、API 範圍）
+- 定期輪換 Key
+- 監控 API 使用量
 
 ---
 

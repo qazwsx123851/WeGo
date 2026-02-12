@@ -1,7 +1,8 @@
 # Frontend Review Report - WeGo
 
 **Reviewer**: frontend-reviewer
-**Date**: 2026-02-10
+**Date**: 2026-02-12
+**Branch**: main
 **Scope**: Thymeleaf templates, JavaScript, AJAX, CSS, SEO & Accessibility
 
 ---
@@ -12,20 +13,20 @@ The WeGo frontend is functional and well-organized with a clear module pattern i
 
 - **8 templates** duplicate head content instead of using the `fragments/head` fragment
 - **~80 occurrences** of `var` in inline template scripts (should use `const`/`let`)
-- **7 console.log/warn/error** statements in production JS files
+- **console.log 已清除** -- 生產 JS 檔案中的 console 語句已移除
 - **No AbortController** or fetch timeout handling across all AJAX modules
 - **4 duplicated `escapeHtml`** implementations across JS modules
 - **4 duplicated CSRF token** retrieval patterns across JS modules
-- **1 memory leak**: `URL.createObjectURL` without `revokeObjectURL` in CoverImagePreview
+- **ObjectURL 記憶體洩漏已修復** -- `CoverImagePreview` 已加入 `URL.revokeObjectURL()` 處理
 - **1 known controller bug**: `inviteLink`/`inviteLinkExpiry` not provided by `showMembersPage()`
 
 | Severity | Count |
 |----------|-------|
-| CRITICAL | 2 |
-| HIGH | 8 |
-| MEDIUM | 10 |
+| CRITICAL | 1 |
+| HIGH | 6 |
+| MEDIUM | 8 |
 | LOW | 6 |
-| **Total** | **26** |
+| **Total** | **21** |
 
 ---
 
@@ -35,7 +36,7 @@ The WeGo frontend is functional and well-organized with a clear module pattern i
 
 **Severity: HIGH** | Affected: 8 templates
 
-The following templates duplicate head content instead of using `th:replace="~{fragments/head :: head(title=...)}`:
+The following templates duplicate head content instead of using `th:replace="~{fragments/head :: head(title=...)}"`:
 
 | Template | Issue |
 |----------|-------|
@@ -126,37 +127,17 @@ The FOUC prevention script uses `var` by design (runs before DOM, needs widest c
 
 ### 2.2 Console Statements in Production
 
-**Severity: MEDIUM** | 7 occurrences
+**Severity: MEDIUM** | **已修復**
 
-| File | Line | Statement |
-|------|------|-----------|
-| `app.js` | 471 | `console.error('Weather load error:', error)` |
-| `route-optimizer.js` | 26 | `console.error('CSRF token not found...')` |
-| `todo.js` | 35 | `console.error('CSRF token not found...')` |
-| `expense.js` | 222 | `console.error('Failed to get exchange rate:', error)` |
-| `expense.js` | 239 | `console.warn('Invalid currency code format:', ...)` |
-| `expense.js` | 264 | `console.error('Exchange rate API error:', error)` |
-| `expense.js` | 267 | `console.warn('Using stale cached rate')` |
-
-**Recommendation**: Replace with a centralized logger that can be silenced in production, or remove them entirely and rely on error boundaries/user-facing error messages.
+生產 JS 檔案中的 console.log/warn/error 語句已全數清除。原先有 7 處分布在 `app.js`、`route-optimizer.js`、`todo.js`、`expense.js` 中。
 
 ---
 
 ### 2.3 Memory Leak: ObjectURL Not Revoked
 
-**Severity: HIGH** | File: `app.js:651`
+**Severity: HIGH** | **已修復**
 
-```
-const objectUrl = URL.createObjectURL(file);
-```
-
-`CoverImagePreview` creates an object URL for image preview but never calls `URL.revokeObjectURL()`. Each file selection leaks a blob reference.
-
-**Recommendation**: Revoke the previous object URL before creating a new one:
-```js
-if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
-this.currentObjectUrl = URL.createObjectURL(file);
-```
+`CoverImagePreview` 模組中的 `URL.createObjectURL` 記憶體洩漏已修復。現在在建立新的 Object URL 前會先呼叫 `URL.revokeObjectURL()` 釋放舊的 blob 參照。
 
 ---
 
@@ -167,8 +148,8 @@ this.currentObjectUrl = URL.createObjectURL(file);
 All JS modules use `innerHTML` to render dynamic content. Positively, all modules implement their own `escapeHtml()` function and use it consistently for user-controlled data. This mitigates XSS risk.
 
 However:
-- `app.js:492` (`WeatherUI.buildForecastCard`) uses template literals with `iconUrl` in innerHTML - if `iconUrl` is user-controllable, this is an XSS vector.
-- `expense.js:400` uses an emoji (`submitBtn.innerHTML = '<span class="animate-spin">...</span> ...'`) which is fine but inconsistent with the SVG icon pattern used elsewhere.
+- `app.js` 中 `WeatherUI.buildForecastCard` 使用 template literal 搭配 `iconUrl` 於 innerHTML -- 若 `iconUrl` 可被使用者控制則存在 XSS 風險。
+- `expense.js` 使用 emoji 於 submit button 的 innerHTML，雖無安全風險但與其他使用 SVG icon 的模式不一致。
 
 **Recommendation**: Consider using DOM APIs (`createElement`, `textContent`) for critical sections, or centralize the `escapeHtml` utility (see 3.2).
 
@@ -201,19 +182,7 @@ None of the 6 JS files use `AbortController` or implement fetch timeouts. The on
 
 If the server is slow or unresponsive, fetch calls will hang indefinitely with no user feedback.
 
-**Recommendation**: Create a shared `fetchWithTimeout` wrapper:
-```js
-async function fetchWithTimeout(url, options = {}, timeout = 10000) {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-        const response = await fetch(url, { ...options, signal: controller.signal });
-        return response;
-    } finally {
-        clearTimeout(id);
-    }
-}
-```
+**Recommendation**: Create a shared `fetchWithTimeout` wrapper that使用 `AbortController` 在指定時間後（如 10 秒）自動中止請求。
 
 ---
 
@@ -230,13 +199,7 @@ CSRF token retrieval is duplicated across:
 | `drag-reorder.js:46-51` | `document.querySelector('meta[name="_csrf"]')` |
 | Inline scripts (members.html, settlement.html, upload.html) | Same pattern |
 
-**Recommendation**: Extract to a shared utility function in `app.js`:
-```js
-window.WeGo = {
-    getCsrfToken() { return document.querySelector('meta[name="_csrf"]')?.content; },
-    getCsrfHeader() { return document.querySelector('meta[name="_csrf_header"]')?.content; }
-};
-```
+**Recommendation**: Extract to a shared utility function in `app.js`，例如 `window.WeGo.getCsrfToken()` 和 `window.WeGo.getCsrfHeader()`。
 
 ---
 
@@ -355,17 +318,25 @@ No Google Maps JavaScript API initialization or marker management was found in t
 | Category | Critical | High | Medium | Low | Total |
 |----------|----------|------|--------|-----|-------|
 | Thymeleaf Templates | 1 | 1 | 2 | 1 | 5 |
-| JavaScript | 0 | 2 | 3 | 0 | 5 |
+| JavaScript | 0 | 1 | 2 | 0 | 3 |
 | AJAX & Fetch | 0 | 3 | 2 | 0 | 5 |
 | CSS | 0 | 0 | 0 | 2 | 2 |
 | SEO & Accessibility | 0 | 1 | 1 | 2 | 4 |
 | Google Maps | 0 | 0 | 0 | 0 | 0 |
-| **Total** | **1** | **7** | **8** | **5** | **21** |
+| 已修復 | 0 | 0 | 0 | 0 | 2 |
+| **Total** | **1** | **6** | **7** | **5** | **21** |
+
+### 已修復項目
+
+| 原嚴重度 | 項目 | 狀態 |
+|----------|------|------|
+| HIGH | ObjectURL 記憶體洩漏 (`CoverImagePreview`) | 已修復 -- 已加入 `revokeObjectURL` |
+| MEDIUM | 7 個 console.log/warn/error 語句 | 已修復 -- 已全數清除 |
 
 ### Top 5 Recommendations (by impact)
 
 1. **Fix `members.html` controller data mismatch** - CRITICAL - invite link section is broken
 2. **Refactor templates to use head fragment** - HIGH - 8+ templates duplicate head content, causing maintenance burden and inconsistent meta tags
 3. **Add fetch timeout/AbortController** - HIGH - all AJAX calls can hang indefinitely
-4. **Fix ObjectURL memory leak in CoverImagePreview** - HIGH - blob references leak on each file selection
-5. **Extract shared utilities (escapeHtml, CSRF, fetchWrapper)** - HIGH - reduces 4x code duplication across JS modules
+4. **Extract shared utilities (escapeHtml, CSRF, fetchWrapper)** - HIGH - reduces 4x code duplication across JS modules
+5. **Standardize error handling across AJAX modules** - HIGH - inconsistent user experience on errors

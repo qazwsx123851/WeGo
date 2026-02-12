@@ -1,8 +1,8 @@
 # Security Review Report - WeGo
 
 **Reviewer**: security-reviewer (automated)
-**Date**: 2026-02-10
-**Branch**: fixActivities
+**Date**: 2026-02-12
+**Branch**: main
 **Scope**: Full codebase security audit
 
 ---
@@ -16,7 +16,7 @@ The WeGo project has a **solid security foundation** with proper OAuth2 authenti
 | Severity | Count |
 |----------|-------|
 | Critical | 1 |
-| Warning  | 7 |
+| Warning  | 6 |
 | Suggestion | 5 |
 
 ---
@@ -139,23 +139,9 @@ The Content-Security-Policy includes `'unsafe-inline'` for both `script-src` and
 | **Severity** | Critical |
 | **File** | `src/main/resources/application.yml:83-84` |
 
-```yaml
-server:
-  error:
-    include-message: always
-    include-binding-errors: always
-```
+`application.yml` 中 `server.error.include-message` 和 `server.error.include-binding-errors` 皆設為 `always`。此設定會導致 Spring Boot 預設錯誤頁面和 JSON 回應包含完整錯誤訊息與 binding error 細節。在生產環境中，可能洩漏內部實作細節、類別名稱和資料庫 Schema 資訊。
 
-This configuration causes Spring Boot's default error page and error JSON responses to include full error messages and binding error details. In production, this can leak internal implementation details, class names, and database schema information through validation errors.
-
-**Recommendation**: Set to `never` or `on_param` for production:
-```yaml
-server:
-  error:
-    include-message: never
-    include-binding-errors: never
-    include-stacktrace: never
-```
+**Recommendation**: 生產環境應設為 `never` 或 `on_param`，並確保 `include-stacktrace` 也設為 `never`。
 
 Note: The `GlobalExceptionHandler` handles most API exceptions well (with generic messages for 500 errors), but any unhandled exception paths or web controller errors will fall through to Spring Boot's default error handling, which will expose details.
 
@@ -166,13 +152,7 @@ Note: The `GlobalExceptionHandler` handles most API exceptions well (with generi
 | **Severity** | Warning |
 | **File** | `src/main/resources/application.yml:28` |
 
-```yaml
-jpa:
-  hibernate:
-    ddl-auto: update
-```
-
-`update` in production can cause unintended schema changes and potential data loss. It also creates a security risk where JPA entity changes could silently alter database constraints.
+`jpa.hibernate.ddl-auto` 設為 `update`，在生產環境中可能導致非預期的 Schema 變更和潛在資料遺失。JPA Entity 變更可能會靜默修改資料庫約束。
 
 **Recommendation**: Use `validate` or `none` for production. Use migration tools (Flyway/Liquibase) for schema changes.
 
@@ -183,14 +163,7 @@ jpa:
 | **Severity** | Warning |
 | **File** | `src/main/resources/application.yml:92-93` |
 
-```yaml
-logging:
-  level:
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-```
-
-DEBUG/TRACE SQL logging in production will output full SQL queries and bound parameter values to logs, potentially exposing sensitive data.
+`org.hibernate.SQL` 設為 `DEBUG`，`BasicBinder` 設為 `TRACE`。生產環境中的 DEBUG/TRACE SQL 日誌會輸出完整 SQL 查詢和綁定參數值，可能暴露敏感資料。
 
 **Recommendation**: Set to `WARN` or `ERROR` for production.
 
@@ -233,25 +206,16 @@ No explicit CORS configuration found (`CorsConfiguration`, `@CrossOrigin`, or `c
 
 ### 10. File Upload Security
 
-**Status: PASS with note**
+**Status: PASS（已改善）**
 
 | | |
 |---|---|
-| **Severity** | Warning |
+| **Severity** | 已修復 |
 | **File** | `src/main/resources/application.yml:77-78` |
 
-```yaml
-servlet:
-  multipart:
-    max-file-size: 10MB
-    max-request-size: 100MB
-```
-
-The `max-request-size` of 100MB is 10x the `max-file-size` of 10MB. While this is needed for multipart overhead, a 100MB request limit could be exploited for memory exhaustion.
+`max-file-size` 為 10MB，`max-request-size` 已從 100MB 降至 30MB，更符合安全需求。原先 100MB 的設定過高，可能被用於記憶體耗盡攻擊。
 
 The document upload controller properly validates file types (PDF, JPEG, PNG) and sizes at the service layer, and the preview endpoint sets `X-Content-Type-Options: nosniff` and a sandbox CSP -- both excellent practices.
-
-**Recommendation**: Consider reducing `max-request-size` to 20-30MB (2-3x the file limit).
 
 ---
 
@@ -282,7 +246,7 @@ The `InviteController` properly validates token format with regex (`[A-Za-z0-9_-
 | SQL Logging | WARNING - verbose in production |
 | Weather API | WARNING - unauthenticated |
 | API Key Exposure | WARNING - Google Maps key in templates |
-| File Upload | WARNING - large max-request-size |
+| File Upload | PASS - max-request-size 已降至 30MB（已修復） |
 | Rate Limiting | PASS - Global + per-user |
 
 ---
@@ -295,4 +259,3 @@ The `InviteController` properly validates token format with regex (`[A-Za-z0-9_-
 4. **[MEDIUM]** Migrate CSP from `unsafe-inline` to nonce-based for scripts
 5. **[MEDIUM]** Restrict Google Maps API key via referrer restrictions in Google Cloud Console
 6. **[LOW]** Add rate limiting to weather API or require authentication
-7. **[LOW]** Reduce `max-request-size` to 20-30MB

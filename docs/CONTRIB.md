@@ -1,10 +1,11 @@
 # WeGo 開發貢獻指南
 
-> 最後更新: 2026-02-11 | 自動生成自 pom.xml 和 .env.example
+> 最後更新: 2026-02-12 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-12: 更新測試統計、移除程式碼範例、Service/E2E 表格更新
 > - 2026-02-11: 新增 CSRF Token 使用方式、前後端開發注意事項、API 對照表連結
-> - 2026-02-04: Phase 4 完成 - 安全強化、深色模式、E2E 測試 (89 tests)、無障礙支援
+> - 2026-02-04: Phase 4 完成 - 安全強化、深色模式、E2E 測試、無障礙支援
 > - 2026-02-03: Phase 3 完成 - 多幣別匯率、統計圖表、債務簡化
 > - 2026-02-02: 遷移至 Google Routes API、修復 CI 測試、暫停自動部署
 > - 2026-02-01: 新增 Transport Mode 系統、全域概覽頁面、Profile 頁面、統一錯誤處理
@@ -39,7 +40,7 @@
 | Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 | Unit |
 | Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙 | Unit + E2E |
 
-**測試統計**: 786 單元測試 + 89 E2E 測試 (Playwright)
+**測試統計**: ~864 單元測試 + ~118 E2E 測試 (Playwright)
 
 ---
 
@@ -56,17 +57,13 @@
 
 複製 `.env.example` 為 `.env` 並設定：
 
-```bash
-cp .env.example .env
-```
-
 | 變數 | 必須 | 說明 | 格式範例 |
 |------|:----:|------|----------|
 | `DATABASE_URL` | ✅ | PostgreSQL 連線 URL | `jdbc:postgresql://host:5432/db` |
 | `DATABASE_USERNAME` | ✅ | 資料庫使用者 | `postgres` |
 | `DATABASE_PASSWORD` | ✅ | 資料庫密碼 | |
 | `SUPABASE_URL` | ✅ | Supabase 專案 URL | `https://xxx.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | ✅ | Supabase **Service Role** Key (⚠️ 不是 anon/publishable key) | `eyJhbGciOiJIUzI1NiIs...` |
+| `SUPABASE_SERVICE_KEY` | ✅ | Supabase **Service Role** Key | `eyJhbGciOiJIUzI1NiIs...` |
 | `GOOGLE_CLIENT_ID` | ✅ | Google OAuth Client ID | `xxx.apps.googleusercontent.com` |
 | `GOOGLE_CLIENT_SECRET` | ✅ | Google OAuth Secret | `GOCSPX-xxx` |
 | `GOOGLE_MAPS_API_KEY` | ❌ | Google Maps API (可選) | |
@@ -79,15 +76,7 @@ cp .env.example .env
 
 ### 載入環境變數
 
-專案使用 `spring-dotenv` 自動載入 `.env` 檔案，無需手動 export：
-
-```bash
-# 只需複製 .env.example 並填入實際值
-cp .env.example .env
-
-# 直接啟動，.env 會自動載入
-./mvnw spring-boot:run
-```
+專案使用 `spring-dotenv` 自動載入 `.env` 檔案，無需手動 export。只需複製 `.env.example` 並填入實際值，然後直接啟動即可。
 
 > **注意**: 單元測試使用 H2 記憶體資料庫，不需要 .env 檔案。
 
@@ -107,32 +96,23 @@ cp .env.example .env
 
 ### E2E 測試指令
 
-```bash
-cd e2e
-npm install                     # 安裝 Playwright
-npx playwright test             # 執行所有 E2E 測試
-npx playwright test --ui        # 開啟測試 UI
-npx playwright test auth.spec   # 執行特定測試檔
-npx playwright show-report      # 查看測試報告
-```
+E2E 測試位於 `e2e/` 目錄，使用 Playwright 框架：
+
+| 指令 | 說明 |
+|------|------|
+| `cd e2e && npm install` | 安裝 Playwright |
+| `npx playwright test` | 執行所有 E2E 測試 |
+| `npx playwright test --ui` | 開啟測試 UI |
+| `npx playwright test auth.spec` | 執行特定測試檔 |
+| `npx playwright show-report` | 查看測試報告 |
 
 ### 覆蓋率報告位置
 
-```
-target/site/jacoco/index.html
-```
+覆蓋率報告產生於 `target/site/jacoco/index.html`。
 
 ### 前端建置 (Tailwind CSS)
 
-前端建置整合在 Maven 生命週期中，會自動執行：
-
-```bash
-# 手動執行 (在 src/main/frontend 目錄)
-cd src/main/frontend
-npm install
-npm run build  # 輸出到 dist/styles.css
-npm run watch  # 開發時監聽變更
-```
+前端建置整合在 Maven 生命週期中，會自動執行。手動執行時，進入 `src/main/frontend` 目錄執行 `npm install` 與 `npm run build`（輸出至 `dist/styles.css`），開發時可使用 `npm run watch` 監聽變更。
 
 > **重要**: 若在 JavaScript 中動態使用 Tailwind class，需在 `input.css` 中定義組件類別或在 `tailwind.config.js` 中使用 safelist，否則 JIT 模式不會生成對應的 CSS。
 
@@ -142,39 +122,21 @@ npm run watch  # 開發時監聽變更
 
 ### 1. 建立分支
 
-```bash
-git checkout -b feature/P1-T-001-trip-entity
-```
-
 分支命名規則: `feature/P{phase}-{module}-{id}-{description}`
 
 ### 2. TDD 開發
 
-```
-1. RED    → 撰寫失敗的測試
-2. GREEN  → 撰寫最小程式碼使測試通過
-3. REFACTOR → 重構，保持測試通過
-```
+遵循 RED-GREEN-REFACTOR 循環：先撰寫失敗的測試，再撰寫最小程式碼使測試通過，最後重構並保持測試通過。
 
 ### 3. 執行測試
 
-```bash
-./mvnw test
-```
+使用 `./mvnw test` 執行所有單元測試。
 
-### 4. 確認覆蓋率 (≥ 80%)
+### 4. 確認覆蓋率
 
-```bash
-./mvnw jacoco:report
-open target/site/jacoco/index.html
-```
+使用 `./mvnw jacoco:report` 產生覆蓋率報告，目標為整體覆蓋率 >= 80%。
 
 ### 5. 提交變更
-
-```bash
-git add .
-git commit -m "feat: add Trip entity with validation"
-```
 
 Commit 類型: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
 
@@ -186,21 +148,14 @@ Commit 類型: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
 
 | 層級 | 目標 |
 |------|------|
-| Service | ≥ 80% |
-| Domain | ≥ 90% |
-| Controller | ≥ 70% |
-| **整體** | **≥ 80%** |
+| Service | >= 80% |
+| Domain | >= 90% |
+| Controller | >= 70% |
+| **整體** | **>= 80%** |
 
 ### 測試命名規範
 
-```java
-// 格式: methodName_scenario_expectedBehavior
-@Test
-void createTrip_withValidInput_shouldReturnCreatedTrip() { }
-
-@Test
-void createTrip_withNullTitle_shouldThrowValidationException() { }
-```
+測試方法採用 `methodName_scenario_expectedBehavior` 格式命名，例如 `createTrip_withValidInput_shouldReturnCreatedTrip` 或 `createTrip_withNullTitle_shouldThrowValidationException`。
 
 ### 測試設定檔
 
@@ -227,12 +182,12 @@ src/
 │   │   ├── exception/              # 例外處理
 │   │   └── security/               # OAuth2 相關
 │   ├── resources/
-│   │   ├── templates/              # Thymeleaf 模板
-│   │   ├── static/                 # 靜態資源
+│   │   ├── templates/              # Thymeleaf 模板 (27 個)
+│   │   ├── static/                 # 靜態資源 (6 個 JS 模組)
 │   │   └── application.yml
 │   └── frontend/                   # Tailwind CSS 原始碼
 └── test/
-    └── java/com/wego/             # 測試類別
+    └── java/com/wego/             # 測試類別 (58 個測試檔案)
 ```
 
 ---
@@ -272,14 +227,7 @@ src/
 
 ### 使用 @CurrentUser 註解
 
-```java
-@GetMapping("/profile")
-public String profile(@CurrentUser UserPrincipal principal) {
-    UUID userId = principal.getId();
-    String email = principal.getEmail();
-    // ...
-}
-```
+在 Controller 方法參數中使用 `@CurrentUser UserPrincipal principal` 註解即可取得當前登入使用者的 ID 和 Email。
 
 ---
 
@@ -289,18 +237,23 @@ public String profile(@CurrentUser UserPrincipal principal) {
 
 | Service | 職責 | 依賴 |
 |---------|------|------|
+| `UserService` | 使用者管理、OAuth 建立/更新 | UserRepository |
 | `TripService` | 行程 CRUD、成員管理 | TripRepository, TripMemberRepository |
+| `InviteLinkService` | 邀請連結建立/接受/管理 | InviteLinkRepository, TripMemberRepository |
 | `ActivityService` | 景點 CRUD、排序、拖曳重排 | ActivityRepository, TransportCalculationService |
 | `ExpenseService` | 支出記錄、分帳計算 | ExpenseRepository, SettlementService |
-| `TodoService` | 代辦事項管理 | TodoRepository |
-| `WeatherService` | 天氣預報 (5天) | WeatherClient, CacheService |
-| `DocumentService` | 檔案上傳/下載 | StorageClient |
 | `SettlementService` | 債務結算 | DebtSimplifier |
+| `TodoService` | 代辦事項管理 | TodoRepository |
+| `DocumentService` | 檔案上傳/下載 | StorageClient |
 | `TransportCalculationService` | 交通時間/距離計算、批次重算 | GoogleMapsClient, PlaceRepository |
 | `GlobalExpenseService` | 跨行程支出統計 | ExpenseRepository, TripMemberRepository |
 | `GlobalDocumentService` | 跨行程文件管理 | DocumentRepository, TripMemberRepository |
 | `ExchangeRateService` | 匯率查詢與轉換 (8 種貨幣) | ExchangeRateClient, CacheService |
 | `StatisticsService` | 支出統計分析 (分類/趨勢/成員) | ExpenseRepository |
+| `WeatherService` | 天氣預報 (5天) | WeatherClient, CacheService |
+| `PermissionChecker` | 角色權限檢查 | TripMemberRepository |
+| `CustomOAuth2UserService` | OAuth2 使用者處理 | UserRepository |
+| `WebExceptionHandler` | Web 錯誤頁面處理 | - |
 
 ### Domain 層級 (核心演算法)
 
@@ -309,6 +262,7 @@ public String profile(@CurrentUser UserPrincipal principal) {
 | `RouteOptimizer` | Greedy Nearest Neighbor | 路線優化，O(n^2) 時間複雜度 |
 | `DebtSimplifier` | Greedy Debt Settlement | 最小化交易次數的債務簡化 |
 | `PermissionChecker` | Role-based | 基於角色的權限檢查 |
+| `ExpenseAggregator` | Aggregation | 支出資料聚合與統計 |
 
 ### 外部服務整合
 
@@ -329,18 +283,11 @@ public String profile(@CurrentUser UserPrincipal principal) {
 | Endpoint | `/distanceMatrix/json` | `/distanceMatrix/v2:computeRouteMatrix` |
 | 認證 | URL 參數 `key=` | Header `X-Goog-Api-Key` |
 | 功能 | 基本距離/時間 | 支援交通偏好、詳細資訊 |
-| Fallback | N/A | TRANSIT → DRIVING 自動降級 |
+| Fallback | N/A | TRANSIT 至 DRIVING 自動降級 |
 
-**環境變數**:
-```bash
-GOOGLE_MAPS_USE_ROUTES_API=true  # 推薦，使用新 API
-GOOGLE_MAPS_USE_ROUTES_API=false # 使用舊 Distance Matrix API
-```
+環境變數 `GOOGLE_MAPS_USE_ROUTES_API` 設為 `true` 使用新 API（推薦），設為 `false` 則使用舊 Distance Matrix API。
 
-**新增 DTO**:
-- `TransitPreferences` - 交通偏好設定
-- `TransitDetails` - 轉乘詳細資訊
-- `DirectionResult.ApiSource` - 區分 API 來源 (ROUTES_API / DISTANCE_MATRIX)
+新增 DTO 包括 `TransitPreferences`（交通偏好設定）、`TransitDetails`（轉乘詳細資訊）、`DirectionResult.ApiSource`（區分 API 來源）。
 
 ### Transport Mode 系統
 
@@ -392,23 +339,7 @@ GOOGLE_MAPS_USE_ROUTES_API=false # 使用舊 Distance Matrix API
 
 ### 前端 JavaScript 使用方式
 
-從 Thymeleaf 模板注入的 `<meta>` 標籤取得 CSRF token：
-
-```javascript
-// 取得 token
-const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
-const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
-
-// 在 fetch 請求中使用
-fetch(url, {
-    method: 'POST', // 或 PUT / DELETE
-    headers: {
-        [csrfHeader]: csrfToken,
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(data)
-});
-```
+從 Thymeleaf 模板注入的 `<meta>` 標籤取得 CSRF token。在 `fetch` 請求中，將 `meta[name="_csrf"]` 的 content 作為 token 值，`meta[name="_csrf_header"]` 的 content 作為 header 名稱，附加到所有 POST/PUT/DELETE 請求的 headers 中。
 
 ### 規則
 
@@ -535,7 +466,10 @@ Playwright E2E 測試覆蓋以下流程：
 | `document.spec.ts` | 15 | 文件上傳、搜尋 |
 | `todo.spec.ts` | 14 | 代辦事項管理 |
 | `dark-mode.spec.ts` | 28 | 深色模式切換、持久化 |
-| **總計** | **89** | - |
+| `member.spec.ts` | 8 | 成員管理、角色變更 |
+| `settlement.spec.ts` | 6 | 結算流程 |
+| `profile.spec.ts` | 5 | 個人檔案編輯 |
+| **總計** | **~118** | 10 個 spec 檔案 |
 
 ---
 

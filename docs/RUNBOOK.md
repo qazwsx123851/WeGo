@@ -1,8 +1,9 @@
 # WeGo 維運手冊 (Runbook)
 
-> 最後更新: 2026-02-04 | 部署平台: Railway
+> 最後更新: 2026-02-12 | 部署平台: Railway
 >
 > **變更日誌**:
+> - 2026-02-12: 文件格式更新 — 移除程式碼區塊、更新測試統計
 > - 2026-02-04: Phase 4 完成 - 新增深色模式、E2E 測試、安全強化、無障礙支援
 > - 2026-02-03: Phase 3 完成 - 新增匯率 API、統計功能問題排查
 > - 2026-02-02: 遷移至 Google Routes API、新增 API 問題排查、部署流程暫停
@@ -11,12 +12,7 @@
 
 ## 部署架構
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   GitHub        │────▶│    Railway      │────▶│   Supabase      │
-│   (main branch) │     │   (Java 17)     │     │   (PostgreSQL)  │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-```
+部署流程為 GitHub (main branch) 推送觸發 Railway (Java 17) 建置，Railway 連線至 Supabase (PostgreSQL) 資料庫。
 
 ---
 
@@ -24,34 +20,22 @@
 
 ### 自動部署
 
-> **⚠️ 目前狀態**: 自動部署已暫停 (2026-02-02)
->
-> `.github/workflows/deploy.yml` 設定 `if: false`，需手動移除此行以恢復自動部署。
+> **注意**: 自動部署目前已暫停 (2026-02-02)。`.github/workflows/deploy.yml` 中設定了 `if: false`，需手動移除此行以恢復自動部署。
 
-推送到 `main` 分支會觸發 CI 測試，部署需手動啟用：
+推送到 `main` 分支會觸發 CI 測試，部署需手動啟用。GitHub Actions 工作流程依序執行以下步驟：
 
-```bash
-git push origin main  # 只觸發 CI 測試
-```
-
-GitHub Actions 工作流程：
 1. Checkout code
 2. Setup JDK 17 + Node.js 20
 3. Install frontend dependencies
 4. Build Tailwind CSS
-5. Build JAR (`./mvnw clean package -DskipTests`)
-6. Deploy to Railway (目前暫停)
+5. Build JAR（執行 `./mvnw clean package -DskipTests`）
+6. Deploy to Railway（目前暫停）
 
 ### 手動部署
 
-```bash
-# 1. 建置 JAR
-./mvnw clean package -DskipTests
-
-# 2. 使用 Railway CLI
-railway login
-railway up
-```
+1. 執行 `./mvnw clean package -DskipTests` 建置 JAR 檔案
+2. 執行 `railway login` 登入 Railway CLI
+3. 執行 `railway up` 部署至 Railway
 
 ---
 
@@ -59,17 +43,11 @@ railway up
 
 ### 環境變數自動載入
 
-專案使用 `spring-dotenv` 自動載入 `.env` 檔案：
+專案使用 `spring-dotenv` 自動載入 `.env` 檔案。設定步驟如下：
 
-```bash
-# 1. 複製範本
-cp .env.example .env
-
-# 2. 填入實際值 (參考 .env.example 說明)
-
-# 3. 啟動應用程式 (.env 自動載入)
-./mvnw spring-boot:run
-```
+1. 複製範本檔案 `.env.example` 為 `.env`
+2. 依照 `.env.example` 中的說明填入實際值
+3. 執行 `./mvnw spring-boot:run` 啟動應用程式，`.env` 會自動載入
 
 > **注意**: Railway 部署時直接設定環境變數，不使用 .env 檔案。
 
@@ -118,20 +96,7 @@ cp .env.example .env
 
 ### 健康檢查端點
 
-```bash
-# 基本健康檢查
-curl https://your-app.railway.app/api/health
-
-# 預期回應
-{
-  "success": true,
-  "data": {
-    "application": "WeGo",
-    "status": "healthy"
-  },
-  "timestamp": "2026-01-28T10:00:00Z"
-}
-```
+對 `https://your-app.railway.app/api/health` 發送 GET 請求，預期回傳 JSON 包含 `success: true`、`application: "WeGo"`、`status: "healthy"` 及時間戳。
 
 ### Railway 監控
 
@@ -141,12 +106,7 @@ curl https://your-app.railway.app/api/health
 
 ### 日誌查看
 
-```bash
-# Railway CLI
-railway logs
-
-# 或在 Railway Dashboard 查看
-```
+透過 `railway logs` 指令查看即時日誌，或在 Railway Dashboard 的 Logs 頁面檢視。
 
 ---
 
@@ -158,39 +118,21 @@ railway logs
 
 **原因**: 連線字串格式錯誤
 
-**修復**:
-```bash
-# Direct Connection (開發環境)
-DATABASE_URL=jdbc:postgresql://db.[project-ref].supabase.co:5432/postgres
-DATABASE_USERNAME=postgres
-
-# Pooler Mode (生產環境，IPv4/IPv6 相容)
-DATABASE_URL=jdbc:postgresql://aws-0-[region].pooler.supabase.com:6543/postgres
-DATABASE_USERNAME=postgres.[project-ref]
-```
+**修復**: 開發環境使用 Direct Connection 格式，DATABASE_URL 設為 `jdbc:postgresql://db.[project-ref].supabase.co:5432/postgres`，DATABASE_USERNAME 設為 `postgres`。生產環境使用 Pooler Mode（IPv4/IPv6 相容），DATABASE_URL 設為 `jdbc:postgresql://aws-0-[region].pooler.supabase.com:6543/postgres`，DATABASE_USERNAME 設為 `postgres.[project-ref]`。
 
 ### 2. Port 8080 被佔用
 
 **症狀**: `Port 8080 was already in use`
 
-**修復**:
-```bash
-# macOS/Linux
-lsof -ti:8080 | xargs kill -9
-
-# 或使用其他 port
-PORT=8081 ./mvnw spring-boot:run
-```
+**修復**: 執行 `lsof -ti:8080 | xargs kill -9` 終止佔用程序，或透過設定 `PORT=8081` 環境變數後執行 `./mvnw spring-boot:run` 使用其他埠號。
 
 ### 3. OAuth 登入失敗
 
 **症狀**: Google 登入後重導向錯誤
 
 **檢查**:
-1. Google Cloud Console → OAuth 2.0 Client IDs
-2. 確認 Authorized redirect URIs 包含:
-   - `http://localhost:8080/login/oauth2/code/google` (開發)
-   - `https://your-app.railway.app/login/oauth2/code/google` (生產)
+1. 進入 Google Cloud Console 的 OAuth 2.0 Client IDs 設定
+2. 確認 Authorized redirect URIs 包含開發環境 `http://localhost:8080/login/oauth2/code/google` 及生產環境 `https://your-app.railway.app/login/oauth2/code/google`
 
 **症狀**: `Error 400: redirect_uri_mismatch`
 
@@ -198,9 +140,7 @@ PORT=8081 ./mvnw spring-boot:run
 
 **症狀**: `Access blocked: This app's request is invalid`
 
-**修復**:
-1. OAuth consent screen 需完成設定
-2. 在 Test users 加入測試用的 Gmail 帳號
+**修復**: OAuth consent screen 需完成設定，並在 Test users 加入測試用的 Gmail 帳號
 
 ### 3a. 使用者建立失敗
 
@@ -208,42 +148,19 @@ PORT=8081 ./mvnw spring-boot:run
 
 **原因**: Google 未回傳 email (罕見)
 
-**檢查**:
-```bash
-# 確認 OAuth scope 包含 email
-# application.yml
-spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            scope:
-              - email
-              - profile
-```
+**檢查**: 確認 application.yml 中的 OAuth scope 設定包含 `email` 和 `profile` 兩個範圍。
 
 ### 4. Tailwind CSS 未載入
 
 **症狀**: 頁面無樣式
 
-**修復**:
-```bash
-cd src/main/frontend
-npm install
-npm run build
-# 確認 dist/styles.css 存在
-```
+**修復**: 進入 `src/main/frontend` 目錄，依序執行 `npm install` 和 `npm run build`，確認產出的 `dist/styles.css` 存在。
 
 ### 5. 測試覆蓋率不足
 
 **症狀**: CI 警告覆蓋率低於 80%
 
-**檢查**:
-```bash
-./mvnw jacoco:report
-open target/site/jacoco/index.html
-```
+**檢查**: 執行 `./mvnw jacoco:report` 產生報告，再以瀏覽器開啟 `target/site/jacoco/index.html` 檢視。目前專案有 ~864 個單元測試和 ~118 個 E2E 測試。
 
 ### 6. 天氣 API 失敗
 
@@ -254,19 +171,11 @@ open target/site/jacoco/index.html
 - 日期超過 5 天預報範圍
 - 座標無效
 
-**檢查**:
-```bash
-# 驗證 API Key
-curl "https://api.openweathermap.org/data/2.5/forecast?lat=25.0&lon=121.5&appid=$OPENWEATHERMAP_API_KEY"
-
-# 檢查應用程式日誌
-railway logs | grep -i weather
-```
-
 **修復**:
 1. 確認 `OPENWEATHERMAP_API_KEY` 已正確設定
 2. 確認 `OPENWEATHERMAP_ENABLED=true`
 3. 若 API 配額用盡，系統會自動 fallback 到 MockWeatherClient
+4. 可透過 `railway logs` 搜尋 weather 相關訊息排查問題
 
 ### 7. CSP 阻擋資源載入
 
@@ -292,17 +201,11 @@ railway logs | grep -i weather
 2. Storage bucket 未建立
 3. 檔案大小超過限制 (10MB)
 
-**檢查**:
-```bash
-# 驗證 Supabase 連線
-curl -X GET "$SUPABASE_URL/storage/v1/bucket" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
-```
-
 **修復**:
 1. 確認使用 `service_role` key (JWT 格式，以 `eyJ` 開頭)
 2. 在 Supabase Dashboard 建立 `trip-covers` bucket
 3. 設定 bucket 為 public 或配置適當的 RLS
+4. 可透過對 `$SUPABASE_URL/storage/v1/bucket` 發送帶 Authorization header 的 GET 請求驗證 Supabase 連線
 
 ### 9. 路線優化無效果
 
@@ -313,16 +216,11 @@ curl -X GET "$SUPABASE_URL/storage/v1/bucket" \
 - 活動沒有地點座標
 - 原本順序已是最佳
 
-**檢查**:
-```bash
-# 查看優化日誌
-railway logs | grep -i "RouteOptimizer"
-```
-
 **注意**:
 - RouteOptimizer 使用 Greedy Nearest Neighbor 演算法
 - 若活動超過 15 個會顯示警告
 - 第一個活動的位置會被保留為起點
+- 可透過 `railway logs` 搜尋 RouteOptimizer 相關訊息排查問題
 
 ### 10. 批次重算交通時間問題
 
@@ -332,15 +230,6 @@ railway logs | grep -i "RouteOptimizer"
 - Google Maps API 配額用盡
 - 網路連線問題
 - 景點缺少座標
-
-**檢查**:
-```bash
-# 查看 TransportCalculationService 日誌
-railway logs | grep -i "TransportCalculation"
-
-# 查看 API 呼叫狀態
-railway logs | grep -i "Google Maps"
-```
 
 **Rate Limiting 機制**:
 - API 呼叫間隔: 100ms
@@ -365,13 +254,7 @@ railway logs | grep -i "Google Maps"
 1. 執行批次重算功能更新所有景點
 2. 或手動編輯景點觸發重新計算
 
-**Thymeleaf 顯示邏輯**:
-```html
-<span th:if="${activity.transportSource != null}"
-      th:class="${activity.transportSource.badgeClass}"
-      th:text="${activity.transportSource.displayName}">
-</span>
-```
+Thymeleaf 模板中透過判斷 `activity.transportSource` 是否非 null 來決定是否顯示 Badge，並使用對應的 `badgeClass` 和 `displayName` 屬性渲染樣式與文字。
 
 ### 12. 全域概覽頁面無資料
 
@@ -382,13 +265,7 @@ railway logs | grep -i "Google Maps"
 - 行程中沒有支出/文件
 - 權限問題 (非成員無法查看)
 
-**檢查**:
-```bash
-# 確認使用者的行程成員關係
-railway logs | grep -i "GlobalExpenseService\|GlobalDocumentService"
-```
-
-**注意**: 全域概覽只顯示使用者有權限存取的行程資料
+**注意**: 全域概覽只顯示使用者有權限存取的行程資料。可透過 `railway logs` 搜尋 GlobalExpenseService 或 GlobalDocumentService 相關訊息排查。
 
 ### 13. 錯誤頁面顯示不正確
 
@@ -404,14 +281,7 @@ railway logs | grep -i "GlobalExpenseService\|GlobalDocumentService"
 2. 確認 `WebExceptionHandler` 標註 `@Order(1)`
 3. 確認 CSS 檔案正確部署
 
-**錯誤頁面位置**:
-```
-src/main/resources/templates/error/
-├── error.html    # 統一錯誤頁面 (動態內容)
-├── 403.html      # 舊版 403 頁面 (備用)
-├── 404.html      # 舊版 404 頁面 (備用)
-└── 500.html      # 舊版 500 頁面 (備用)
-```
+錯誤模板位於 `src/main/resources/templates/error/` 目錄下，包含統一錯誤頁面 `error.html` (動態內容) 以及備用的 `403.html`、`404.html`、`500.html` 頁面。
 
 ### 14. 拖曳重排無法儲存
 
@@ -422,18 +292,7 @@ src/main/resources/templates/error/
 - API 呼叫失敗
 - 權限不足 (Viewer 角色)
 
-**檢查**:
-```javascript
-// 瀏覽器 Console 檢查
-console.log('Drag event listeners attached');
-```
-
-```bash
-# 後端日誌
-railway logs | grep -i "reorder"
-```
-
-**權限需求**: 需要 OWNER 或 EDITOR 角色才能重排景點
+**權限需求**: 需要 OWNER 或 EDITOR 角色才能重排景點。可透過瀏覽器 Console 和 Network Tab 檢查前端錯誤，並透過 `railway logs` 搜尋 reorder 相關訊息排查後端問題。
 
 ### 15. 匯率 API 失敗
 
@@ -443,15 +302,6 @@ railway logs | grep -i "reorder"
 - ExchangeRate API Key 未設定
 - API 配額用盡
 - 不支援的貨幣代碼
-
-**檢查**:
-```bash
-# 驗證 API Key
-curl "https://v6.exchangerate-api.com/v6/$EXCHANGERATE_API_KEY/latest/TWD"
-
-# 查看應用程式日誌
-railway logs | grep -i "ExchangeRate"
-```
 
 **修復**:
 1. 確認 `EXCHANGERATE_API_KEY` 已設定
@@ -469,13 +319,6 @@ railway logs | grep -i "ExchangeRate"
 - localStorage 被清除
 - CSP 阻擋 inline script
 
-**檢查**:
-```javascript
-// 瀏覽器 Console
-localStorage.getItem('theme')
-document.documentElement.classList.contains('dark')
-```
-
 **修復**:
 1. 確認 `fragments/head.html` 包含 FOUC 防護腳本
 2. 確認 CSP 允許 `'unsafe-inline'` for script-src (必要)
@@ -483,9 +326,9 @@ document.documentElement.classList.contains('dark')
 
 **症狀**: Chart.js 圖表顏色未隨主題變化
 
-**修復**:
-1. 確認 `expense-statistics.js` 監聽 `themechange` 事件
-2. 手動觸發: `window.dispatchEvent(new Event('themechange'))`
+**修復**: 確認 `expense-statistics.js` 監聯 `themechange` 事件，可在瀏覽器 Console 執行 `window.dispatchEvent(new Event('themechange'))` 手動觸發。
+
+深色模式偏好儲存於 localStorage 的 `theme` 鍵，值為 `light`、`dark` 或 `system`。
 
 ### 17. E2E 測試失敗
 
@@ -496,25 +339,15 @@ document.documentElement.classList.contains('dark')
 - OAuth Mock 未正確設定
 - 瀏覽器驅動過期
 
-**檢查**:
-```bash
-# 確認應用程式在 8080 運行
-curl http://localhost:8080/api/health
+**檢查**: 確認應用程式在 `http://localhost:8080/api/health` 可存取，並執行 `npx playwright install` 更新瀏覽器驅動。
 
-# 更新 Playwright 瀏覽器
-npx playwright install
-```
-
-**修復**:
-```bash
-cd e2e
-npm install
-npx playwright install chromium
-npx playwright test --debug  # 除錯模式
-```
+**修復步驟**:
+1. 進入 `e2e` 目錄執行 `npm install`
+2. 執行 `npx playwright install chromium` 安裝瀏覽器
+3. 執行 `npx playwright test --debug` 以除錯模式執行測試
 
 **OAuth Mock 機制**:
-- E2E 測試使用 `/test/auth/mock-login` 端點
+- E2E 測試使用 `/api/test/auth/login` 端點進行模擬登入
 - 需在 `application-test.yml` 啟用測試 profile
 - 測試用戶: `testuser@wego.test`
 
@@ -527,17 +360,7 @@ npx playwright test --debug  # 除錯模式
 - Bucket 使用 Caffeine cache (TTL: 5 分鐘)
 - 最大追蹤 IP 數: 100,000
 
-**檢查**:
-```bash
-railway logs | grep -i "rate limit\|too many"
-```
-
-**調整** (需修改 `RateLimitConfig.java`):
-```java
-private static final int REQUESTS_PER_MINUTE = 100;  // 調整此值
-private static final int MAX_CACHE_SIZE = 100_000;
-private static final int CACHE_TTL_MINUTES = 5;
-```
+**調整**: 需修改 `RateLimitConfig.java` 中的 `REQUESTS_PER_MINUTE`（預設 100）、`MAX_CACHE_SIZE`（預設 100,000）及 `CACHE_TTL_MINUTES`（預設 5）常數。
 
 ---
 
@@ -545,24 +368,17 @@ private static final int CACHE_TTL_MINUTES = 5;
 
 ### Railway 回滾
 
-1. 進入 Railway Dashboard → Deployments
+1. 進入 Railway Dashboard 的 Deployments 頁面
 2. 找到上一個成功的部署
 3. 點擊 "Redeploy"
 
 ### Git 回滾
 
-```bash
-# 查看歷史
-git log --oneline -10
+1. 執行 `git log --oneline -10` 查看最近提交歷史
+2. 執行 `git revert HEAD` 建立回滾提交
+3. 執行 `git push origin main` 推送至遠端
 
-# 回滾到指定 commit
-git revert HEAD
-git push origin main
-
-# 或 reset (謹慎使用)
-git reset --hard <commit-hash>
-git push origin main --force  # 需要權限
-```
+如需強制回滾至特定 commit，可使用 `git reset --hard <commit-hash>` 搭配 `git push origin main --force`（需要權限，請謹慎使用）。
 
 ---
 
@@ -570,23 +386,11 @@ git push origin main --force  # 需要權限
 
 ### Supabase 備份
 
-Supabase Pro 方案自動備份。手動備份：
-
-```bash
-# 使用 pg_dump
-pg_dump -h db.[project-ref].supabase.co -U postgres -d postgres > backup.sql
-```
+Supabase Pro 方案自動備份。手動備份可使用 `pg_dump -h db.[project-ref].supabase.co -U postgres -d postgres > backup.sql` 指令匯出。
 
 ### 執行 Migration
 
-Migration 透過 Hibernate `ddl-auto: update` 自動執行。
-
-手動執行 SQL：
-```bash
-# 透過 Supabase Dashboard → SQL Editor
-# 或使用 psql
-psql -h db.[project-ref].supabase.co -U postgres -d postgres -f migration.sql
-```
+Migration 透過 Hibernate `ddl-auto: update` 自動執行。手動 SQL 可透過 Supabase Dashboard 的 SQL Editor 執行，或使用 `psql -h db.[project-ref].supabase.co -U postgres -d postgres -f migration.sql` 指令。
 
 ---
 
@@ -594,22 +398,11 @@ psql -h db.[project-ref].supabase.co -U postgres -d postgres -f migration.sql
 
 ### JVM 參數 (Railway)
 
-在 Railway 設定 Start Command：
-```bash
-java -Xmx512m -Xms256m -jar target/wego-1.0.0-SNAPSHOT.jar
-```
+在 Railway 設定 Start Command 為 `java -Xmx512m -Xms256m -jar target/wego-1.0.0-SNAPSHOT.jar`。
 
 ### 連線池設定
 
-`application.yml`:
-```yaml
-spring:
-  datasource:
-    hikari:
-      maximum-pool-size: 10  # 根據 Railway 資源調整
-      minimum-idle: 2
-      connection-timeout: 30000
-```
+在 `application.yml` 中設定 HikariCP 連線池參數：`maximum-pool-size` 建議 10（根據 Railway 資源調整）、`minimum-idle` 建議 2、`connection-timeout` 建議 30000 毫秒。
 
 ---
 
@@ -658,7 +451,7 @@ spring:
 ### E2E 測試問題
 - [ ] 確認應用程式在 localhost:8080 運行
 - [ ] 確認 Playwright 瀏覽器已安裝
-- [ ] 檢查 OAuth Mock 端點是否可存取
+- [ ] 檢查 OAuth Mock 端點 `/api/test/auth/login` 是否可存取
 - [ ] 執行 `npx playwright test --debug` 除錯
 
 ---
@@ -680,25 +473,19 @@ spring:
 
 ### Transport Mode 系統監控
 
-**關鍵日誌**:
-```bash
-# 查看交通計算
-railway logs | grep -i "TransportCalculation"
+可透過 `railway logs` 搭配關鍵字搜尋以下項目進行監控：
 
-# 查看 Google Maps API 呼叫 (Routes API)
-railway logs | grep -i "GoogleMapsClient\|Routes API"
-
-# 查看 Haversine fallback
-railway logs | grep -i "Haversine"
-
-# 查看 TRANSIT → DRIVING fallback
-railway logs | grep -i "fallback\|fromFallback"
-```
+| 關鍵字 | 監控項目 |
+|--------|----------|
+| TransportCalculation | 交通計算狀態 |
+| GoogleMapsClient / Routes API | Google Maps API 呼叫 |
+| Haversine | Haversine fallback 狀態 |
+| fallback / fromFallback | TRANSIT 到 DRIVING 的 fallback |
 
 **監控指標**:
 - Google API 成功率
 - Haversine fallback 頻率
-- TRANSIT → DRIVING fallback 頻率
+- TRANSIT 到 DRIVING fallback 頻率
 - 平均計算時間
 
 ### Google Routes API 問題排查
@@ -710,32 +497,9 @@ railway logs | grep -i "fallback\|fromFallback"
 2. TRANSIT 模式在日本部分地區無資料
 3. API 配額用盡
 
-**檢查**:
-```bash
-# 確認 API 回應
-railway logs | grep -i "Routes API\|computeRouteMatrix"
+**Fallback 機制**: 先嘗試 Routes API (TRANSIT)，失敗時降級為 Routes API (DRIVING) 並標記 `fromFallback=true`，若再失敗則拋出 GoogleMapsException。
 
-# 確認 fallback 狀態
-railway logs | grep -i "fromFallback"
-```
-
-**Fallback 機制**:
-```
-Routes API (TRANSIT)
-    ↓ 失敗
-Routes API (DRIVING)  ← fromFallback=true
-    ↓ 失敗
-GoogleMapsException
-```
-
-**環境變數切換**:
-```bash
-# 使用新 Routes API (推薦)
-GOOGLE_MAPS_USE_ROUTES_API=true
-
-# 回退到舊 Distance Matrix API
-GOOGLE_MAPS_USE_ROUTES_API=false
-```
+**環境變數切換**: 設定 `GOOGLE_MAPS_USE_ROUTES_API=true` 使用新 Routes API（推薦），設定為 `false` 則回退到舊 Distance Matrix API。
 
 ### 全域概覽頁面監控
 
@@ -753,18 +517,7 @@ GOOGLE_MAPS_USE_ROUTES_API=false
 
 ### 錯誤處理架構
 
-**錯誤處理流程**:
-```
-Exception 發生
-    │
-    ▼
-是 API Controller? ──Yes──▶ GlobalExceptionHandler ──▶ JSON Response
-    │
-    No
-    │
-    ▼
-WebExceptionHandler ──▶ error/error.html ──▶ HTML Response
-```
+系統採用雙層錯誤處理：API Controller 的例外由 GlobalExceptionHandler 處理並回傳 JSON Response；Web Controller 的例外由 WebExceptionHandler 處理並渲染 `error/error.html` 模板回傳 HTML Response。
 
 **自訂錯誤碼**:
 | ErrorCode | HTTP Status | 說明 |
@@ -808,6 +561,8 @@ WebExceptionHandler ──▶ error/error.html ──▶ HTML Response
 
 **測試檔案位置**: `e2e/tests/`
 
+**測試統計**: ~864 個單元測試，~118 個 E2E 測試
+
 | 測試 | 說明 | 執行時間 |
 |------|------|----------|
 | `auth.spec.ts` | 登入/登出流程 | ~30s |
@@ -818,56 +573,21 @@ WebExceptionHandler ──▶ error/error.html ──▶ HTML Response
 | `todo.spec.ts` | 代辦事項 | ~25s |
 | `dark-mode.spec.ts` | 深色模式 | ~40s |
 
-**執行 E2E 測試**:
-```bash
-# 本地執行 (需先啟動應用程式)
-cd e2e
-npm install
-npx playwright test
+**執行 E2E 測試**: 進入 `e2e` 目錄，依序執行 `npm install` 安裝依賴、`npx playwright install chromium` 安裝瀏覽器。執行 `npx playwright test` 運行所有測試，或以 `npx playwright test auth.spec.ts` 指定特定測試檔案。使用 `npx playwright test --debug` 進入除錯模式，測試完成後以 `npx playwright show-report` 查看報告。
 
-# 僅執行特定測試
-npx playwright test auth.spec.ts
-
-# 除錯模式
-npx playwright test --debug
-
-# 查看報告
-npx playwright show-report
-```
-
-**CI 整合** (待完成):
-```yaml
-# .github/workflows/e2e.yml
-- name: Run E2E tests
-  run: |
-    cd e2e
-    npm ci
-    npx playwright install chromium
-    npx playwright test
-```
+**CI 整合** (待完成): 規劃在 `.github/workflows/e2e.yml` 中加入 E2E 測試步驟，包含安裝依賴、安裝 Chromium 瀏覽器及執行 Playwright 測試。
 
 ### 安全監控
 
-**Rate Limiting 監控**:
-```bash
-# 查看 Rate Limit 觸發
-railway logs | grep -i "rate limit\|429"
+可透過 `railway logs` 搭配關鍵字監控以下安全相關事件：
 
-# 查看 IP bucket 狀態 (需在程式碼中加入 logging)
-railway logs | grep -i "RateLimitConfig"
-```
-
-**安全相關日誌**:
-```bash
-# 認證失敗
-railway logs | grep -i "unauthorized\|authentication"
-
-# 授權失敗 (IDOR 嘗試)
-railway logs | grep -i "forbidden\|access denied"
-
-# 驗證失敗
-railway logs | grep -i "validation\|invalid"
-```
+| 關鍵字 | 監控項目 |
+|--------|----------|
+| rate limit / 429 | Rate Limiting 觸發 |
+| RateLimitConfig | IP bucket 狀態 |
+| unauthorized / authentication | 認證失敗 |
+| forbidden / access denied | 授權失敗 (IDOR 嘗試) |
+| validation / invalid | 驗證失敗 |
 
 ### 效能監控 (Phase 4 優化)
 

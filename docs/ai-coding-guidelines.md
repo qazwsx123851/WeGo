@@ -1,5 +1,7 @@
 # WeGo AI 輔助開發規範
 
+> 更新日期：2026-02-12
+
 ## 目的
 
 防止 AI 輔助開發時因上下文遺失導致的程式碼品質下降，建立可追溯、可驗證的開發流程。
@@ -10,94 +12,37 @@
 
 ### 1.1 註解格式
 
-每個 public 方法必須包含以下註解：
+每個 public 方法必須包含以下結構的 Javadoc 契約註解：
 
-```java
-/**
- * [簡述功能]
- *
- * <h3>Contract</h3>
- * <ul>
- *   <li><b>Precondition:</b> [呼叫前必須滿足的條件]</li>
- *   <li><b>Postcondition:</b> [呼叫後保證的結果]</li>
- *   <li><b>Invariant:</b> [執行前後不變的條件]</li>
- * </ul>
- *
- * <h3>Dependencies</h3>
- * <ul>
- *   <li><b>Called by:</b> [哪些方法/類別會呼叫此方法]</li>
- *   <li><b>Calls:</b> [此方法會呼叫哪些關鍵方法]</li>
- * </ul>
- *
- * <h3>Side Effects</h3>
- * <ul>
- *   <li>[列出副作用：資料庫寫入、快取更新、外部 API 呼叫等]</li>
- * </ul>
- *
- * @param xxx 參數說明
- * @return 回傳值說明
- * @throws XxxException 何時拋出
- * @see RelatedClass#relatedMethod 相關方法
- * @since 1.0.0
- */
-```
+**完整版格式**（適用於複雜方法）包含以下區塊：
 
-### 1.2 範例
+| 區塊 | 說明 |
+|------|------|
+| 功能簡述 | 一句話描述方法功能 |
+| Contract | 前置條件 (Precondition)、後置條件 (Postcondition)、不變量 (Invariant) |
+| Dependencies | 呼叫方 (Called by)、被呼叫方 (Calls) |
+| Side Effects | 副作用列表（資料庫寫入、快取更新、外部 API 呼叫等） |
+| @param | 參數說明 |
+| @return | 回傳值說明 |
+| @throws | 例外情境說明 |
+| @see | 相關方法參考 |
+| @since | 版本號 |
 
-```java
-/**
- * 建立新行程並設定建立者為 Owner。
- *
- * <h3>Contract</h3>
- * <ul>
- *   <li><b>Precondition:</b> user 必須已登入且不為 null</li>
- *   <li><b>Precondition:</b> request.endDate >= request.startDate</li>
- *   <li><b>Postcondition:</b> 回傳的 Trip 已持久化至資料庫</li>
- *   <li><b>Postcondition:</b> TripMember 已建立，role = OWNER</li>
- *   <li><b>Invariant:</b> 一個 Trip 永遠只有一個 OWNER</li>
- * </ul>
- *
- * <h3>Dependencies</h3>
- * <ul>
- *   <li><b>Called by:</b> TripApiController#createTrip</li>
- *   <li><b>Calls:</b> TripRepository#save, TripMemberRepository#save</li>
- * </ul>
- *
- * <h3>Side Effects</h3>
- * <ul>
- *   <li>寫入 trip 表</li>
- *   <li>寫入 trip_member 表</li>
- * </ul>
- *
- * @param request 建立行程的請求資料
- * @param user 當前登入用戶
- * @return 建立完成的行程資訊
- * @throws BusinessException 當結束日期早於開始日期
- * @see TripMemberService#addOwner
- * @since 1.0.0
- */
-@Transactional
-public TripResponse createTrip(CreateTripRequest request, User user) {
-    // 實作...
-}
-```
+### 1.2 範例說明
+
+以「建立新行程」方法為例，契約應記載：
+
+- **前置條件**：user 必須已登入且不為 null；request.endDate >= request.startDate
+- **後置條件**：回傳的 Trip 已持久化至資料庫；TripMember 已建立，role = OWNER
+- **不變量**：一個 Trip 永遠只有一個 OWNER
+- **呼叫方**：TripApiController#createTrip
+- **被呼叫方**：TripRepository#save, TripMemberRepository#save
+- **副作用**：寫入 trip 表、寫入 trip_member 表
+- **例外**：當結束日期早於開始日期時拋出 BusinessException
 
 ### 1.3 簡化版（適用於簡單方法）
 
-```java
-/**
- * 檢查用戶是否有編輯權限。
- *
- * @contract
- *   - pre: tripId, userId 不為 null
- *   - post: 回傳 true 若用戶為 OWNER 或 EDITOR
- *   - calls: TripMemberRepository#findByTripAndUser
- *   - calledBy: ActivityService, ExpenseService, DocumentService
- */
-public boolean canEdit(UUID tripId, UUID userId) {
-    // 實作...
-}
-```
+簡單方法可使用 `@contract` 標籤以縮寫格式記載前置條件（pre）、後置條件（post）、呼叫方（calledBy）和被呼叫方（calls）。
 
 ---
 
@@ -105,34 +50,12 @@ public boolean canEdit(UUID tripId, UUID userId) {
 
 ### 2.1 類別責任標記
 
-每個類別必須標記其在架構中的角色：
+每個類別的 Javadoc 必須標記其在架構中的角色，包含以下資訊：
 
-```java
-/**
- * 行程服務 - 處理行程 CRUD 與成員管理。
- *
- * @layer Application Service
- * @responsibility
- *   - 行程的建立、查詢、更新、刪除
- *   - 成員邀請與權限管理
- *   - 不處理：景點排序（見 ActivityService）、分帳（見 ExpenseService）
- *
- * @collaborators
- *   - TripRepository: 資料存取
- *   - TripMemberRepository: 成員資料存取
- *   - PermissionChecker: 權限驗證
- *   - InviteLinkService: 邀請連結管理
- *
- * @invariants
- *   - 一個 Trip 只能有一個 OWNER
- *   - Trip 刪除時，關聯的 Activity、Expense、Document 必須同時刪除
- */
-@Service
-@RequiredArgsConstructor
-public class TripService {
-    // ...
-}
-```
+- **@layer**：架構層級
+- **@responsibility**：負責的功能範圍，以及不負責的功能（指向其他 Service）
+- **@collaborators**：協作的其他類別及其用途
+- **@invariants**：類別層級的不變量
 
 ### 2.2 架構層級標記
 
@@ -148,50 +71,17 @@ public class TripService {
 
 ## 3. 不變量檢查 (Invariant Checks)
 
-### 3.1 使用 assert 或專用方法
+### 3.1 Entity 層驗證
 
-```java
-public class Trip {
-
-    /**
-     * @invariant startDate <= endDate
-     * @invariant title 不為空且 <= 100 字
-     * @invariant baseCurrency 為有效 ISO 4217 代碼
-     */
-    public void validate() {
-        assert startDate != null : "startDate cannot be null";
-        assert endDate != null : "endDate cannot be null";
-        assert !endDate.isBefore(startDate) : "endDate must be >= startDate";
-        assert title != null && !title.isBlank() : "title cannot be blank";
-        assert title.length() <= 100 : "title must be <= 100 chars";
-    }
-}
-```
+每個 Entity 類別應定義 `validate()` 方法，使用 assert 語句檢查所有不變量。例如 Trip 實體的不變量包括：startDate 不為 null、endDate 不為 null、endDate 不早於 startDate、title 不為空且不超過 100 字。
 
 ### 3.2 Service 層驗證
 
-```java
-@Service
-public class TripService {
+Service 方法應遵循三段式結構：
 
-    public TripResponse createTrip(CreateTripRequest request, User user) {
-        // 1. 驗證前置條件
-        Preconditions.checkNotNull(user, "user cannot be null");
-        Preconditions.checkArgument(
-            !request.getEndDate().isBefore(request.getStartDate()),
-            "endDate must be >= startDate"
-        );
-
-        // 2. 執行業務邏輯
-        Trip trip = // ...
-
-        // 3. 驗證後置條件
-        Postconditions.ensure(trip.getId() != null, "trip must be persisted");
-
-        return mapper.toResponse(trip);
-    }
-}
-```
+1. **驗證前置條件**：使用 Preconditions 工具類檢查參數非 null、業務規則成立
+2. **執行業務邏輯**：核心處理
+3. **驗證後置條件**：使用 Postconditions 工具類確認結果符合預期（如物件已持久化）
 
 ---
 
@@ -199,76 +89,33 @@ public class TripService {
 
 ### 4.1 ADR 檔案位置
 
-```
-docs/adr/
-├── 0001-use-thymeleaf-for-frontend.md
-├── 0002-greedy-algorithm-for-route-optimization.md
-├── 0003-debt-simplification-algorithm.md
-├── 0004-oauth-only-authentication.md
-└── template.md
-```
+ADR 文件存放於 `docs/adr/` 目錄，以編號命名（如 `0001-use-thymeleaf-for-frontend.md`）。
 
 ### 4.2 ADR 模板
 
-```markdown
-# ADR-{編號}: {標題}
+每份 ADR 包含以下章節：
 
-## 狀態
-{Proposed | Accepted | Deprecated | Superseded by ADR-xxx}
-
-## 背景
-{描述問題背景與需求}
-
-## 決策
-{描述做出的決策}
-
-## 理由
-{為什麼選擇這個方案}
-
-## 後果
-{這個決策帶來的影響}
-
-## 相關程式碼
-- `com.wego.service.XxxService`
-- `com.wego.domain.Xxx`
-
-## 修改此決策前必須考慮
-- {列出修改此設計會影響的地方}
-- {列出必須同時修改的檔案}
-```
+| 章節 | 內容 |
+|------|------|
+| 標題 | ADR-{編號}: {標題} |
+| 狀態 | Proposed / Accepted / Deprecated / Superseded by ADR-xxx |
+| 背景 | 描述問題背景與需求 |
+| 決策 | 描述做出的決策 |
+| 理由 | 為什麼選擇這個方案 |
+| 後果 | 這個決策帶來的影響 |
+| 相關程式碼 | 列出相關的類別路徑 |
+| 修改此決策前必須考慮 | 列出修改此設計會影響的地方與必須同時修改的檔案 |
 
 ### 4.3 範例 ADR
 
-```markdown
-# ADR-003: 債務簡化演算法
+以「ADR-003: 債務簡化演算法」為例：
 
-## 狀態
-Accepted
-
-## 背景
-分帳功能需要將複雜的多人債務關係簡化為最少交易次數。
-
-## 決策
-使用貪婪演算法配對最大債權人與最大債務人。
-
-## 理由
-- 實作簡單，時間複雜度 O(n log n)
-- 成員數量有限（≤ 10 人），效能足夠
-- 結果直觀易理解
-
-## 後果
-- 不保證全域最優解，但差異可接受
-- 需要處理浮點數精度問題
-
-## 相關程式碼
-- `com.wego.domain.settlement.DebtSimplifier`
-- `com.wego.service.SettlementService`
-
-## 修改此決策前必須考慮
-- DebtSimplifierTest 的所有測試案例
-- SettlementService 的結算邏輯
-- 前端結算頁面的顯示邏輯
-```
+- **背景**：分帳功能需要將複雜的多人債務關係簡化為最少交易次數
+- **決策**：使用貪婪演算法配對最大債權人與最大債務人
+- **理由**：實作簡單、時間複雜度 O(n log n)、成員數量有限（<= 10 人）效能足夠、結果直觀易理解
+- **後果**：不保證全域最優解但差異可接受、需要處理浮點數精度問題
+- **相關程式碼**：DebtSimplifier、SettlementService
+- **修改前須考慮**：DebtSimplifierTest 的所有測試案例、SettlementService 的結算邏輯、前端結算頁面的顯示邏輯
 
 ---
 
@@ -276,50 +123,40 @@ Accepted
 
 ### 5.1 修改程式碼前 (AI 必須執行)
 
-```markdown
-## Pre-Modification Checklist
-
 - [ ] 已閱讀目標方法的契約註解
 - [ ] 已確認 @calledBy 列出的呼叫方
 - [ ] 已確認 @calls 列出的依賴方法
 - [ ] 已閱讀相關 ADR 文件
 - [ ] 已確認修改不會違反 @invariant
 - [ ] 已確認測試案例涵蓋修改範圍
-```
 
 ### 5.2 修改程式碼後 (AI 必須執行)
-
-```markdown
-## Post-Modification Checklist
 
 - [ ] 已更新方法的契約註解
 - [ ] 已更新 @calledBy 和 @calls（若有變動）
 - [ ] 已執行相關單元測試
 - [ ] 已確認未破壞既有測試
 - [ ] 已更新 ADR（若涉及架構變更）
-```
 
 ### 5.3 AI Prompt 範本
 
 當需要 AI 修改程式碼時，使用以下 prompt 格式：
 
-```
-我要修改 [類別名稱] 的 [方法名稱]。
-
-修改目的：[描述要做什麼]
-
-請先執行以下步驟：
-1. 閱讀該方法的契約註解
-2. 列出所有會受影響的呼叫方 (@calledBy)
-3. 列出該方法的依賴 (@calls)
-4. 確認是否有相關的 ADR
-5. 列出相關的測試案例
-
-確認以上資訊後，再提出修改方案，並說明：
-- 哪些檔案需要同時修改
-- 哪些測試需要更新
-- 是否違反任何 @invariant
-```
+> 我要修改 [類別名稱] 的 [方法名稱]。
+>
+> 修改目的：[描述要做什麼]
+>
+> 請先執行以下步驟：
+> 1. 閱讀該方法的契約註解
+> 2. 列出所有會受影響的呼叫方 (@calledBy)
+> 3. 列出該方法的依賴 (@calls)
+> 4. 確認是否有相關的 ADR
+> 5. 列出相關的測試案例
+>
+> 確認以上資訊後，再提出修改方案，並說明：
+> - 哪些檔案需要同時修改
+> - 哪些測試需要更新
+> - 是否違反任何 @invariant
 
 ---
 
@@ -327,80 +164,25 @@ Accepted
 
 ### 6.1 ArchUnit 架構測試
 
-```java
-@AnalyzeClasses(packages = "com.wego")
-public class ArchitectureTest {
+專案使用 ArchUnit 自動驗證架構規則，主要檢查項目：
 
-    @ArchTest
-    static final ArchRule services_should_not_depend_on_controllers =
-        noClasses()
-            .that().resideInAPackage("..service..")
-            .should().dependOnClassesThat()
-            .resideInAPackage("..controller..");
-
-    @ArchTest
-    static final ArchRule domain_should_not_depend_on_infrastructure =
-        noClasses()
-            .that().resideInAPackage("..domain..")
-            .should().dependOnClassesThat()
-            .resideInAnyPackage("..repository..", "..external..");
-
-    @ArchTest
-    static final ArchRule services_should_have_contract_javadoc =
-        classes()
-            .that().resideInAPackage("..service..")
-            .and().arePublic()
-            .should(haveContractDocumentation());
-}
-```
+- Service 層不得依賴 Controller 層
+- Domain 層不得依賴 Repository 或 External 層
+- Service 類別的 public 方法應有契約文件
 
 ### 6.2 Pre-commit Hook
 
-```bash
-#!/bin/bash
-# .git/hooks/pre-commit
+Git pre-commit hook 執行以下檢查：
 
-echo "Running architecture tests..."
-./mvnw test -Dtest=ArchitectureTest
-
-if [ $? -ne 0 ]; then
-    echo "Architecture tests failed. Commit aborted."
-    exit 1
-fi
-
-echo "Checking contract annotations..."
-# 檢查是否有 public method 缺少 @contract 或 Javadoc
-grep -r "public.*(" src/main/java/com/wego/service/*.java | \
-    grep -v "@contract\|/\*\*" && {
-    echo "Warning: Some public methods may lack contract documentation"
-}
-```
+1. 執行 ArchUnit 架構測試（`ArchitectureTest`），失敗時中止 commit
+2. 掃描 Service 層 public 方法是否缺少 `@contract` 或 Javadoc 註解（警告層級）
 
 ### 6.3 CI 檢查
 
-```yaml
-# .github/workflows/architecture.yml
-name: Architecture Check
+GitHub Actions 的架構檢查工作流程在 push 和 pull request 時觸發：
 
-on: [push, pull_request]
-
-jobs:
-  arch-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run ArchUnit Tests
-        run: ./mvnw test -Dtest=ArchitectureTest
-
-      - name: Check ADR Changes
-        run: |
-          # 如果修改了 domain 或 service，檢查是否需要更新 ADR
-          CHANGED_FILES=$(git diff --name-only HEAD~1)
-          if echo "$CHANGED_FILES" | grep -q "src/main/java/com/wego/domain\|src/main/java/com/wego/service"; then
-            echo "Domain/Service files changed. Please ensure ADRs are up to date."
-          fi
-```
+1. 執行 ArchUnit 架構測試
+2. 當 domain 或 service 檔案有變更時，提醒開發者確認 ADR 是否需要更新
 
 ---
 
@@ -459,30 +241,4 @@ Pull Request 審查時，必須確認：
 
 ## 附錄：自訂註解（可選）
 
-如果想要更結構化，可以建立自訂註解：
-
-```java
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Contract {
-    String[] preconditions() default {};
-    String[] postconditions() default {};
-    String[] invariants() default {};
-    String[] calledBy() default {};
-    String[] calls() default {};
-    String[] sideEffects() default {};
-}
-
-// 使用方式
-@Contract(
-    preconditions = {"user != null", "request.endDate >= request.startDate"},
-    postconditions = {"回傳的 Trip 已持久化", "TripMember 已建立"},
-    invariants = {"一個 Trip 只有一個 OWNER"},
-    calledBy = {"TripApiController#createTrip"},
-    calls = {"TripRepository#save", "TripMemberRepository#save"},
-    sideEffects = {"寫入 trip 表", "寫入 trip_member 表"}
-)
-public TripResponse createTrip(CreateTripRequest request, User user) {
-    // ...
-}
-```
+如果想要更結構化，可以建立自訂 `@Contract` 註解，以陣列屬性記錄 preconditions、postconditions、invariants、calledBy、calls、sideEffects 等資訊，實現契約的結構化宣告。使用 `@Retention(RUNTIME)` 和 `@Target(METHOD)` 確保註解可在執行期間存取。

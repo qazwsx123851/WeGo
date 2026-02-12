@@ -1,5 +1,7 @@
 # WeGo 旅遊規劃協作 Web App - 需求規格書 (PRD)
 
+> 最後更新: 2026-02-12
+
 ## 1. 產品定義
 
 * **產品名稱**：WeGo
@@ -19,9 +21,26 @@
 | 互動動畫 | Lottie-web | JSON-based animations |
 | 資料庫 | Supabase (PostgreSQL 15+) | 含 Supabase Storage 檔案儲存 |
 | 部署平台 | Railway | CI/CD from GitHub |
-| 地圖服務 | Google Maps API | Distance Matrix, Maps JavaScript, Places |
+| 地圖服務 | Google Maps API | Routes API, Maps JavaScript, Places |
 | 天氣服務 | OpenWeatherMap API | 5-day forecast |
 | 匯率服務 | ExchangeRate-API | 每日更新匯率 |
+
+### 專案統計
+
+| 項目 | 數量 |
+|------|------|
+| 單元測試 | ~864 個測試方法，58 個測試檔案 |
+| E2E 測試 | ~118 個測試案例，10 個 spec 檔案 |
+| REST API 端點 | 55 個 |
+| Web 端點 | 37 個 |
+| Service 類別 | 17 個 |
+| Entity 類別 | 10 個 |
+| Enum 類別 | 6 個 |
+| Repository | 10 個 |
+| HTML 模板 | 27 個 |
+| JS 模組 | 6 個 |
+| Domain 元件 | 4 個（DebtSimplifier, RouteOptimizer, PermissionChecker, ExpenseAggregator） |
+| 外部服務整合 | 4 個（Google Maps, OpenWeatherMap, ExchangeRate-API, Supabase Storage） |
 
 ---
 
@@ -36,13 +55,10 @@
 * **限制**：僅能在同一天內拖拽，跨日需使用「移動到其他日期」功能
 
 #### A-2. 交通預估
-* **支援交通方式**：
-  - 🚗 開車 (driving)
-  - 🚶 步行 (walking)
-  - 🚇 大眾運輸 (transit)
-* **資料來源**：Google Maps Distance Matrix API
+* **支援交通方式**：開車 (driving)、步行 (walking)、大眾運輸 (transit)、騎車 (bicycling)、飛機 (flight)、高鐵 (high_speed_rail)
+* **資料來源**：Google Maps Routes API（已從 Distance Matrix API 遷移）
 * **快取策略**：相同起訖點的查詢結果快取 24 小時，減少 API 呼叫
-* **顯示內容**：預估時間 + 距離（如：「🚗 25 分鐘 · 12 公里」）
+* **顯示內容**：預估時間 + 距離 + 計算來源標記（Google API / Haversine / 手動）
 * **預設交通方式**：用戶可在行程設定中選擇預設，單一景點可覆寫
 
 #### A-3. 智慧排序建議
@@ -74,7 +90,7 @@
 * **排序**：依截止日期排序，已完成項目置底
 
 #### B-3. 分帳系統
-* **幣別支援**：多幣別，每筆支出可選擇幣別
+* **幣別支援**：多幣別（8 種貨幣），每筆支出可選擇幣別
 * **基準幣別**：每個行程設定一個基準幣別（如 TWD），結算時統一換算
 * **匯率來源**：ExchangeRate-API，每日自動更新
 * **分帳規則**：
@@ -96,7 +112,6 @@
 #### C-2. 快速關聯
 * **關聯對象**：可綁定至特定日期或特定景點
 * **預覽方式**：點擊即開啟預覽（圖片直接顯示、PDF 使用瀏覽器內建檢視器）
-* **離線快取**：使用 Service Worker 快取最近檢視的 10 個檔案
 
 ---
 
@@ -152,7 +167,7 @@ User ─┬─< TripMember >─── Trip
       └────────────────────┴──< Todo
 ```
 
-### 實體定義
+### 實體定義（10 個 Entity）
 
 #### User（使用者）
 | 欄位 | 型別 | 說明 |
@@ -282,23 +297,9 @@ User ─┬─< TripMember >─── Trip
 
 ### 環境變數
 
-```
-# Database
-DATABASE_URL=postgresql://...
+必要環境變數包括：`DATABASE_URL`（PostgreSQL 連線字串）、`GOOGLE_CLIENT_ID` 和 `GOOGLE_CLIENT_SECRET`（Google OAuth 憑證）、`SUPABASE_URL` 和 `SUPABASE_SERVICE_KEY`（Supabase 存取）。
 
-# OAuth - Google
-GOOGLE_CLIENT_ID=xxx
-GOOGLE_CLIENT_SECRET=xxx
-
-# External APIs
-GOOGLE_MAPS_API_KEY=xxx
-OPENWEATHERMAP_API_KEY=xxx
-EXCHANGERATE_API_KEY=xxx
-
-# Supabase Storage
-SUPABASE_URL=xxx
-SUPABASE_SERVICE_KEY=xxx
-```
+可選環境變數：`GOOGLE_MAPS_API_KEY`、`OPENWEATHERMAP_API_KEY`、`EXCHANGERATE_API_KEY`（未設定時使用對應的 Mock 實作）。
 
 ### 部署流程
 1. **資料庫**：於 Supabase 建立 Project，執行 Schema Migration
@@ -423,6 +424,7 @@ SUPABASE_SERVICE_KEY=xxx
 | SQL Injection | 使用 JPA Parameterized Query |
 | 敏感資料 | 環境變數儲存，不進版控 |
 | 檔案上傳 | 驗證 MIME Type，限制檔案大小 |
+| Rate Limiting | Bucket4j + Caffeine cache |
 
 ### 瀏覽器支援
 * Chrome 90+
@@ -556,61 +558,25 @@ SUPABASE_SERVICE_KEY=xxx
 
 ### AC-01: OAuth 登入
 
-```gherkin
-Feature: Google OAuth 登入
-  Scenario: 首次使用 Google 登入
-    Given 用戶尚未註冊
-    When 用戶點擊「以 Google 登入」
-    And 在 Google 授權頁面同意授權
-    Then 系統自動建立帳號
-    And 用戶被導向 Dashboard 頁面
-    And 顯示歡迎訊息
+**首次使用 Google 登入**：用戶尚未註冊，點擊「以 Google 登入」並在 Google 授權頁面同意授權後，系統自動建立帳號，用戶被導向 Dashboard 頁面並顯示歡迎訊息。
 
-  Scenario: 已註冊用戶登入
-    Given 用戶已使用 Google 註冊過
-    When 用戶點擊「以 Google 登入」
-    Then 用戶被導向 Dashboard 頁面
-```
+**已註冊用戶登入**：用戶已使用 Google 註冊過，點擊「以 Google 登入」後直接被導向 Dashboard 頁面。
 
 ### AC-02: 拖拽排序
 
-```gherkin
-Feature: 景點拖拽排序
-  Scenario: 成功拖拽排序
-    Given 用戶為行程的 Editor
-    And 當日有 3 個以上景點
-    When 用戶長按景點卡片超過 300ms
-    Then 卡片進入拖拽模式（放大 + 陰影）
-    When 用戶拖拽到新位置並放開
-    Then 景點順序立即更新
-    And 交通時間重新計算
+**成功拖拽排序**：用戶為行程的 Editor，當日有 3 個以上景點時，長按景點卡片超過 300ms 進入拖拽模式（放大 + 陰影），拖拽到新位置並放開後，景點順序立即更新且交通時間重新計算。
 
-  Scenario: Viewer 無法拖拽
-    Given 用戶為行程的 Viewer
-    When 用戶長按景點卡片
-    Then 不會進入拖拽模式
-```
+**Viewer 無法拖拽**：用戶為行程的 Viewer，長按景點卡片時不會進入拖拽模式。
 
 ### AC-03: 分帳結算
 
-```gherkin
-Feature: 分帳結算
-  Scenario: 計算均分帳務
-    Given 行程有 3 位成員：A, B, C
-    And A 付了 $300 由三人均分
-    And B 付了 $600 由三人均分
-    When 用戶查看結算頁面
-    Then 顯示簡化後的債務：
-      | 從 | 到 | 金額 |
-      | A  | B  | $100 |
-      | C  | B  | $200 |
-```
+**計算均分帳務**：行程有 3 位成員 A、B、C，A 付了 $300 由三人均分，B 付了 $600 由三人均分。查看結算頁面時顯示簡化後的債務：A 付給 B $100、C 付給 B $200。
 
 ---
 
 ## 14. MVP 範圍與里程碑
 
-### Phase 1: MVP（核心功能）
+### Phase 1: MVP（核心功能）✅ 完成
 **目標**：可用的基本版本，驗證產品概念
 
 | 功能 | 優先級 |
@@ -624,7 +590,7 @@ Feature: 分帳結算
 | 基本分帳（單幣別、均分） | P1 |
 | 檔案上傳 | P1 |
 
-### Phase 2: 協作強化
+### Phase 2: 協作強化 ✅ 完成
 **目標**：提升多人協作體驗
 
 | 功能 | 優先級 |
@@ -634,7 +600,7 @@ Feature: 分帳結算
 | 智慧排序建議 | P2 |
 | 天氣預報整合 | P2 |
 
-### Phase 3: 分帳進階
+### Phase 3: 分帳進階 ✅ 完成
 **目標**：完善分帳功能
 
 | 功能 | 優先級 |
@@ -644,12 +610,13 @@ Feature: 分帳結算
 | 債務簡化演算法 | P2 |
 | 支出分類統計 | P3 |
 
-### Phase 4: 體驗優化
+### Phase 4: 體驗優化 ✅ 完成
 **目標**：提升使用體驗
 
 | 功能 | 優先級 |
 |------|--------|
-| 離線快取（PWA） | P2 |
+| 安全強化 | P0 |
+| E2E 測試 | P1 |
 | Lottie 動畫完善 | P3 |
 | 深色模式 | P3 |
 

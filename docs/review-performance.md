@@ -1,7 +1,7 @@
 # Performance Review Report
 
 **Project:** WeGo
-**Date:** 2026-02-10
+**Date:** 2026-02-12
 **Reviewer:** perf-reviewer (Claude Opus 4.6)
 
 ---
@@ -10,13 +10,15 @@
 
 The WeGo codebase demonstrates **good foundational performance awareness** with several well-implemented patterns: flat entity design avoiding JPA lazy-loading pitfalls, batch place lookups in `ActivityService` to prevent N+1 queries, Caffeine caching for statistics, two-tier caching for exchange rates, circuit breaker on external API calls, Bucket4j rate limiting, and `open-in-view: false`.
 
-However, there are **significant performance issues** in high-traffic paths: the `getUserTrips` method triggers N+1 queries for member summaries, several high-frequency query columns lack database indexes, external API clients each create their own `RestTemplate` instead of sharing a properly-configured bean, static assets have no Cache-Control headers, Thymeleaf caching is disabled in production config, and the in-memory `CacheService`/`RateLimitService` lack eviction strategies that could lead to memory leaks under heavy use.
+However, there are **significant performance issues** in high-traffic paths: the `getUserTrips` method triggers N+1 queries for member summaries, external API clients each create their own `RestTemplate` instead of sharing a properly-configured bean, and the in-memory `CacheService`/`RateLimitService` lack eviction strategies that could lead to memory leaks under heavy use.
+
+**近期已修復項目：** 資料庫索引已透過 `@Table(indexes=...)` 註解加入所有 Entity、靜態資源 Cache-Control 已設定、Thymeleaf cache 已在生產環境啟用。
 
 **Summary Statistics:**
-- Critical: 2
-- Warning: 8
+- Critical: 1
+- Warning: 6
 - Suggestion: 6
-- Total: 16
+- Total: 13
 
 ---
 
@@ -36,31 +38,25 @@ However, there are **significant performance issues** in high-traffic paths: the
 - **Description:** `calculateSettlement` loads all expenses and splits in 2 queries, which is efficient. However, each `convertToBaseCurrency` call may trigger an individual API call to `ExchangeRateService.getRate` per unique currency pair. With N different currencies, this produces N external API calls (mitigated by in-memory caching but not batched).
 - **Recommendation:** Pre-fetch all needed exchange rates in one batch before iterating expenses.
 
-### 1.3 Missing Database Indexes
+### 1.3 Database Indexes
 
-- **Severity:** RED Critical
-- **File:** Database schema (entity annotations, no JPA `@Index` annotations found)
-- **Description:** The design document lists intended indexes, but since the project uses `ddl-auto: update`, JPA only creates indexes from entity annotations. The following high-frequency query columns lack `@Table(indexes=...)` annotations:
-  - `activities.trip_id` + `day` + `sort_order` (used by every activity query)
-  - `expenses.trip_id` + `created_at` (used by every expense listing)
-  - `expense_splits.expense_id` (used by settlement calculation)
-  - `expense_splits.user_id` + `is_settled` (used by settlement queries)
-  - `todos.trip_id` + `status` + `due_date` (used by todo listing)
-  - `documents.trip_id` + `created_at` (used by document listing)
-  - `trip_members.trip_id` + `user_id` (unique constraint exists but may not be an index)
-  - `invite_links.token` (unique constraint exists but should verify)
-- **Recommendation:** Add `@Table(indexes = @Index(...))` annotations to all entity classes for the columns listed above, or create a Flyway/Liquibase migration. Without these indexes, every list query on trips with many records will do full table scans.
+- **Severity:** 已修復
+- **File:** All entity classes
+- **Description:** 所有 Entity 已加上 `@Table(indexes=@Index(...))` 註解，涵蓋以下高頻查詢欄位：
+  - `activities.trip_id` + `day` + `sort_order`
+  - `expenses.trip_id` + `created_at`
+  - `expense_splits.expense_id`
+  - `expense_splits.user_id` + `is_settled`
+  - `todos.trip_id` + `status` + `due_date`
+  - `documents.trip_id` + `created_at`
+  - `trip_members.trip_id` + `user_id`
+  - `invite_links.token`
 
 ### 1.4 Unbounded List Queries
 
 - **Severity:** YELLOW Warning
 - **File:** Multiple repositories
-- **Description:** Several repository methods return `List<>` without pagination:
-  - `ActivityRepository.findByTripIdOrderByDayAscSortOrderAsc` (all activities for a trip)
-  - `ExpenseRepository.findByTripIdOrderByCreatedAtDesc` (all expenses for a trip)
-  - `ExpenseSplitRepository.findByTripId` (all splits for a trip)
-  - `TodoRepository.findByTripIdOrderedByDueDateAndStatus` (all todos)
-  - `DocumentRepository.findByTripIdOrderByCreatedAtDesc` (all documents)
+- **Description:** Several repository methods return `List<>` without pagination: `ActivityRepository.findByTripIdOrderByDayAscSortOrderAsc`, `ExpenseRepository.findByTripIdOrderByCreatedAtDesc`, `ExpenseSplitRepository.findByTripId`, `TodoRepository.findByTripIdOrderedByDueDateAndStatus`, `DocumentRepository.findByTripIdOrderByCreatedAtDesc`.
 - **Recommendation:** For display-facing methods, add `Pageable` support. The paginated variants exist for some (Expense, Todo) but the service layer often calls the unbounded version. For internal calculations (settlement), unbounded is acceptable since trip data is naturally bounded by member limits.
 
 ### 1.5 `deleteByTripId` Cascade in `TripService.deleteTrip`
@@ -108,7 +104,7 @@ However, there are **significant performance issues** in high-traffic paths: the
 
 ### 3.1 No `@Async` Usage for External API Calls
 
-- **Severity:** YELLOW Warning
+- **Severity:** BLUE Suggestion
 - **File:** Project-wide (grep for `@Async` returned no results)
 - **Description:** All external API calls (Google Maps, OpenWeatherMap, ExchangeRate, Supabase Storage) are synchronous and block the request thread. The `batchRecalculateWithRateLimit` method in `TransportCalculationService` even includes `Thread.sleep(100)` between API calls, blocking the thread pool.
 - **Recommendation:** For non-critical external calls (storage cleanup on trip delete, transport recalculation), use `@Async` with a dedicated thread pool. Add `@EnableAsync` configuration. The transport recalculation endpoint should return immediately and process in background.
@@ -156,19 +152,17 @@ However, there are **significant performance issues** in high-traffic paths: the
 
 ## 5. Frontend & Static Assets
 
-### 5.1 No Cache-Control Headers for Static Resources
+### 5.1 Cache-Control Headers for Static Resources
 
-- **Severity:** YELLOW Warning
+- **Severity:** 已修復
 - **File:** `/Users/mark/WeGo/src/main/java/com/wego/config/WebConfig.java:40-50`
-- **Description:** Static resource handlers for `/css/**`, `/js/**`, `/images/**` are configured without any cache period. Every page load will re-request all CSS, JS, and image files from the server, significantly increasing page load times and server load.
-- **Recommendation:** Add `.setCachePeriod(86400)` (1 day) or `.setCachePeriod(604800)` (1 week) to resource handlers, combined with content hashing in filenames for cache busting.
+- **Description:** 靜態資源處理器已加入 `setCachePeriod` 設定，為 `/css/**`、`/js/**`、`/images/**` 等靜態資源提供適當的瀏覽器快取控制。此修復可顯著減少伺服器負載並改善頁面載入速度。
 
-### 5.2 Thymeleaf Cache Disabled
+### 5.2 Thymeleaf Cache
 
-- **Severity:** BLUE Suggestion
+- **Severity:** 已修復
 - **File:** `/Users/mark/WeGo/src/main/resources/application.yml:40`
-- **Description:** `spring.thymeleaf.cache: false` is set in the main config. This means every template rendering re-parses the HTML file from disk. While useful for development, this should be `true` in production.
-- **Recommendation:** Set to `true` in production (default) and only override to `false` in `application-dev.yml`.
+- **Description:** Thymeleaf cache 已在生產環境啟用。原先 `spring.thymeleaf.cache: false` 的設定會導致每次模板渲染都重新從磁碟解析 HTML，現已修正為生產環境啟用快取。
 
 ---
 
@@ -202,15 +196,22 @@ The following patterns are well-implemented and should be maintained:
 
 ---
 
+## 已修復項目
+
+| 原嚴重度 | 項目 | 狀態 |
+|----------|------|------|
+| RED Critical | 資料庫索引缺失（所有 Entity 缺少 `@Table(indexes)` 註解） | 已修復 -- 所有 Entity 已加上索引註解 |
+| YELLOW Warning | 靜態資源無 Cache-Control headers | 已修復 -- 已加入 `setCachePeriod` |
+| BLUE Suggestion | Thymeleaf cache 在生產環境未啟用 | 已修復 -- 已啟用生產環境快取 |
+
+---
+
 ## Priority Action Items
 
 | Priority | Issue | Impact |
 |----------|-------|--------|
-| 1 | Add database indexes (1.3) | All list queries will be slow without indexes |
-| 2 | Fix N+1 in `getUserTrips` (1.1) | Dashboard/trip list is highest-traffic page |
-| 3 | Add Cache-Control for static assets (5.1) | Reduces server load and improves page load time |
-| 4 | Cache PermissionChecker lookups (2.2) | Reduces 4+ redundant queries per page load |
-| 5 | Enable Thymeleaf caching for production (5.2) | Free performance win |
-| 6 | Consolidate caching systems (2.4) | Reduces memory leak risk and maintenance burden |
-| 7 | Add `@Async` for background operations (3.1) | Prevents thread blocking on external calls |
-| 8 | Fix `ddl-auto: update` for production (4.1) | Prevents schema corruption risk |
+| 1 | Fix N+1 in `getUserTrips` (1.1) | Dashboard/trip list is highest-traffic page |
+| 2 | Cache PermissionChecker lookups (2.2) | Reduces 4+ redundant queries per page load |
+| 3 | Consolidate caching systems (2.4) | Reduces memory leak risk and maintenance burden |
+| 4 | Add `@Async` for background operations (3.1) | Prevents thread blocking on external calls |
+| 5 | Fix `ddl-auto: update` for production (4.1) | Prevents schema corruption risk |

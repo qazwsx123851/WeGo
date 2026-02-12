@@ -1,5 +1,7 @@
 # WeGo 測試案例規格書
 
+> 更新日期：2026-02-12
+
 ## 文件說明
 
 本文件定義 WeGo 專案各模組的測試案例，供開發時參考實作。
@@ -315,7 +317,7 @@
 2. Pull Request
    └── 執行所有 Unit Tests
    └── 執行所有 Integration Tests
-   └── 檢查覆蓋率 ≥ 80%
+   └── 檢查覆蓋率 >= 80%
 
 3. Merge to Main
    └── 執行所有 Unit Tests
@@ -331,22 +333,13 @@
 
 ### 10.2 測試標籤
 
-```java
-// 快速測試 - PR 必跑
-@Tag("fast")
-@Test
-void quickTest() { }
+測試使用 JUnit 5 的 `@Tag` 標記分類：
 
-// 慢速測試 - 排程執行
-@Tag("slow")
-@Test
-void slowIntegrationTest() { }
-
-// 關鍵路徑 - 永遠執行
-@Tag("critical")
-@Test
-void criticalPathTest() { }
-```
+| 標籤 | 說明 | 執行時機 |
+|------|------|----------|
+| `fast` | 快速測試 | PR 必跑 |
+| `slow` | 慢速測試（如整合測試） | 排程執行 |
+| `critical` | 關鍵路徑測試 | 永遠執行 |
 
 ---
 
@@ -362,20 +355,7 @@ void criticalPathTest() { }
 
 ### 11.2 測試資料清理
 
-```java
-@BeforeEach
-void setUp() {
-    // 清理順序很重要（外鍵約束）
-    documentRepository.deleteAll();
-    expenseSplitRepository.deleteAll();
-    expenseRepository.deleteAll();
-    activityRepository.deleteAll();
-    todoRepository.deleteAll();
-    tripMemberRepository.deleteAll();
-    tripRepository.deleteAll();
-    userRepository.deleteAll();
-}
-```
+每個測試方法執行前（`@BeforeEach`），依照外鍵約束順序清理資料庫。清理順序為：Document → ExpenseSplit → Expense → Activity → Todo → TripMember → Trip → User。
 
 ---
 

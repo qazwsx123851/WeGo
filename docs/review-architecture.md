@@ -1,7 +1,7 @@
 # Architecture Review Report
 
 **Project:** WeGo - Travel Planning Platform
-**Date:** 2026-02-10
+**Date:** 2026-02-12
 **Reviewer:** arch-reviewer (automated)
 **Scope:** Controller/Service/Repository layering, DI, Entity/DTO separation, exception handling, SOLID/DRY, naming conventions
 
@@ -14,7 +14,7 @@ The WeGo project demonstrates a well-structured Spring Boot application with cle
 Key concerns:
 - **TripController.java is 1664 lines** -- the largest controller and a DRY/SRP violation hotspot
 - **Web controllers directly access repositories**, bypassing the service layer in several places
-- **Duplicated `getCurrentUser()` method** across 8+ web controllers
+- **`getCurrentUser()` 重複問題已部分改善** -- 已提取 `BaseWebController` 基礎類別，但仍有部分 Controller 尚未繼承
 - **Duplicated permission-checking boilerplate** (find member, check role) in web controllers instead of delegating to services
 - **Inconsistent auth patterns** between web controllers (OAuth2User + email lookup) and API controllers (UserPrincipal + @CurrentUser)
 
@@ -37,7 +37,7 @@ Key concerns:
 | `InviteController.java` | 48-52 | `InviteLinkRepository`, `TripRepository`, `TripMemberRepository` injected | `InviteLinkService`, `TripService` |
 | `ProfileController.java` | 37-39 | `TripMemberRepository`, `DocumentRepository`, `ExpenseRepository` | `ProfileService` or aggregate in `UserService` |
 
-**Description:** Web controllers directly inject and call repositories, violating the Controller -> Service -> Repository layering principle. The `TripController` creates and saves `Place` entities directly (lines 1082-1106, 1304-1328), which is business logic that belongs in the service layer.
+**Description:** Web controllers directly inject and call repositories, violating the Controller -> Service -> Repository layering principle. The `TripController` creates and saves `Place` entities directly, which is business logic that belongs in the service layer.
 
 **Recommendation:** Extract Place creation/lookup into `ActivityService` or a new `PlaceService`. Extract profile statistics into `UserService.getProfileStats()`. Remove direct repository dependencies from controllers.
 
@@ -71,9 +71,11 @@ Key concerns:
 
 #### 2.1 Duplicated `getCurrentUser()` method
 
-**Severity:** :yellow_circle: Warning
+**Severity:** :yellow_circle: Warning（已部分修復）
 
-Identical or near-identical `getCurrentUser()` methods exist in **8 web controllers**:
+**狀態：** 已提取 `BaseWebController` 基礎類別，將共用的 `getCurrentUser()` 方法集中管理。部分 Controller 已繼承此基礎類別，但仍有 Controller 尚未遷移。
+
+原先有 **8 個 web controllers** 各自包含相同或近似的 `getCurrentUser()` 方法：
 
 | File | Lines |
 |------|-------|
@@ -86,9 +88,7 @@ Identical or near-identical `getCurrentUser()` methods exist in **8 web controll
 | `GlobalExpenseController.java` | 80-94 |
 | `GlobalDocumentController.java` | 112-126 |
 
-**Description:** Each web controller has its own copy of `getCurrentUser(principal)` that extracts email from `OAuth2User` and calls `userService.getUserByEmail()`. Some variants add null/exception handling, others don't.
-
-**Recommendation:** Extract into a shared base class (e.g., `BaseWebController`) or a utility class (e.g., `WebAuthHelper`). Alternatively, create a custom `@CurrentWebUser` annotation resolver that directly resolves `User` from the principal.
+**Recommendation:** 將所有 Web Controller 遷移至繼承 `BaseWebController`，或進一步採用 `@CurrentUser` 註解解析器直接從 Principal 解析 `User`。
 
 ---
 
@@ -96,17 +96,7 @@ Identical or near-identical `getCurrentUser()` methods exist in **8 web controll
 
 **Severity:** :yellow_circle: Warning
 
-The pattern of finding the current member and checking edit/owner role is duplicated across multiple methods in `TripController`:
-
-```java
-TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-    .filter(m -> m.getUserId().equals(user.getId()))
-    .findFirst()
-    .orElse(null);
-boolean canEdit = currentMember != null &&
-    (currentMember.getRole() == Role.OWNER ||
-     currentMember.getRole() == Role.EDITOR);
-```
+在 `TripController` 的多個方法中，查找當前成員並檢查角色權限的邏輯重複出現。該模式透過 stream 過濾成員列表、比對使用者 ID、判斷是否為 OWNER 或 EDITOR 角色。
 
 Found in: `showTripDetail` (line 253), `showActivities` (line 509), `showActivityDetail` (line 610), `showMembersPage` (line 678), `showActivityCreateForm` (line 1001), `showActivityEditForm` (line 1206), `duplicateActivity` (line 916), `createActivity` (line 1070), `updateActivity` (line 1293), `showEditForm` (line 1499), `updateTrip` (line 1557).
 
@@ -120,20 +110,7 @@ Also in `TodoWebController.java` (line 92) and `ExpenseWebController.java` (line
 
 **Severity:** :yellow_circle: Warning
 
-Nearly every web controller method repeats:
-```java
-TripResponse trip;
-try {
-    trip = tripService.getTrip(id, user.getId());
-} catch (Exception e) {
-    return "redirect:/dashboard?error=trip_not_found";
-}
-if (trip == null) {
-    return "redirect:/dashboard?error=trip_not_found";
-}
-```
-
-This appears in **15+ methods** across `TripController`, `ExpenseWebController`, `TodoWebController`, `SettlementWebController`.
+Nearly every web controller method repeats a pattern of：呼叫 `tripService.getTrip(id, user.getId())`，以 try-catch 捕捉例外後 redirect 至 dashboard，接著再進行 null 檢查。此模式出現在 **15+ 方法** across `TripController`, `ExpenseWebController`, `TodoWebController`, `SettlementWebController`.
 
 **Recommendation:** Extract into a shared helper or use a `@PreAuthorize`-style interceptor. Note that `TripService.getTrip()` already throws `ResourceNotFoundException` if not found, so the `null` check is likely redundant.
 
@@ -222,11 +199,7 @@ It injects 8 dependencies: `TripService`, `UserService`, `ActivityService`, `Tod
 
 **File:** `/Users/mark/WeGo/src/main/java/com/wego/controller/web/HomeController.java` (line 74)
 
-```java
-trip.setDaysUntil(ChronoUnit.DAYS.between(today, trip.getStartDate()));
-```
-
-**Description:** `HomeController.dashboard()` mutates the `TripResponse` DTO's `daysUntil` field. While this is a DTO (not an entity), the mutation pattern in a controller is a code smell. If the service returns this DTO from a `@Transactional` context and JPA dirty-checking is active, entity mutations could be persisted accidentally.
+**Description:** `HomeController.dashboard()` 在 Controller 層直接修改 `TripResponse` DTO 的 `daysUntil` 欄位。雖然這是 DTO 而非 Entity，但在 Controller 中進行 mutation 是 code smell。若 Service 在 `@Transactional` 上下文中返回此 DTO 且 JPA dirty-checking 啟用，Entity 的修改可能被意外持久化。
 
 **Recommendation:** Compute `daysUntil` in the service layer or in the DTO's factory method.
 
@@ -238,11 +211,7 @@ trip.setDaysUntil(ChronoUnit.DAYS.between(today, trip.getStartDate()));
 
 **File:** `/Users/mark/WeGo/src/main/java/com/wego/controller/web/InviteController.java` (line 93)
 
-```java
-model.addAttribute("trip", trip);  // Trip is an Entity, not a DTO
-```
-
-**Description:** `InviteController` fetches the `Trip` entity directly from `TripRepository` and passes it to the view model. All other controllers pass `TripResponse` (DTO). This exposes the JPA entity to the template layer.
+**Description:** `InviteController` 直接從 `TripRepository` 取得 `Trip` Entity 並傳遞給 view model，而其他所有 Controller 皆使用 `TripResponse` (DTO)。這會將 JPA Entity 暴露給模板層。
 
 **Recommendation:** Use `TripService.getTrip()` or convert to a minimal DTO before passing to the view.
 
@@ -369,4 +338,4 @@ All dependencies follow a clean DAG:
 
 1. **Split TripController** (1664 lines) into 4-5 focused controllers -- reduces complexity and makes the codebase maintainable
 2. **Move Place creation/lookup and form-parsing logic** from TripController into the service layer -- fixes the most impactful layering violation
-3. **Extract shared `getCurrentUser()` and permission-check patterns** into a base class or utility -- eliminates the most pervasive DRY violation across 8+ controllers
+3. **完成所有 Web Controller 繼承 `BaseWebController`** -- 已開始提取，需將剩餘 Controller 遷移完成以徹底消除重複
