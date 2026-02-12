@@ -25,6 +25,7 @@
         <form th:action="${'/trips/' + trip.id + '/expenses' + (expense?.id != null ? '/' + expense.id : '')}"
               method="post"
               id="expense-form"
+              data-prevent-double-submit
               class="space-y-6">
             <input type="hidden" name="_method" th:value="${expense?.id != null ? 'PUT' : 'POST'}">
             <input th:if="${activityId}" type="hidden" name="activityId" th:value="${activityId}">

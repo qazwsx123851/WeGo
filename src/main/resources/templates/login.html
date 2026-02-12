@@ -1,24 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入 - WeGo</title>
-    <!-- Dark Mode FOUC Prevention -->
-    <script>
-        (function() {
-            const theme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (theme === 'dark' || (!theme && prefersDark)) {
-                document.documentElement.classList.add('dark');
-            }
-        })();
-    </script>
-    <link rel="stylesheet" th:href="@{/css/styles.css}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
+<head th:replace="~{fragments/head :: head(title='登入')}"></head>
 <body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100
              dark:from-gray-900 dark:via-gray-900 dark:to-gray-800
              flex items-center justify-center p-6">

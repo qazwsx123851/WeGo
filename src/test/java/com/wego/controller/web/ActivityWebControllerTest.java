@@ -13,6 +13,7 @@ import com.wego.service.ActivityService;
 import com.wego.service.ActivityViewHelper;
 import com.wego.service.ExpenseService;
 import com.wego.service.PlaceService;
+import com.wego.exception.ResourceNotFoundException;
 import com.wego.service.TripService;
 import com.wego.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -238,7 +239,7 @@ class ActivityWebControllerTest {
         void showDetail_activityNotFound_shouldRedirect() throws Exception {
             when(tripService.getTrip(tripId, userId)).thenReturn(testTrip);
             when(activityService.getActivity(activityId, userId))
-                    .thenThrow(new RuntimeException("Activity not found"));
+                    .thenThrow(new ResourceNotFoundException("Activity", activityId.toString()));
 
             mockMvc.perform(get("/trips/{tripId}/activities/{activityId}", tripId, activityId)
                             .with(oauth2Login()))
@@ -388,7 +389,7 @@ class ActivityWebControllerTest {
         void showEditForm_activityNotFound_shouldRedirect() throws Exception {
             when(tripService.getTrip(tripId, userId)).thenReturn(testTrip);
             when(activityService.getActivity(activityId, userId))
-                    .thenThrow(new RuntimeException("Activity not found"));
+                    .thenThrow(new ResourceNotFoundException("Activity", activityId.toString()));
 
             mockMvc.perform(get("/trips/{tripId}/activities/{activityId}/edit", tripId, activityId)
                             .with(oauth2Login()))

@@ -13,10 +13,10 @@
 |------|:-----------:|------|
 | 架構設計 | **8.5** | 分層清晰，Auth 統一為 `@CurrentUser UserPrincipal` (零 DB 查詢)，業務邏輯提取至 ViewHelper，PermissionChecker 含請求級快取，TripConstants 共用常數 |
 | 安全性 | **8.5** | 基礎扎實 (OAuth2、CSRF、參數化查詢、無 XSS)，max-request-size 已降至 30MB；生產環境錯誤訊息曝露仍為 Critical |
-| 前端品質 | **7.5** | 模組化 JS 良好，共用 `common.js` 消除 4x escapeHtml/CSRF 重複，fetch 已有 30s timeout，模板 `var` → `const/let`，head fragment 含 common.js |
+| 前端品質 | **8.0** | 模組化 JS 良好，共用 `common.js` (escapeHtml/CSRF/fetchWithTimeout/preventDoubleSubmit)，**27/27 模板統一 head fragment**，表單防重複提交 |
 | 效能 | **8.0** | 資料庫索引、Cache-Control、統一快取系統、N+1 修復、PermissionChecker 快取 (5s TTL)、Web Auth 零 DB 查詢 |
-| 測試覆蓋 | **9.0** | 968 單元測試 + ~118 E2E 測試全數通過，12/12 Web Controller 皆有 WebMvcTest，REST API 100% 覆蓋 |
-| **整體** | **8.5** | 功能完整的 MVP，Auth 統一、業務邏輯分層、前端整合、Web Controller 測試全覆蓋 |
+| 測試覆蓋 | **9.0** | 1007 單元測試 + ~118 E2E 測試全數通過，12/12 Web Controller 皆有 WebMvcTest，REST API 100% 覆蓋，ViewHelper 單元測試 |
+| **整體** | **8.7** | 功能完整的 MVP，Auth 統一、業務邏輯分層、前端整合、例外處理收緊、模板全統一、Web Controller 測試全覆蓋 |
 
 ---
 
@@ -66,6 +66,10 @@
 | `common.js` 共用工具 (escapeHtml/CSRF/fetchWithTimeout) | 前端 | 🟡 High | ✅ 已修復 |
 | 模板 `var` → `const/let` (95+5 處) | 前端 | 🟠 Medium | ✅ 已修復 |
 | Web Controller 測試全覆蓋 (12/12, +54 tests) | 測試 | 🟡 Warning | ✅ 已修復 |
+| 例外處理收緊 (Activity/Expense Controller) | 架構 | 🟡 Warning | ✅ 已修復 (24→19 個 broad catch) |
+| 27/27 模板統一 `fragments/head` | 前端 | 🟡 High | ✅ 已修復 (含 error 頁面 fallback) |
+| ViewHelper 單元測試 (32 tests) | 測試 | 🟠 Medium | ✅ 已修復 |
+| 表單防重複提交 (`WeGo.preventDoubleSubmit`) | 前端 | 🟠 Medium | ✅ 已修復 (4 個表單) |
 
 ---
 
@@ -76,7 +80,7 @@
 | 嚴重度 | 數量 | 主要問題 |
 |--------|:----:|----------|
 | 🔴 Critical | 0 | (全部已修復) |
-| 🟡 Warning | 1 | overly broad exception catching (27 個 `catch (Exception e)`) |
+| 🟡 Warning | 1 | broad exception catching (19 個 `catch (Exception e)`，已從 24 個收緊) |
 | 🔵 Suggestion | 1 | 命名不一致 |
 
 ### 安全 (12 issues)
@@ -94,8 +98,8 @@
 | 嚴重度 | 數量 | 主要問題 |
 |--------|:----:|----------|
 | 🔴 Critical | 0 | (已修復) |
-| 🟡 High | 1 | 部分模板仍有 inline head（error 頁面需評估 Thymeleaf 可用性） |
-| 🟠 Medium | 5 | 20+ innerHTML、部分頁面缺防重複提交、Modal focus trap 不完整 |
+| 🟡 High | 0 | (已修復：27/27 模板皆使用 head fragment) |
+| 🟠 Medium | 4 | 20+ innerHTML、Modal focus trap 不完整 |
 | 🔵 Low | 5 | 版權年份寫死、可能未用的 CSS、缺 skip-to-content、部分按鈕缺 aria-label |
 
 ### 效能 (13 issues, 含 3 已修復)
@@ -112,7 +116,7 @@
 
 | 項目 | 數據 |
 |------|------|
-| 單元測試總數 | 968 (70 個測試檔案) |
+| 單元測試總數 | 1007 (72 個測試檔案) |
 | E2E 測試總數 | ~118 |
 | 通過率 | 100% |
 | 新增測試檔 | ActivityWebControllerTest (16)、ExpenseWebControllerTest (14)、ProfileControllerTest (6)、InviteControllerTest (7)、TodoWebControllerTest (3)、SettlementWebControllerTest (4)、GlobalExpenseControllerTest (2)、GlobalDocumentControllerTest (2)、TripControllerTest (16)、TodoApiControllerTest (20)、ExchangeRateApiControllerTest (16) |
@@ -143,7 +147,7 @@
 | 7 | `PermissionChecker` 加 Request-scoped 快取 | 效能 | 每次請求減少 3+ 重複查詢 | ✅ 已完成 (Caffeine 5s TTL) |
 | 8 | 提取 `BaseWebController`：`getCurrentUser()` + `findCurrentMember()` + `canEdit()` | 架構 | 消除 8+ Controller 重複程式碼 | ✅ 已完成 |
 | 9 | 提取共享 JS 工具：`escapeHtml`、CSRF、`fetchWithTimeout` | 前端 | 消除 4x 重複、AJAX 不再無限等待 | ✅ 已完成 (common.js) |
-| 10 | 所有模板改用 `fragments/head` Fragment | 前端 | 統一 meta tag、減少維護負擔 | ✅ 已完成 (head.html 含 common.js) |
+| 10 | 所有模板改用 `fragments/head` Fragment | 前端 | 統一 meta tag、減少維護負擔 | ✅ 已完成 (27/27 模板，含 error 頁面 fallback) |
 | 11 | 修復 `CoverImagePreview` ObjectURL 記憶體洩漏 | 前端 | `URL.revokeObjectURL()` | 已完成 |
 
 ### 中期 (3-4 Sprint)

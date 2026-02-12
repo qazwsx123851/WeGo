@@ -40,6 +40,7 @@
         <form id="activity-form"
               th:action="${'/trips/' + trip.id + '/activities' + (activity?.id != null ? '/' + activity.id : '')}"
               method="post"
+              data-prevent-double-submit
               class="space-y-6">
 
             <!-- Activity Type Selection -->

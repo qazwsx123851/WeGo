@@ -338,7 +338,10 @@ public class ExpenseWebController extends BaseWebController {
         ExpenseResponse expense;
         try {
             expense = expenseService.getExpense(expenseId, user.getId());
-        } catch (Exception e) {
+        } catch (ResourceNotFoundException e) {
+            log.warn("Expense {} not found in trip {}: {}", expenseId, tripId, e.getMessage());
+            return "redirect:/trips/" + tripId + "/expenses?error=expense_not_found";
+        } catch (ForbiddenException e) {
             log.warn("Expense {} not found in trip {}: {}", expenseId, tripId, e.getMessage());
             return "redirect:/trips/" + tripId + "/expenses?error=expense_not_found";
         }
@@ -400,7 +403,10 @@ public class ExpenseWebController extends BaseWebController {
         ExpenseResponse expense;
         try {
             expense = expenseService.getExpense(expenseId, user.getId());
-        } catch (Exception e) {
+        } catch (ResourceNotFoundException e) {
+            log.warn("Expense {} not found in trip {}: {}", expenseId, tripId, e.getMessage());
+            return "redirect:/trips/" + tripId + "/expenses?error=expense_not_found";
+        } catch (ForbiddenException e) {
             log.warn("Expense {} not found in trip {}: {}", expenseId, tripId, e.getMessage());
             return "redirect:/trips/" + tripId + "/expenses?error=expense_not_found";
         }

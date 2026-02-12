@@ -3,6 +3,7 @@
 > 最後更新: 2026-02-12 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-12: 例外處理收緊 (24→19 catch blocks)、模板 head fragment 統一 (27/27)、ViewHelper 單元測試、表單防重複提交
 > - 2026-02-12: Auth 遷移 (`@CurrentUser UserPrincipal`)、新增 ViewHelper/common.js、Web Controller 測試全覆蓋、PermissionChecker 快取
 > - 2026-02-12: 更新測試統計、移除程式碼範例、Service/E2E 表格更新
 > - 2026-02-11: 新增 CSRF Token 使用方式、前後端開發注意事項、API 對照表連結
@@ -41,7 +42,7 @@
 | Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 | Unit |
 | Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙 | Unit + E2E |
 
-**測試統計**: 968 單元測試 (70 個測試檔案) + ~118 E2E 測試 (Playwright)
+**測試統計**: 1007 單元測試 (72 個測試檔案) + ~118 E2E 測試 (Playwright)
 
 ---
 
@@ -188,7 +189,7 @@ src/
 │   │   └── application.yml
 │   └── frontend/                   # Tailwind CSS 原始碼
 └── test/
-    └── java/com/wego/             # 測試類別 (70 個測試檔案)
+    └── java/com/wego/             # 測試類別 (72 個測試檔案)
 ```
 
 ---
@@ -343,7 +344,7 @@ src/
 
 ### 前端 JavaScript 使用方式
 
-從 Thymeleaf 模板注入的 `<meta>` 標籤取得 CSRF token。共用工具函式位於 `static/js/common.js`，提供 `WeGo.getCsrfToken()` 和 `WeGo.getCsrfHeader()` 取得 CSRF token/header 名稱，以及 `WeGo.fetchWithTimeout()` 附帶 30 秒 timeout 的 fetch 包裝器。所有 JS 模組已統一委託至 `common.js` 的共用實作。
+從 Thymeleaf 模板注入的 `<meta>` 標籤取得 CSRF token。共用工具函式位於 `static/js/common.js`，提供 `WeGo.getCsrfToken()` 和 `WeGo.getCsrfHeader()` 取得 CSRF token/header 名稱、`WeGo.fetchWithTimeout()` 附帶 30 秒 timeout 的 fetch 包裝器，以及 `WeGo.preventDoubleSubmit()` 防止表單重複提交（自動套用於 `data-prevent-double-submit` 屬性的表單）。所有 JS 模組已統一委託至 `common.js` 的共用實作。
 
 ### 規則
 

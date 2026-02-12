@@ -1,30 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="WeGo - 編輯個人檔案">
-    <meta name="theme-color" content="#0EA5E9">
-
-    <!-- Dark Mode FOUC Prevention -->
-    <script>
-        (function() {
-            const theme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (theme === 'dark' || (!theme && prefersDark)) {
-                document.documentElement.classList.add('dark');
-            }
-        })();
-    </script>
-
-    <title>編輯個人檔案 - WeGo</title>
-    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
-    <link rel="stylesheet" th:href="@{/css/styles.css}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
+<head th:replace="~{fragments/head :: head(title='編輯個人資料')}"></head>
 <body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
     <!-- Header -->
     <header class="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl
@@ -70,7 +47,7 @@
                 <p class="text-body-sm text-rose-600 dark:text-rose-400" th:text="${error}">錯誤訊息</p>
             </div>
 
-            <form th:action="@{/profile/edit}" method="post" class="space-y-6">
+            <form th:action="@{/profile/edit}" method="post" data-prevent-double-submit class="space-y-6">
                 <!-- CSRF Token -->
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 

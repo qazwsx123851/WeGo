@@ -7,6 +7,8 @@ import com.wego.dto.response.TripResponse;
 import com.wego.entity.Place;
 import com.wego.entity.TransportMode;
 import com.wego.entity.User;
+import com.wego.exception.ForbiddenException;
+import com.wego.exception.ResourceNotFoundException;
 import com.wego.service.ActivityService;
 import com.wego.service.ActivityViewHelper;
 import com.wego.service.ExpenseService;
@@ -130,7 +132,10 @@ public class ActivityWebController extends BaseWebController {
         ActivityResponse activity;
         try {
             activity = activityService.getActivity(activityId, user.getId());
-        } catch (Exception e) {
+        } catch (ResourceNotFoundException e) {
+            log.warn("Failed to get activity {}: {}", activityId, e.getMessage());
+            return "redirect:/trips/" + tripId + "/activities?error=activity_not_found";
+        } catch (ForbiddenException e) {
             log.warn("Failed to get activity {}: {}", activityId, e.getMessage());
             return "redirect:/trips/" + tripId + "/activities?error=activity_not_found";
         }
@@ -298,6 +303,18 @@ public class ActivityWebController extends BaseWebController {
 
             return "redirect:/trips/" + tripId + "/activities";
 
+        } catch (ResourceNotFoundException e) {
+            log.error("Failed to create activity: {}", e.getMessage(), e);
+            model.addAttribute("error", "新增景點失敗：" + e.getMessage());
+            return "redirect:/trips/" + tripId + "/activities/new?error=create_failed";
+        } catch (ForbiddenException e) {
+            log.error("Failed to create activity: {}", e.getMessage(), e);
+            model.addAttribute("error", "新增景點失敗：" + e.getMessage());
+            return "redirect:/trips/" + tripId + "/activities/new?error=create_failed";
+        } catch (IllegalArgumentException e) {
+            log.error("Failed to create activity: {}", e.getMessage(), e);
+            model.addAttribute("error", "新增景點失敗：" + e.getMessage());
+            return "redirect:/trips/" + tripId + "/activities/new?error=create_failed";
         } catch (Exception e) {
             log.error("Failed to create activity: {}", e.getMessage(), e);
             model.addAttribute("error", "新增景點失敗：" + e.getMessage());
@@ -340,7 +357,10 @@ public class ActivityWebController extends BaseWebController {
         ActivityResponse activity;
         try {
             activity = activityService.getActivity(activityId, user.getId());
-        } catch (Exception e) {
+        } catch (ResourceNotFoundException e) {
+            log.warn("Failed to get activity {}: {}", activityId, e.getMessage());
+            return "redirect:/trips/" + tripId + "/activities?error=activity_not_found";
+        } catch (ForbiddenException e) {
             log.warn("Failed to get activity {}: {}", activityId, e.getMessage());
             return "redirect:/trips/" + tripId + "/activities?error=activity_not_found";
         }
@@ -452,6 +472,18 @@ public class ActivityWebController extends BaseWebController {
             redirectAttributes.addFlashAttribute("success", "景點已更新，交通時間已重新計算");
             return "redirect:/trips/" + tripId + "/activities";
 
+        } catch (ResourceNotFoundException e) {
+            log.error("Failed to update activity: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "更新景點失敗：" + e.getMessage());
+            return "redirect:/trips/" + tripId + "/activities/" + activityId + "/edit?error=update_failed";
+        } catch (ForbiddenException e) {
+            log.error("Failed to update activity: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "更新景點失敗：" + e.getMessage());
+            return "redirect:/trips/" + tripId + "/activities/" + activityId + "/edit?error=update_failed";
+        } catch (IllegalArgumentException e) {
+            log.error("Failed to update activity: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "更新景點失敗：" + e.getMessage());
+            return "redirect:/trips/" + tripId + "/activities/" + activityId + "/edit?error=update_failed";
         } catch (Exception e) {
             log.error("Failed to update activity: {}", e.getMessage(), e);
             redirectAttributes.addFlashAttribute("error", "更新景點失敗：" + e.getMessage());
@@ -483,6 +515,12 @@ public class ActivityWebController extends BaseWebController {
         try {
             activityService.deleteActivity(activityId, user.getId());
             redirectAttributes.addFlashAttribute("success", "景點已刪除");
+        } catch (ResourceNotFoundException e) {
+            log.error("Failed to delete activity: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "刪除失敗：" + e.getMessage());
+        } catch (ForbiddenException e) {
+            log.error("Failed to delete activity: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "刪除失敗：" + e.getMessage());
         } catch (Exception e) {
             log.error("Failed to delete activity: {}", e.getMessage(), e);
             redirectAttributes.addFlashAttribute("error", "刪除失敗：" + e.getMessage());
@@ -527,7 +565,10 @@ public class ActivityWebController extends BaseWebController {
         ActivityResponse sourceActivity;
         try {
             sourceActivity = activityService.getActivity(activityId, user.getId());
-        } catch (Exception e) {
+        } catch (ResourceNotFoundException e) {
+            log.warn("Failed to get activity {} for duplication: {}", activityId, e.getMessage());
+            return "redirect:/trips/" + tripId + "/activities/" + activityId + "?error=activity_not_found";
+        } catch (ForbiddenException e) {
             log.warn("Failed to get activity {} for duplication: {}", activityId, e.getMessage());
             return "redirect:/trips/" + tripId + "/activities/" + activityId + "?error=activity_not_found";
         }
@@ -598,9 +639,13 @@ public class ActivityWebController extends BaseWebController {
 
             return "redirect:/trips/" + tripId + "/activities";
 
-        } catch (com.wego.exception.ForbiddenException e) {
+        } catch (ForbiddenException e) {
             log.warn("User {} not authorized to recalculate transport for trip {}", user.getId(), tripId);
             redirectAttributes.addFlashAttribute("error", "您沒有權限重新計算此行程的交通時間");
+            return "redirect:/trips/" + tripId + "/activities";
+        } catch (ResourceNotFoundException e) {
+            log.error("Failed to recalculate transport for trip {}: {}", tripId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "重新計算交通時間失敗：" + e.getMessage());
             return "redirect:/trips/" + tripId + "/activities";
         } catch (Exception e) {
             log.error("Failed to recalculate transport for trip {}: {}", tripId, e.getMessage(), e);

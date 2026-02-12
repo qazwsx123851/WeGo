@@ -4,36 +4,7 @@
     Create Trip Page
     Form for creating a new trip with title, description, dates, and cover image.
 -->
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="WeGo - 協作旅遊規劃平台">
-    <meta name="theme-color" content="#0EA5E9">
-
-    <!-- Dark Mode FOUC Prevention -->
-    <script>
-        (function() {
-            const theme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (theme === 'dark' || (!theme && prefersDark)) {
-                document.documentElement.classList.add('dark');
-            }
-        })();
-    </script>
-
-    <title th:text="${isEdit} ? '編輯行程 - WeGo' : '建立新行程 - WeGo'">建立新行程 - WeGo</title>
-    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
-    <link rel="stylesheet" th:href="@{/css/styles.css}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.2/dist/lottie-player.js" defer></script>
-
-    <!-- Flatpickr Date Picker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/zh-tw.js" defer></script>
-</head>
+<head th:replace="~{fragments/head :: head(title='建立行程')}"></head>
 <body class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-3 pointer-events-none"></div>
@@ -72,6 +43,7 @@
             <form th:action="${isEdit ? '/trips/' + trip.id + '/edit' : '/trips/create'}"
                   method="post"
                   enctype="multipart/form-data"
+                  data-prevent-double-submit
                   class="space-y-6">
                 <!-- CSRF Token -->
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
