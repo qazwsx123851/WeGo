@@ -190,5 +190,8 @@
     </script>
 
     <script th:src="@{/js/app.js}" defer></script>
+
+    <!-- AI Chat Widget -->
+    <div th:replace="~{fragments/chat-widget :: chat-widget(tripId=${trip.id})}"></div>
 </body>
 </html>

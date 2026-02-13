@@ -535,6 +535,9 @@
     <!-- Bottom Navigation -->
     <nav th:replace="~{fragments/components :: bottom-nav}"></nav>
 
+    <!-- AI Chat Widget -->
+    <div th:replace="~{fragments/chat-widget :: chat-widget(tripId=${trip.id})}"></div>
+
     <!-- Scripts -->
     <script th:src="@{/js/app.js}" defer></script>
 </body>

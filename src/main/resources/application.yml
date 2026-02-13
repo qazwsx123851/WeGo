@@ -130,6 +130,16 @@ wego:
       fallback-ttl-hours: 24
       circuit-breaker-failure-threshold: 5
       circuit-breaker-cooldown-minutes: 5
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      enabled: ${GEMINI_ENABLED:false}
+      model: gemini-2.5-flash
+      connect-timeout-ms: 5000
+      read-timeout-ms: 30000
+
+  chat:
+    max-message-length: 500
+    rate-limit-per-minute: 5
 
   trip:
     max-members: 10
