@@ -37,8 +37,8 @@
 
     <!-- Chat Window -->
     <div id="chat-window"
-         class="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:right-6 sm:bottom-[14rem] z-40
-                w-full sm:w-96 h-[70dvh] sm:h-[28rem]
+         class="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:right-6 sm:bottom-[13rem] z-40
+                w-full sm:w-96 h-[70dvh] sm:h-[28rem] sm:max-h-[calc(100dvh-14rem)]
                 bg-white dark:bg-gray-800
                 rounded-t-2xl sm:rounded-2xl shadow-2xl
                 border border-gray-200 dark:border-gray-700
@@ -92,43 +92,50 @@
         </div>
 
         <!-- Input Area -->
-        <div class="border-t border-gray-200 dark:border-gray-700 px-3 py-2 pb-[env(safe-area-inset-bottom)]">
-            <!-- Character counter -->
-            <div class="flex justify-end mb-1">
-                <span id="chat-char-count"
-                      class="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
-                    0/500
-                </span>
-            </div>
-            <div class="flex gap-2 items-end">
+        <div class="px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <!-- Unified input container -->
+            <div class="flex items-end
+                        bg-gray-50 dark:bg-gray-700
+                        rounded-2xl
+                        border border-gray-200 dark:border-gray-600
+                        focus-within:ring-2 focus-within:ring-primary-500/50
+                        transition-all duration-200
+                        pl-4 pr-1.5 py-1.5">
                 <textarea id="chat-input"
                           rows="1"
                           maxlength="500"
+                          aria-label="輸入訊息"
                           placeholder="輸入你的問題..."
-                          class="flex-1 resize-none rounded-xl
-                                 border border-gray-300 dark:border-gray-600
-                                 bg-gray-50 dark:bg-gray-700
-                                 px-3 py-2 text-sm
+                          class="flex-1 resize-none bg-transparent border-0
+                                 py-1.5 text-sm
                                  text-gray-800 dark:text-gray-200
                                  placeholder-gray-400 dark:placeholder-gray-500
-                                 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
-                                 transition-colors duration-200
+                                 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0
                                  max-h-20 overflow-y-auto"></textarea>
                 <button id="chat-send-btn"
                         disabled
                         aria-label="發送訊息"
-                        class="w-11 h-11 rounded-xl
+                        class="w-10 h-10 rounded-xl
                                bg-primary-500 hover:bg-primary-600
                                disabled:bg-gray-300 dark:disabled:bg-gray-600
                                disabled:cursor-not-allowed
                                text-white flex items-center justify-center
                                transition-colors duration-200 cursor-pointer
-                               flex-shrink-0">
+                               touch-manipulation
+                               flex-shrink-0 ml-1">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M12 19V5m0 0l-7 7m7-7l7 7"/>
                     </svg>
                 </button>
+            </div>
+            <!-- Character counter -->
+            <div class="flex justify-end mt-1.5 pr-1">
+                <span id="chat-char-count"
+                      aria-live="polite"
+                      class="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
+                    0/500
+                </span>
             </div>
         </div>
     </div>
