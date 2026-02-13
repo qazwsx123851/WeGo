@@ -134,8 +134,11 @@ wego:
       api-key: ${GEMINI_API_KEY:}
       enabled: ${GEMINI_ENABLED:false}
       model: gemini-2.5-flash
+      max-output-tokens: 1500
       connect-timeout-ms: 5000
       read-timeout-ms: 30000
+      circuit-breaker-failure-threshold: 3
+      circuit-breaker-cooldown-minutes: 5
 
   chat:
     max-message-length: 500

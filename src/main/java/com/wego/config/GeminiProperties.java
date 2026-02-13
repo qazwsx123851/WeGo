@@ -29,7 +29,13 @@ public class GeminiProperties {
 
     private String model = "gemini-2.5-flash";
 
+    private int maxOutputTokens = 1500;
+
     private int connectTimeoutMs = 5000;
 
     private int readTimeoutMs = 30000;
+
+    private int circuitBreakerFailureThreshold = 3;
+
+    private int circuitBreakerCooldownMinutes = 5;
 }

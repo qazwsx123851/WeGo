@@ -50,4 +50,9 @@ public class GeminiException extends RuntimeException {
         return new GeminiException("TIMEOUT",
                 "Gemini API request timed out. Please try again.");
     }
+
+    public static GeminiException circuitBreakerOpen() {
+        return new GeminiException("CIRCUIT_BREAKER_OPEN",
+                "AI 服務暫時不可用，請稍後再試");
+    }
 }

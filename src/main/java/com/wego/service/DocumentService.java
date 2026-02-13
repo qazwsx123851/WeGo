@@ -347,6 +347,9 @@ public class DocumentService {
         String storagePath = document.getTripId() + "/" + document.getFileName();
         storageClient.deleteFile(supabaseProperties.getStorageBucket(), storagePath);
 
+        // Invalidate cached signed URL immediately
+        signedUrlCache.invalidate(storagePath);
+
         // Delete from database
         documentRepository.delete(document);
         log.info("Deleted document {} from trip {} by user {}", documentId, document.getTripId(), userId);

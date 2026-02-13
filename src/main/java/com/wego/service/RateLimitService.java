@@ -1,13 +1,15 @@
 package com.wego.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simple in-memory rate limiting service using a sliding window algorithm.
+ * Uses Caffeine cache for automatic eviction to prevent unbounded memory growth.
  *
  * @contract
  *   - pre: key != null
@@ -20,7 +22,10 @@ public class RateLimitService {
     private static final int DEFAULT_REQUESTS_PER_MINUTE = 60;
     private static final long WINDOW_SIZE_MS = 60_000L; // 1 minute
 
-    private final Map<String, RateLimitBucket> buckets = new ConcurrentHashMap<>();
+    private final Cache<String, RateLimitBucket> buckets = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMinutes(2))
+            .maximumSize(10_000)
+            .build();
 
     /**
      * Check if a request is allowed for the given key.
@@ -40,7 +45,7 @@ public class RateLimitService {
      * @return true if allowed, false if rate limited
      */
     public boolean isAllowed(String key, int maxRequestsPerMinute) {
-        RateLimitBucket bucket = buckets.computeIfAbsent(key,
+        RateLimitBucket bucket = buckets.get(key,
             k -> new RateLimitBucket(maxRequestsPerMinute));
         return bucket.tryAcquire();
     }
@@ -52,7 +57,7 @@ public class RateLimitService {
      * @return Number of remaining requests in current window
      */
     public int getRemainingRequests(String key) {
-        RateLimitBucket bucket = buckets.get(key);
+        RateLimitBucket bucket = buckets.getIfPresent(key);
         if (bucket == null) {
             return DEFAULT_REQUESTS_PER_MINUTE;
         }
@@ -62,7 +67,7 @@ public class RateLimitService {
     /**
      * Simple token bucket implementation for rate limiting.
      */
-    private static class RateLimitBucket {
+    static class RateLimitBucket {
         private final int maxRequests;
         private final AtomicInteger requestCount = new AtomicInteger(0);
         private volatile long windowStart;

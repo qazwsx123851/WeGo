@@ -183,5 +183,106 @@ class GeminiClientImplTest {
                     .isInstanceOf(GeminiException.class)
                     .satisfies(e -> assertThat(((GeminiException) e).getErrorCode()).isEqualTo("TIMEOUT"));
         }
+
+        @Test
+        @DisplayName("should include generationConfig with maxOutputTokens in request body")
+        void shouldIncludeGenerationConfig() {
+            properties.setMaxOutputTokens(1500);
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
+
+            client.chat("prompt", "message");
+
+            ArgumentCaptor<HttpEntity<String>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+            verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(String.class));
+
+            String body = captor.getValue().getBody();
+            assertThat(body).contains("generationConfig");
+            assertThat(body).contains("\"maxOutputTokens\":1500");
+        }
+
+        @Test
+        @DisplayName("should truncate response exceeding 5000 characters")
+        void shouldTruncateLongResponse() {
+            String longText = "A".repeat(6000);
+            String longResponse = """
+                    {
+                        "candidates": [{
+                            "content": {
+                                "parts": [{"text": "%s"}],
+                                "role": "model"
+                            }
+                        }]
+                    }
+                    """.formatted(longText);
+
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenReturn(ResponseEntity.ok(longResponse));
+
+            String reply = client.chat("prompt", "message");
+
+            assertThat(reply.length()).isLessThan(6000);
+            assertThat(reply).endsWith("…(回覆已截斷)");
+        }
+    }
+
+    @Nested
+    @DisplayName("Circuit breaker")
+    class CircuitBreaker {
+
+        @Test
+        @DisplayName("should open circuit breaker after consecutive failures")
+        void shouldOpenAfterConsecutiveFailures() {
+            properties.setCircuitBreakerFailureThreshold(3);
+            properties.setCircuitBreakerCooldownMinutes(5);
+
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenThrow(new ResourceAccessException("Connection refused"));
+
+            // First 3 calls should throw network error
+            for (int i = 0; i < 3; i++) {
+                assertThatThrownBy(() -> client.chat("prompt", "message"))
+                        .isInstanceOf(GeminiException.class)
+                        .satisfies(e -> assertThat(((GeminiException) e).getErrorCode()).isEqualTo("NETWORK_ERROR"));
+            }
+
+            // 4th call should throw circuit breaker open
+            assertThatThrownBy(() -> client.chat("prompt", "message"))
+                    .isInstanceOf(GeminiException.class)
+                    .satisfies(e -> assertThat(((GeminiException) e).getErrorCode()).isEqualTo("CIRCUIT_BREAKER_OPEN"));
+        }
+
+        @Test
+        @DisplayName("should reset circuit breaker on success")
+        void shouldResetOnSuccess() {
+            properties.setCircuitBreakerFailureThreshold(3);
+            properties.setCircuitBreakerCooldownMinutes(5);
+
+            // 2 failures (below threshold)
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenThrow(new ResourceAccessException("Connection refused"));
+
+            for (int i = 0; i < 2; i++) {
+                assertThatThrownBy(() -> client.chat("prompt", "message"))
+                        .isInstanceOf(GeminiException.class);
+            }
+
+            // Then success
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
+
+            String reply = client.chat("prompt", "message");
+            assertThat(reply).isEqualTo("推薦你去鼎泰豐！");
+
+            // 2 more failures should not trigger circuit breaker (counter was reset)
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenThrow(new ResourceAccessException("Connection refused"));
+
+            for (int i = 0; i < 2; i++) {
+                assertThatThrownBy(() -> client.chat("prompt", "message"))
+                        .isInstanceOf(GeminiException.class)
+                        .satisfies(e -> assertThat(((GeminiException) e).getErrorCode()).isEqualTo("NETWORK_ERROR"));
+            }
+        }
     }
 }
