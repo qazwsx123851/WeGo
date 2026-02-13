@@ -10,9 +10,11 @@ import com.wego.entity.SplitType;
 import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
+import com.wego.dto.response.SettlementResponse;
 import com.wego.service.ActivityService;
 import com.wego.service.ExpenseService;
 import com.wego.service.ExpenseViewHelper;
+import com.wego.service.SettlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.wego.security.CurrentUser;
@@ -53,6 +55,7 @@ public class ExpenseWebController extends BaseWebController {
     private final ExpenseService expenseService;
     private final ActivityService activityService;
     private final ExpenseViewHelper expenseViewHelper;
+    private final SettlementService settlementService;
 
     /**
      * Show trip expenses page.
@@ -83,21 +86,17 @@ public class ExpenseWebController extends BaseWebController {
         // Group expenses by date
         Map<LocalDate, List<ExpenseResponse>> expensesByDate = expenseViewHelper.groupExpensesByDate(expenses);
 
-        // Calculate totals
-        String baseCurrency = trip.getBaseCurrency() != null ? trip.getBaseCurrency() : "TWD";
-        BigDecimal totalExpense = expenseService.getTotalExpense(tripId, baseCurrency, user.getId());
+        // Calculate totals with proper multi-currency conversion
+        SettlementResponse settlement = settlementService.calculateSettlement(tripId, user.getId());
+        BigDecimal totalExpense = settlement.getTotalExpenses();
+        String baseCurrency = settlement.getBaseCurrency();
 
         int memberCount = trip.getMembers() != null ? trip.getMembers().size() : 1;
         BigDecimal perPersonAverage = expenseViewHelper.calculatePerPersonAverage(totalExpense, memberCount);
 
-        // Calculate user balance
-        BigDecimal userBalance;
-        try {
-            userBalance = expenseService.calculateUserBalanceInTrip(user.getId(), tripId);
-        } catch (Exception e) {
-            log.warn("Failed to calculate user balance for trip {}: {}", tripId, e.getMessage());
-            userBalance = BigDecimal.ZERO;
-        }
+        // Extract user balance from settlement (already converted to base currency)
+        BigDecimal userBalance = settlement.getUserBalances()
+                .getOrDefault(user.getId(), BigDecimal.ZERO);
 
         model.addAttribute("trip", trip);
         model.addAttribute("expenses", expenses);
@@ -106,6 +105,7 @@ public class ExpenseWebController extends BaseWebController {
         model.addAttribute("perPersonAverage", perPersonAverage);
         model.addAttribute("userBalance", userBalance);
         model.addAttribute("defaultCurrency", baseCurrency);
+        model.addAttribute("conversionWarnings", settlement.getConversionWarnings());
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
 

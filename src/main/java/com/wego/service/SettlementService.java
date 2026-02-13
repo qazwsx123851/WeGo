@@ -177,7 +177,41 @@ public class SettlementService {
                 .expenseCount(expenses.size())
                 .currencyBreakdown(currencyBreakdown)
                 .conversionWarnings(new ArrayList<>(conversionWarnings))
+                .userBalances(balances)
                 .build();
+    }
+
+    /**
+     * Calculates a single user's balance in a trip with proper multi-currency conversion.
+     *
+     * @contract
+     *   - pre: tripId != null, userId != null
+     *   - pre: user has view permission on trip
+     *   - post: Returns positive if owed to user, negative if user owes, in base currency
+     *   - calls: calculateBalances, convertToBaseCurrency
+     *   - calledBy: ExpenseWebController#showExpenses
+     *
+     * @param tripId The trip ID
+     * @param userId The user to calculate balance for
+     * @return Balance in base currency (positive = owed to user, negative = user owes)
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal getUserBalance(UUID tripId, UUID userId) {
+        if (!permissionChecker.canView(tripId, userId)) {
+            throw new ForbiddenException("No permission to view this trip");
+        }
+
+        var trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip", tripId.toString()));
+
+        String baseCurrency = trip.getBaseCurrency();
+        List<Expense> expenses = expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId);
+        List<ExpenseSplit> splits = expenseSplitRepository.findByTripId(tripId);
+
+        Set<String> conversionWarnings = new HashSet<>();
+        Map<UUID, BigDecimal> balances = calculateBalances(expenses, splits, baseCurrency, conversionWarnings);
+
+        return balances.getOrDefault(userId, BigDecimal.ZERO);
     }
 
     /**

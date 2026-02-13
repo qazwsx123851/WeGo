@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -44,6 +45,13 @@ public class SettlementResponse {
      */
     @Builder.Default
     private List<String> conversionWarnings = new ArrayList<>();
+
+    /**
+     * Per-user balances in base currency.
+     * Positive = owed to user (creditor), Negative = user owes (debtor).
+     */
+    @Builder.Default
+    private Map<UUID, BigDecimal> userBalances = new HashMap<>();
 
     /**
      * Individual settlement item showing who pays whom.

@@ -1,6 +1,7 @@
 package com.wego.controller.web;
 
 import com.wego.dto.response.ExpenseResponse;
+import com.wego.dto.response.SettlementResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.Role;
 import com.wego.entity.SplitType;
@@ -10,6 +11,7 @@ import com.wego.security.UserPrincipal;
 import com.wego.service.ActivityService;
 import com.wego.service.ExpenseService;
 import com.wego.service.ExpenseViewHelper;
+import com.wego.service.SettlementService;
 import com.wego.service.TripService;
 import com.wego.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,6 +75,9 @@ class ExpenseWebControllerTest {
 
     @MockBean
     private ExpenseViewHelper expenseViewHelper;
+
+    @MockBean
+    private SettlementService settlementService;
 
     private UUID userId;
     private UUID tripId;
@@ -148,10 +153,13 @@ class ExpenseWebControllerTest {
         void listExpenses_authenticated_shouldReturnListView() throws Exception {
             when(tripService.getTrip(tripId, userId)).thenReturn(testTrip);
             when(expenseService.getExpensesByTrip(tripId, userId)).thenReturn(List.of(testExpense));
-            when(expenseService.getTotalExpense(eq(tripId), anyString(), eq(userId)))
-                    .thenReturn(new BigDecimal("500.00"));
-            when(expenseService.calculateUserBalanceInTrip(userId, tripId))
-                    .thenReturn(new BigDecimal("250.00"));
+            when(settlementService.calculateSettlement(tripId, userId))
+                    .thenReturn(SettlementResponse.builder()
+                            .totalExpenses(new BigDecimal("500.00"))
+                            .baseCurrency("TWD")
+                            .expenseCount(1)
+                            .userBalances(Map.of(userId, new BigDecimal("250.00")))
+                            .build());
 
             mockMvc.perform(get("/trips/{tripId}/expenses", tripId).with(oauth2Login()))
                     .andExpect(status().isOk())
@@ -159,7 +167,7 @@ class ExpenseWebControllerTest {
                     .andExpect(model().attributeExists(
                             "trip", "expenses", "expensesByDate",
                             "totalExpense", "perPersonAverage", "userBalance",
-                            "defaultCurrency", "name", "picture"));
+                            "defaultCurrency", "conversionWarnings", "name", "picture"));
         }
 
         @Test

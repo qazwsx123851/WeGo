@@ -823,4 +823,136 @@ class SettlementServiceTest {
                     .isInstanceOf(ResourceNotFoundException.class);
         }
     }
+
+    @Nested
+    @DisplayName("getUserBalance")
+    class GetUserBalanceTests {
+
+        @Test
+        @DisplayName("should return positive balance when user is owed money (single currency)")
+        void getUserBalance_singleCurrency_creditor() {
+            // Given: User1 paid 1000 TWD, split equally with User2
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+
+            Expense expense = Expense.builder()
+                    .id(expenseId)
+                    .tripId(tripId)
+                    .amount(new BigDecimal("1000"))
+                    .currency("TWD")
+                    .paidBy(userId)
+                    .splitType(SplitType.EQUAL)
+                    .build();
+
+            ExpenseSplit split = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expenseId)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("500"))
+                    .isSettled(false)
+                    .build();
+
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId)).thenReturn(List.of(expense));
+            when(expenseSplitRepository.findByTripId(tripId)).thenReturn(List.of(split));
+
+            // When
+            BigDecimal balance = settlementService.getUserBalance(tripId, userId);
+
+            // Then: User1 is owed 500
+            assertThat(balance).isEqualByComparingTo(new BigDecimal("500"));
+        }
+
+        @Test
+        @DisplayName("should return negative balance when user owes money (single currency)")
+        void getUserBalance_singleCurrency_debtor() {
+            // Given: User1 paid 1000 TWD, User2 owes 500
+            when(permissionChecker.canView(tripId, user2Id)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+
+            Expense expense = Expense.builder()
+                    .id(expenseId)
+                    .tripId(tripId)
+                    .amount(new BigDecimal("1000"))
+                    .currency("TWD")
+                    .paidBy(userId)
+                    .splitType(SplitType.EQUAL)
+                    .build();
+
+            ExpenseSplit split = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expenseId)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("500"))
+                    .isSettled(false)
+                    .build();
+
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId)).thenReturn(List.of(expense));
+            when(expenseSplitRepository.findByTripId(tripId)).thenReturn(List.of(split));
+
+            // When
+            BigDecimal balance = settlementService.getUserBalance(tripId, user2Id);
+
+            // Then: User2 owes 500
+            assertThat(balance).isEqualByComparingTo(new BigDecimal("-500"));
+        }
+
+        @Test
+        @DisplayName("should convert multi-currency expenses to base currency")
+        void getUserBalance_multiCurrency_shouldConvert() {
+            // Given: User1 paid 100 USD, split equally with User2, base=TWD
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+
+            Expense expense = Expense.builder()
+                    .id(expenseId)
+                    .tripId(tripId)
+                    .amount(new BigDecimal("100"))
+                    .currency("USD")
+                    .paidBy(userId)
+                    .splitType(SplitType.EQUAL)
+                    .build();
+
+            ExpenseSplit split = ExpenseSplit.builder()
+                    .id(UUID.randomUUID())
+                    .expenseId(expenseId)
+                    .userId(user2Id)
+                    .amount(new BigDecimal("50"))
+                    .isSettled(false)
+                    .build();
+
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId)).thenReturn(List.of(expense));
+            when(expenseSplitRepository.findByTripId(tripId)).thenReturn(List.of(split));
+            // USD 50 → TWD 1600 (rate 32)
+            when(exchangeRateService.convert(new BigDecimal("50"), "USD", "TWD"))
+                    .thenReturn(new BigDecimal("1600.00"));
+
+            // When
+            BigDecimal balance = settlementService.getUserBalance(tripId, userId);
+
+            // Then: User1 is owed 1600 TWD
+            assertThat(balance).isEqualByComparingTo(new BigDecimal("1600.00"));
+        }
+
+        @Test
+        @DisplayName("should return zero when user has no expenses")
+        void getUserBalance_noExpenses_shouldReturnZero() {
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
+            when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId)).thenReturn(List.of());
+            when(expenseSplitRepository.findByTripId(tripId)).thenReturn(List.of());
+
+            BigDecimal balance = settlementService.getUserBalance(tripId, userId);
+
+            assertThat(balance).isEqualByComparingTo(BigDecimal.ZERO);
+        }
+
+        @Test
+        @DisplayName("should throw ForbiddenException when user has no view permission")
+        void getUserBalance_noPermission_shouldThrow() {
+            when(permissionChecker.canView(tripId, userId)).thenReturn(false);
+
+            assertThatThrownBy(() -> settlementService.getUserBalance(tripId, userId))
+                    .isInstanceOf(ForbiddenException.class);
+        }
+    }
 }
