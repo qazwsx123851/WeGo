@@ -32,6 +32,7 @@
     // --- Open / Close Chat ---
     function openChat() {
         isOpen = true;
+        toggleBtn.classList.add('hidden');
         chatWindow.classList.remove('opacity-0', 'pointer-events-none');
         chatWindow.classList.add('opacity-100', 'pointer-events-auto');
 
@@ -39,8 +40,6 @@
             // Desktop: scale animation
             chatWindow.classList.remove('sm:scale-0');
             chatWindow.classList.add('sm:scale-100');
-            iconOpen.classList.add('hidden');
-            iconClose.classList.remove('hidden');
         } else {
             // Mobile: slide-up + backdrop
             chatWindow.classList.remove('translate-y-full');
@@ -48,13 +47,13 @@
             if (backdrop) {
                 backdrop.classList.remove('hidden');
             }
-            toggleBtn.classList.add('hidden');
         }
         chatInput.focus();
     }
 
     function closeChat() {
         isOpen = false;
+        toggleBtn.classList.remove('hidden');
         chatWindow.classList.add('opacity-0', 'pointer-events-none');
         chatWindow.classList.remove('opacity-100', 'pointer-events-auto');
 
@@ -62,8 +61,6 @@
             // Desktop: scale animation
             chatWindow.classList.add('sm:scale-0');
             chatWindow.classList.remove('sm:scale-100');
-            iconOpen.classList.remove('hidden');
-            iconClose.classList.add('hidden');
         } else {
             // Mobile: slide-down + hide backdrop
             chatWindow.classList.add('translate-y-full');
@@ -71,7 +68,6 @@
             if (backdrop) {
                 backdrop.classList.add('hidden');
             }
-            toggleBtn.classList.remove('hidden');
         }
     }
 

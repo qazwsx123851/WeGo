@@ -398,11 +398,11 @@
     <!-- Floating Action Button -->
     <a th:href="@{/trips/{tripId}/activities/new(tripId=${trip.id})}"
        th:if="${!#maps.isEmpty(activitiesByDate)}"
-       class="fixed bottom-24 right-4 w-14 h-14
+       class="fixed bottom-24 right-6 w-14 h-14
               bg-adventure-500 hover:bg-adventure-600
               rounded-full text-white shadow-lg shadow-adventure-500/30
               flex items-center justify-center
-              transition-all duration-200 active:scale-95 cursor-pointer z-30"
+              transition-all duration-200 active:scale-95 cursor-pointer z-[52]"
        aria-label="新增景點">
         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>

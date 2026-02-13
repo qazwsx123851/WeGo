@@ -12,14 +12,14 @@
 
     <!-- Backdrop (mobile only) -->
     <div id="chat-backdrop"
-         class="fixed inset-0 bg-black/30 z-[39]
+         class="fixed inset-0 bg-black/30 z-[51]
                 hidden transition-opacity duration-300"></div>
 
     <!-- Floating Chat Button -->
     <button id="chat-toggle-btn"
             th:data-trip-id="${tripId}"
             aria-label="開啟 AI 旅遊助手"
-            class="fixed right-6 bottom-[10rem] z-40
+            class="fixed right-6 bottom-[10.5rem] z-[52]
                    w-14 h-14 rounded-full
                    bg-primary-500 hover:bg-primary-600 active:bg-primary-700
                    text-white shadow-lg shadow-primary-500/30
@@ -37,7 +37,7 @@
 
     <!-- Chat Window -->
     <div id="chat-window"
-         class="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:right-6 sm:bottom-[13rem] z-40
+         class="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:right-6 sm:bottom-[13rem] z-[52]
                 w-full sm:w-96 h-[70dvh] sm:h-[28rem] sm:max-h-[calc(100dvh-14rem)]
                 bg-white dark:bg-gray-800
                 rounded-t-2xl sm:rounded-2xl shadow-2xl
@@ -63,7 +63,7 @@
             <!-- Close button in header (mobile only) -->
             <button id="chat-close-header"
                     aria-label="關閉聊天"
-                    class="sm:hidden w-8 h-8 rounded-full bg-white/20
+                    class="w-8 h-8 rounded-full bg-white/20
                            flex items-center justify-center
                            hover:bg-white/30 transition-colors cursor-pointer">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
