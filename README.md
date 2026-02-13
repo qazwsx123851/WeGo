@@ -49,7 +49,7 @@
 | 部署 | Railway |
 | 外部 API | Google Maps、OpenWeatherMap、ExchangeRate-API |
 | 認證 | Google OAuth 2.0 + Spring Security |
-| 快取 | Caffeine（統計、匯率）+ ConcurrentHashMap（天氣） |
+| 快取 | Caffeine（統計、匯率、權限、Signed URL） |
 | 限流 | Bucket4j（IP 層）+ 應用層限流 |
 
 ### 專案規模
@@ -58,12 +58,12 @@
 |------|------|
 | REST API 端點 | 55 個 |
 | Web 頁面端點 | 37 個 |
-| Service 類別 | 17 個 |
+| Service 類別 | 20 個（含 ViewHelper） |
 | Entity / Enum | 10 / 6 個 |
 | Repository | 10 個 |
 | HTML 模板 | 27 個 |
-| JS 模組 | 6 個 |
-| 單元測試 | ~864 個（58 個測試檔案） |
+| JS 模組 | 7 個 |
+| 單元測試 | ~1011 個（74 個測試檔案） |
 | E2E 測試 | ~118 個（10 個 Playwright spec） |
 
 ---
@@ -84,7 +84,7 @@ wego/
 │   ├── config/          # 設定（Security, Cache, OAuth, Rate Limit）
 │   ├── controller/      # Web Controllers + API Controllers
 │   │   └── api/         # REST API 端點
-│   ├── service/         # 業務邏輯（17 個 Service）
+│   ├── service/         # 業務邏輯（20 個 Service，含 ViewHelper）
 │   ├── domain/          # 領域邏輯（DebtSimplifier, RouteOptimizer, PermissionChecker, ExpenseAggregator）
 │   ├── repository/      # 資料存取（10 個 Repository）
 │   ├── entity/          # JPA Entities（10 個）
@@ -93,7 +93,7 @@ wego/
 ├── src/main/resources/
 │   ├── templates/       # Thymeleaf 模板（27 個）
 │   └── static/          # CSS, JS, Images
-├── src/test/            # 單元測試（~864 tests）
+├── src/test/            # 單元測試（~1011 tests）
 ├── e2e/                 # E2E 測試（Playwright, ~118 tests）
 └── docs/                # 專案文件（19 份）
 ```
@@ -146,7 +146,7 @@ wego/
 
 | 文件 | 說明 |
 |------|------|
-| [docs/project-health-report.md](docs/project-health-report.md) | 專案健康度報告（綜合評分 7.0/10） |
+| [docs/project-health-report.md](docs/project-health-report.md) | 專案健康度報告（綜合評分 8.7/10） |
 | [docs/review-architecture.md](docs/review-architecture.md) | 架構審查 |
 | [docs/review-security.md](docs/review-security.md) | 安全審查 |
 | [docs/review-frontend.md](docs/review-frontend.md) | 前端審查 |

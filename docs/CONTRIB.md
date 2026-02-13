@@ -1,8 +1,9 @@
 # WeGo 開發貢獻指南
 
-> 最後更新: 2026-02-12 | 自動生成自 pom.xml 和 .env.example
+> 最後更新: 2026-02-13 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-13: 檔案管理頁效能優化 — Signed URL CDN 直連、Document N+1 批次查詢、Caffeine 快取
 > - 2026-02-12: 例外處理收緊 (24→19 catch blocks)、模板 head fragment 統一 (27/27)、ViewHelper 單元測試、表單防重複提交
 > - 2026-02-12: Auth 遷移 (`@CurrentUser UserPrincipal`)、新增 ViewHelper/common.js、Web Controller 測試全覆蓋、PermissionChecker 快取
 > - 2026-02-12: 更新測試統計、移除程式碼範例、Service/E2E 表格更新
@@ -42,7 +43,7 @@
 | Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 | Unit |
 | Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙 | Unit + E2E |
 
-**測試統計**: 1007 單元測試 (72 個測試檔案) + ~118 E2E 測試 (Playwright)
+**測試統計**: 1011 單元測試 (74 個測試檔案) + ~118 E2E 測試 (Playwright)
 
 ---
 
@@ -189,7 +190,7 @@ src/
 │   │   └── application.yml
 │   └── frontend/                   # Tailwind CSS 原始碼
 └── test/
-    └── java/com/wego/             # 測試類別 (72 個測試檔案)
+    └── java/com/wego/             # 測試類別 (74 個測試檔案)
 ```
 
 ---
@@ -246,7 +247,7 @@ src/
 | `ExpenseService` | 支出記錄、分帳計算 | ExpenseRepository, SettlementService |
 | `SettlementService` | 債務結算 | DebtSimplifier |
 | `TodoService` | 代辦事項管理 | TodoRepository |
-| `DocumentService` | 檔案上傳/下載 | StorageClient |
+| `DocumentService` | 檔案上傳/下載/預覽（Signed URL 快取、批次查詢） | StorageClient, CacheManager |
 | `TransportCalculationService` | 交通時間/距離計算、批次重算 | GoogleMapsClient, PlaceRepository |
 | `GlobalExpenseService` | 跨行程支出統計 | ExpenseRepository, TripMemberRepository |
 | `GlobalDocumentService` | 跨行程文件管理 | DocumentRepository, TripMemberRepository |

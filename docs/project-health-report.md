@@ -1,6 +1,6 @@
 # WeGo 專案健康度報告
 
-**日期:** 2026-02-12
+**日期:** 2026-02-13
 **審查範圍:** 架構、安全、前端、效能、測試
 **審查團隊:** 5 位自動化審查員 (Claude Opus 4.6)
 **分支:** main
@@ -14,9 +14,9 @@
 | 架構設計 | **8.5** | 分層清晰，Auth 統一為 `@CurrentUser UserPrincipal` (零 DB 查詢)，業務邏輯提取至 ViewHelper，PermissionChecker 含請求級快取，TripConstants 共用常數 |
 | 安全性 | **8.5** | 基礎扎實 (OAuth2、CSRF、參數化查詢、無 XSS)，max-request-size 已降至 30MB；生產環境錯誤訊息曝露仍為 Critical |
 | 前端品質 | **8.0** | 模組化 JS 良好，共用 `common.js` (escapeHtml/CSRF/fetchWithTimeout/preventDoubleSubmit)，**27/27 模板統一 head fragment**，表單防重複提交 |
-| 效能 | **8.0** | 資料庫索引、Cache-Control、統一快取系統、N+1 修復、PermissionChecker 快取 (5s TTL)、Web Auth 零 DB 查詢 |
-| 測試覆蓋 | **9.0** | 1007 單元測試 + ~118 E2E 測試全數通過，12/12 Web Controller 皆有 WebMvcTest，REST API 100% 覆蓋，ViewHelper 單元測試 |
-| **整體** | **8.7** | 功能完整的 MVP，Auth 統一、業務邏輯分層、前端整合、例外處理收緊、模板全統一、Web Controller 測試全覆蓋 |
+| 效能 | **8.5** | 資料庫索引、Cache-Control、統一快取系統、N+1 修復（Trip/Document 批次查詢）、Signed URL 快取、PermissionChecker 快取 (5s TTL)、Web Auth 零 DB 查詢、分離 RestTemplate timeout |
+| 測試覆蓋 | **9.0** | 1011 單元測試 (74 個測試檔案) + ~118 E2E 測試全數通過，12/12 Web Controller 皆有 WebMvcTest，REST API 100% 覆蓋，ViewHelper 單元測試 |
+| **整體** | **8.7** | 功能完整的 MVP，Auth 統一、業務邏輯分層、前端整合、例外處理收緊、模板全統一、Web Controller 測試全覆蓋、檔案預覽效能優化 |
 
 ---
 
@@ -70,6 +70,9 @@
 | 27/27 模板統一 `fragments/head` | 前端 | 🟡 High | ✅ 已修復 (含 error 頁面 fallback) |
 | ViewHelper 單元測試 (32 tests) | 測試 | 🟠 Medium | ✅ 已修復 |
 | 表單防重複提交 (`WeGo.preventDoubleSubmit`) | 前端 | 🟠 Medium | ✅ 已修復 (4 個表單) |
+| Document Signed URL 快取 (Caffeine, 動態 TTL) | 效能 | 🟡 Warning | ✅ 已修復 |
+| Document N+1 批次查詢 (`buildDocumentResponses`) | 效能 | 🟡 Warning | ✅ 已修復 (~23→~4 queries) |
+| SupabaseStorageClient 雙 RestTemplate (API/File timeout 分離) | 效能 | 🔵 Suggestion | ✅ 已修復 |
 
 ---
 
@@ -116,7 +119,7 @@
 
 | 項目 | 數據 |
 |------|------|
-| 單元測試總數 | 1007 (72 個測試檔案) |
+| 單元測試總數 | 1011 (74 個測試檔案) |
 | E2E 測試總數 | ~118 |
 | 通過率 | 100% |
 | 新增測試檔 | ActivityWebControllerTest (16)、ExpenseWebControllerTest (14)、ProfileControllerTest (6)、InviteControllerTest (7)、TodoWebControllerTest (3)、SettlementWebControllerTest (4)、GlobalExpenseControllerTest (2)、GlobalDocumentControllerTest (2)、TripControllerTest (16)、TodoApiControllerTest (20)、ExchangeRateApiControllerTest (16) |
