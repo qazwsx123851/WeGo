@@ -15,6 +15,9 @@ import com.wego.repository.PlaceRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
 import com.wego.service.external.StorageClient;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,11 +26,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -78,6 +83,23 @@ public class DocumentService {
     private final StorageClient storageClient;
     private final PermissionChecker permissionChecker;
     private final SupabaseProperties supabaseProperties;
+
+    /**
+     * Cache for signed URLs to ensure stable URLs across page reloads (browser cache compatible)
+     * and reduce Supabase API rate. TTL = signedUrlExpiry - 600s (refresh 10 min before expiry).
+     * Key: storagePath ("tripId/fileName"), Value: signed URL string.
+     * Initialized in {@link #initSignedUrlCache()} to derive TTL from config.
+     */
+    private Cache<String, String> signedUrlCache;
+
+    @PostConstruct
+    void initSignedUrlCache() {
+        int ttl = Math.max(supabaseProperties.getSignedUrlExpiry() - 600, 60);
+        this.signedUrlCache = Caffeine.newBuilder()
+                .expireAfterWrite(Duration.ofSeconds(ttl))
+                .maximumSize(500)
+                .build();
+    }
 
     /**
      * Uploads a document to a trip.
@@ -151,7 +173,7 @@ public class DocumentService {
             document = documentRepository.save(document);
             log.info("Uploaded document {} to trip {} by user {}", document.getId(), tripId, userId);
 
-            return buildDocumentResponse(document);
+            return buildDocumentResponses(List.of(document), false).get(0);
         } catch (IOException e) {
             log.error("Failed to read file content", e);
             throw new ValidationException("FILE_READ_ERROR", "無法讀取檔案內容");
@@ -174,7 +196,29 @@ public class DocumentService {
      */
     @Transactional(readOnly = true)
     public List<DocumentResponse> getDocumentsByTrip(UUID tripId, UUID userId) {
-        log.debug("Getting documents for trip {} by user {}", tripId, userId);
+        return getDocumentsByTrip(tripId, userId, false);
+    }
+
+    /**
+     * Gets all documents for a trip with optional signed URLs.
+     *
+     * @contract
+     *   - pre: tripId != null, userId != null
+     *   - pre: user has view permission on trip
+     *   - post: returns list of documents ordered by creation date desc
+     *   - post: if includeSignedUrls, each image/PDF document has a signed URL for direct CDN access
+     *   - calledBy: DocumentWebController#showDocuments (with signedUrls=true),
+     *               DocumentApiController#getDocumentsByTrip (without signedUrls)
+     *
+     * @param tripId The trip ID
+     * @param userId The requesting user's ID
+     * @param includeSignedUrls Whether to populate signedUrl for direct CDN loading
+     * @return List of document responses
+     * @throws ForbiddenException if user has no view permission
+     */
+    @Transactional(readOnly = true)
+    public List<DocumentResponse> getDocumentsByTrip(UUID tripId, UUID userId, boolean includeSignedUrls) {
+        log.debug("Getting documents for trip {} by user {} (signedUrls={})", tripId, userId, includeSignedUrls);
 
         if (!permissionChecker.canView(tripId, userId)) {
             throw new ForbiddenException("您沒有權限查看此行程的檔案");
@@ -182,9 +226,7 @@ public class DocumentService {
 
         List<Document> documents = documentRepository.findByTripIdOrderByCreatedAtDesc(tripId);
 
-        return documents.stream()
-                .map(this::buildDocumentResponse)
-                .collect(Collectors.toList());
+        return buildDocumentResponses(documents, includeSignedUrls);
     }
 
     /**
@@ -219,7 +261,7 @@ public class DocumentService {
             throw new ForbiddenException("您沒有權限查看此檔案");
         }
 
-        return buildDocumentResponse(document);
+        return buildDocumentResponses(List.of(document), false).get(0);
     }
 
     /**
@@ -360,9 +402,7 @@ public class DocumentService {
         // Use tripId AND activityId to prevent IDOR - ensures activity belongs to the authorized trip
         List<Document> documents = documentRepository.findByTripIdAndRelatedActivityId(tripId, activityId);
 
-        return documents.stream()
-                .map(this::buildDocumentResponse)
-                .collect(Collectors.toList());
+        return buildDocumentResponses(documents, false);
     }
 
     /**
@@ -503,27 +543,90 @@ public class DocumentService {
         return fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
     }
 
-    private DocumentResponse buildDocumentResponse(Document document) {
-        DocumentResponse response = DocumentResponse.fromEntity(document);
-
-        // Add uploader info
-        userRepository.findById(document.getUploadedBy()).ifPresent(user -> {
-            response.setUploadedByName(user.getNickname());
-            response.setUploadedByAvatarUrl(user.getAvatarUrl());
-        });
-
-        // Add related activity name
-        if (document.getRelatedActivityId() != null) {
-            activityRepository.findById(document.getRelatedActivityId()).ifPresent(activity -> {
-                if (activity.getPlaceId() != null) {
-                    placeRepository.findById(activity.getPlaceId()).ifPresent(place ->
-                        response.setRelatedActivityName(place.getName())
-                    );
-                }
-            });
+    /**
+     * Batch-builds DocumentResponse DTOs from Document entities.
+     * Uses batch queries to avoid N+1 problem.
+     *
+     * @contract
+     *   - pre: documents != null
+     *   - post: each response has uploader info and related activity name
+     *   - post: if includeSignedUrls, image/PDF documents have signed URLs (failures gracefully degrade)
+     *
+     * @param documents The document entities
+     * @param includeSignedUrls Whether to generate signed URLs for direct CDN access
+     * @return List of document responses in same order
+     */
+    private List<DocumentResponse> buildDocumentResponses(List<Document> documents, boolean includeSignedUrls) {
+        if (documents.isEmpty()) {
+            return List.of();
         }
 
-        return response;
+        // Batch: collect all uploader IDs → single query
+        Set<UUID> uploaderIds = documents.stream()
+                .map(Document::getUploadedBy)
+                .collect(Collectors.toSet());
+        Map<UUID, User> userMap = userRepository.findAllById(uploaderIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        // Batch: collect all related activity IDs → single query
+        Set<UUID> activityIds = documents.stream()
+                .map(Document::getRelatedActivityId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<UUID, com.wego.entity.Activity> activityMap = activityIds.isEmpty()
+                ? Map.of()
+                : activityRepository.findAllById(activityIds).stream()
+                        .collect(Collectors.toMap(com.wego.entity.Activity::getId, Function.identity()));
+
+        // Batch: collect all place IDs from activities → single query
+        Set<UUID> placeIds = activityMap.values().stream()
+                .map(com.wego.entity.Activity::getPlaceId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        Map<UUID, com.wego.entity.Place> placeMap = placeIds.isEmpty()
+                ? Map.of()
+                : placeRepository.findAllById(placeIds).stream()
+                        .collect(Collectors.toMap(com.wego.entity.Place::getId, Function.identity()));
+
+        return documents.stream().map(doc -> {
+            DocumentResponse response = DocumentResponse.fromEntity(doc);
+
+            // Set uploader info
+            User uploader = userMap.get(doc.getUploadedBy());
+            if (uploader != null) {
+                response.setUploadedByName(uploader.getNickname());
+                response.setUploadedByAvatarUrl(uploader.getAvatarUrl());
+            }
+
+            // Set related activity name
+            if (doc.getRelatedActivityId() != null) {
+                var activity = activityMap.get(doc.getRelatedActivityId());
+                if (activity != null && activity.getPlaceId() != null) {
+                    var place = placeMap.get(activity.getPlaceId());
+                    if (place != null) {
+                        response.setRelatedActivityName(place.getName());
+                    }
+                }
+            }
+
+            // Generate signed URL for direct CDN access (images and PDFs only)
+            if (includeSignedUrls && (doc.isImage() || doc.isPdf())) {
+                String storagePath = doc.getTripId() + "/" + doc.getFileName();
+                try {
+                    String signedUrl = signedUrlCache.get(storagePath, key ->
+                            storageClient.getSignedUrl(
+                                    supabaseProperties.getStorageBucket(),
+                                    key,
+                                    supabaseProperties.getSignedUrlExpiry()));
+                    response.setSignedUrl(signedUrl);
+                } catch (Exception e) {
+                    log.warn("Failed to generate signed URL for {}: {}", storagePath, e.getMessage());
+                    // Graceful degradation: signedUrl stays null, template falls back to placeholder
+                }
+            }
+
+            return response;
+        }).collect(Collectors.toList());
     }
 
     /**

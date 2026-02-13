@@ -58,8 +58,8 @@ public class DocumentWebController extends BaseWebController {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
-        // Get documents for the trip
-        var documents = documentService.getDocumentsByTrip(tripId, user.getId());
+        // Get documents for the trip (with signed URLs for direct CDN thumbnail loading)
+        var documents = documentService.getDocumentsByTrip(tripId, user.getId(), true);
 
         model.addAttribute("trip", trip);
         model.addAttribute("tripId", tripId);

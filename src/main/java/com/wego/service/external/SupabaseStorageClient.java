@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
@@ -41,13 +42,26 @@ public class SupabaseStorageClient implements StorageClient {
     private static final String STORAGE_BASE_PATH = "/storage/v1/object";
 
     private final SupabaseProperties properties;
-    private final RestTemplate restTemplate;
+    /** RestTemplate for API calls (signed URL, metadata) — short timeouts. */
+    private final RestTemplate apiRestTemplate;
+    /** RestTemplate for file transfers (upload/download) — longer timeouts. */
+    private final RestTemplate fileRestTemplate;
     private final ObjectMapper objectMapper;
     private final boolean enabled;
 
     public SupabaseStorageClient(SupabaseProperties properties) {
         this.properties = properties;
-        this.restTemplate = new RestTemplate();
+
+        SimpleClientHttpRequestFactory apiFactory = new SimpleClientHttpRequestFactory();
+        apiFactory.setConnectTimeout(3_000);
+        apiFactory.setReadTimeout(5_000);
+        this.apiRestTemplate = new RestTemplate(apiFactory);
+
+        SimpleClientHttpRequestFactory fileFactory = new SimpleClientHttpRequestFactory();
+        fileFactory.setConnectTimeout(5_000);
+        fileFactory.setReadTimeout(30_000);
+        this.fileRestTemplate = new RestTemplate(fileFactory);
+
         this.objectMapper = new ObjectMapper();
 
         // Check if Supabase is properly configured
@@ -99,7 +113,7 @@ public class SupabaseStorageClient implements StorageClient {
         HttpEntity<byte[]> entity = new HttpEntity<>(content, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(
+            ResponseEntity<String> response = fileRestTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     entity,
@@ -139,7 +153,7 @@ public class SupabaseStorageClient implements StorageClient {
         HttpEntity<byte[]> entity = new HttpEntity<>(content, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(
+            ResponseEntity<String> response = fileRestTemplate.exchange(
                     url,
                     HttpMethod.PUT,
                     entity,
@@ -171,7 +185,7 @@ public class SupabaseStorageClient implements StorageClient {
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
         try {
-            ResponseEntity<byte[]> response = restTemplate.exchange(
+            ResponseEntity<byte[]> response = fileRestTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     entity,
@@ -211,7 +225,7 @@ public class SupabaseStorageClient implements StorageClient {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(
+            ResponseEntity<String> response = apiRestTemplate.exchange(
                     url,
                     HttpMethod.DELETE,
                     entity,
@@ -250,7 +264,7 @@ public class SupabaseStorageClient implements StorageClient {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(
+            ResponseEntity<String> response = apiRestTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     entity,
@@ -262,9 +276,9 @@ public class SupabaseStorageClient implements StorageClient {
                 String signedURL = json.path("signedURL").asText();
 
                 if (signedURL != null && !signedURL.isEmpty()) {
-                    // If the signed URL is relative, prepend the base URL
+                    // If the signed URL is relative, prepend the base URL with storage path
                     if (signedURL.startsWith("/")) {
-                        signedURL = properties.getUrl() + signedURL;
+                        signedURL = properties.getUrl() + "/storage/v1" + signedURL;
                     }
                     log.debug("Generated signed URL for {}/{}", bucket, path);
                     return signedURL;
@@ -292,7 +306,7 @@ public class SupabaseStorageClient implements StorageClient {
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
         try {
-            ResponseEntity<Void> response = restTemplate.exchange(
+            ResponseEntity<Void> response = apiRestTemplate.exchange(
                     url,
                     HttpMethod.HEAD,
                     entity,

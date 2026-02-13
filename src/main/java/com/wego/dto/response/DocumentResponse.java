@@ -62,10 +62,17 @@ public class DocumentResponse {
     private String fileExtension;
 
     /**
-     * Thumbnail URL for image files (same as fileUrl for images, null otherwise).
+     * Signed URL for direct CDN access (populated only for web rendering path).
+     */
+    private String signedUrl;
+
+    /**
+     * Thumbnail URL for image files only.
+     * Prefers signedUrl (direct CDN) over fileUrl (backend proxy).
      */
     public String getThumbnailUrl() {
-        return isImage ? fileUrl : null;
+        if (isImage) return signedUrl != null ? signedUrl : fileUrl;
+        return null;
     }
 
     /**

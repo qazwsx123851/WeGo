@@ -119,13 +119,23 @@
                  th:data-date="${doc.createdAt}"
                  th:data-size="${doc.fileSize}"
                  th:data-name="${doc.originalFileName}"
+                 th:data-signed-url="${doc.signedUrl}"
                  onclick="openDocumentDetail(this)">
+                <!--/* Security note: Signed URLs are time-limited (configurable, default 1hr)
+                     and only rendered for authenticated users with VIEW permission on this trip.
+                     This is acceptable since viewers already have download access via the proxy endpoint. */-->
                 <!-- Thumbnail/Icon -->
                 <div class="aspect-square rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3 overflow-hidden">
-                    <!-- Image Thumbnail -->
-                    <img th:if="${doc.isImage}"
+                    <!-- Image Thumbnail (direct CDN via signed URL) -->
+                    <img th:if="${doc.isImage and doc.signedUrl != null}"
+                         th:src="${doc.signedUrl}"
+                         th:alt="${doc.originalFileName}"
+                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                         loading="lazy"/>
+                    <!-- Image fallback: backend proxy when no signed URL available -->
+                    <img th:if="${doc.isImage and doc.signedUrl == null}"
                          th:src="|/api/trips/${tripId}/documents/${doc.id}/preview|"
-                         th:alt="${doc.fileName}"
+                         th:alt="${doc.originalFileName}"
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                          loading="lazy"/>
 
@@ -741,16 +751,18 @@
             document.getElementById('detail-modal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
 
+            const signedUrl = card.dataset.signedUrl || '';
+
             if (isImage) {
-                // Image preview - use backend proxy endpoint
+                // Image preview - prefer signed URL (direct CDN), fallback to backend proxy
                 const img = document.createElement('img');
-                img.src = `/api/trips/${tripId}/documents/${currentDocumentId}/preview`;
+                img.src = signedUrl || `/api/trips/${tripId}/documents/${currentDocumentId}/preview`;
                 img.alt = fileName;
                 img.className = 'max-w-full max-h-full object-contain rounded-lg';
                 previewArea.appendChild(img);
             } else if (isPdf) {
-                // PDF preview - use backend proxy endpoint (same-origin, no CORS/CSP issues)
-                const previewUrl = `/api/trips/${tripId}/documents/${currentDocumentId}/preview`;
+                // PDF preview - prefer signed URL, fallback to backend proxy
+                const previewUrl = signedUrl || `/api/trips/${tripId}/documents/${currentDocumentId}/preview`;
                 renderPdfPreview(previewArea, previewUrl);
             } else {
                 // Other files - show generic icon

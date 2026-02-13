@@ -140,6 +140,9 @@ class DocumentServiceTest {
         when(supabaseProperties.getStorageBucket()).thenReturn("documents");
         when(supabaseProperties.getSignedUrlExpiry()).thenReturn(3600);
         when(tripRepository.existsById(tripId)).thenReturn(true);
+
+        // Manually invoke @PostConstruct since Mockito doesn't call it
+        documentService.initSignedUrlCache();
     }
 
     @Nested
@@ -174,7 +177,7 @@ class DocumentServiceTest {
                 doc.setId(documentId);
                 return doc;
             });
-            when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser));
 
             // When
             DocumentResponse response = documentService.uploadDocument(tripId, userId, file, request);
@@ -215,7 +218,7 @@ class DocumentServiceTest {
                 doc.setId(documentId);
                 return doc;
             });
-            when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser));
 
             // When
             DocumentResponse response = documentService.uploadDocument(tripId, userId, file, request);
@@ -365,13 +368,13 @@ class DocumentServiceTest {
                 doc.setId(documentId);
                 return doc;
             });
-            when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser));
 
-            Activity mockActivity = Activity.builder().placeId(placeId).build();
-            when(activityRepository.findById(activityId)).thenReturn(Optional.of(mockActivity));
+            Activity mockActivity = Activity.builder().id(activityId).placeId(placeId).build();
+            when(activityRepository.findAllById(any())).thenReturn(List.of(mockActivity));
 
-            Place mockPlace = Place.builder().name("測試景點").build();
-            when(placeRepository.findById(placeId)).thenReturn(Optional.of(mockPlace));
+            Place mockPlace = Place.builder().id(placeId).name("測試景點").build();
+            when(placeRepository.findAllById(any())).thenReturn(List.of(mockPlace));
 
             // When
             DocumentResponse response = documentService.uploadDocument(tripId, userId, file, request);
@@ -419,7 +422,7 @@ class DocumentServiceTest {
             when(permissionChecker.canView(tripId, userId)).thenReturn(true);
             when(documentRepository.findByTripIdOrderByCreatedAtDesc(tripId))
                     .thenReturn(Arrays.asList(doc1, doc2));
-            when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser));
 
             // When
             List<DocumentResponse> documents = documentService.getDocumentsByTrip(tripId, userId);
@@ -459,6 +462,143 @@ class DocumentServiceTest {
     }
 
     @Nested
+    @DisplayName("getDocumentsByTrip with signedUrls - Signed URL 測試")
+    class GetDocumentsByTripWithSignedUrlsTests {
+
+        @Test
+        @DisplayName("includeSignedUrls=true 時圖片和 PDF 應有 signedUrl")
+        void getDocumentsByTrip_withSignedUrls_shouldPopulateSignedUrl() {
+            // Given
+            Document imageDoc = Document.builder()
+                    .id(UUID.randomUUID())
+                    .tripId(tripId)
+                    .fileName("photo.jpg")
+                    .originalFileName("photo.jpg")
+                    .fileUrl("https://storage.example.com/photo.jpg")
+                    .fileSize(2048L)
+                    .mimeType("image/jpeg")
+                    .uploadedBy(userId)
+                    .build();
+            Document pdfDoc = Document.builder()
+                    .id(UUID.randomUUID())
+                    .tripId(tripId)
+                    .fileName("doc.pdf")
+                    .originalFileName("doc.pdf")
+                    .fileUrl("https://storage.example.com/doc.pdf")
+                    .fileSize(1024L)
+                    .mimeType("application/pdf")
+                    .uploadedBy(userId)
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(documentRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(List.of(imageDoc, pdfDoc));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser));
+            when(storageClient.getSignedUrl(anyString(), anyString(), anyInt()))
+                    .thenReturn("https://storage.example.com/signed/url");
+
+            // When
+            List<DocumentResponse> documents = documentService.getDocumentsByTrip(tripId, userId, true);
+
+            // Then
+            assertThat(documents).hasSize(2);
+            assertThat(documents.get(0).getSignedUrl()).isEqualTo("https://storage.example.com/signed/url");
+            assertThat(documents.get(1).getSignedUrl()).isEqualTo("https://storage.example.com/signed/url");
+        }
+
+        @Test
+        @DisplayName("includeSignedUrls=false 時不應有 signedUrl")
+        void getDocumentsByTrip_withoutSignedUrls_shouldNotPopulateSignedUrl() {
+            // Given
+            Document imageDoc = Document.builder()
+                    .id(UUID.randomUUID())
+                    .tripId(tripId)
+                    .fileName("photo.jpg")
+                    .originalFileName("photo.jpg")
+                    .fileUrl("https://storage.example.com/photo.jpg")
+                    .fileSize(2048L)
+                    .mimeType("image/jpeg")
+                    .uploadedBy(userId)
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(documentRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(List.of(imageDoc));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser));
+
+            // When
+            List<DocumentResponse> documents = documentService.getDocumentsByTrip(tripId, userId, false);
+
+            // Then
+            assertThat(documents).hasSize(1);
+            assertThat(documents.get(0).getSignedUrl()).isNull();
+            verify(storageClient, never()).getSignedUrl(anyString(), anyString(), anyInt());
+        }
+
+        @Test
+        @DisplayName("Signed URL 生成失敗時應優雅降級 (signedUrl = null)")
+        void getDocumentsByTrip_signedUrlFailure_shouldGracefullyDegrade() {
+            // Given
+            Document imageDoc = Document.builder()
+                    .id(UUID.randomUUID())
+                    .tripId(tripId)
+                    .fileName("photo.jpg")
+                    .originalFileName("photo.jpg")
+                    .fileUrl("https://storage.example.com/photo.jpg")
+                    .fileSize(2048L)
+                    .mimeType("image/jpeg")
+                    .uploadedBy(userId)
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(documentRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(List.of(imageDoc));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser));
+            when(storageClient.getSignedUrl(anyString(), anyString(), anyInt()))
+                    .thenThrow(new RuntimeException("Supabase unavailable"));
+
+            // When
+            List<DocumentResponse> documents = documentService.getDocumentsByTrip(tripId, userId, true);
+
+            // Then — response returned successfully, signedUrl is null
+            assertThat(documents).hasSize(1);
+            assertThat(documents.get(0).getSignedUrl()).isNull();
+            assertThat(documents.get(0).getOriginalFileName()).isEqualTo("photo.jpg");
+        }
+
+        @Test
+        @DisplayName("Signed URL 快取命中時不應重複呼叫 storageClient")
+        void getDocumentsByTrip_signedUrlCacheHit_shouldNotCallStorageClientAgain() {
+            // Given
+            Document imageDoc = Document.builder()
+                    .id(UUID.randomUUID())
+                    .tripId(tripId)
+                    .fileName("photo.jpg")
+                    .originalFileName("photo.jpg")
+                    .fileUrl("https://storage.example.com/photo.jpg")
+                    .fileSize(2048L)
+                    .mimeType("image/jpeg")
+                    .uploadedBy(userId)
+                    .build();
+
+            when(permissionChecker.canView(tripId, userId)).thenReturn(true);
+            when(documentRepository.findByTripIdOrderByCreatedAtDesc(tripId))
+                    .thenReturn(List.of(imageDoc));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser));
+            when(storageClient.getSignedUrl(anyString(), anyString(), anyInt()))
+                    .thenReturn("https://storage.example.com/signed/url");
+
+            // When — call twice
+            documentService.getDocumentsByTrip(tripId, userId, true);
+            documentService.getDocumentsByTrip(tripId, userId, true);
+
+            // Then — storageClient.getSignedUrl called only once (second time hits cache)
+            verify(storageClient, org.mockito.Mockito.times(1))
+                    .getSignedUrl(anyString(), anyString(), anyInt());
+        }
+    }
+
+    @Nested
     @DisplayName("getDocument - 取得單一文件測試")
     class GetDocumentTests {
 
@@ -468,7 +608,7 @@ class DocumentServiceTest {
             // Given
             when(documentRepository.findById(documentId)).thenReturn(Optional.of(testDocument));
             when(permissionChecker.canView(tripId, userId)).thenReturn(true);
-            when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser));
 
             // When
             DocumentResponse response = documentService.getDocument(tripId, documentId, userId);
