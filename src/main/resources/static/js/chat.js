@@ -29,6 +29,30 @@
     var TYPING_SPEED_MS = 30;
     var desktopQuery = window.matchMedia('(min-width: 640px)');
 
+    // --- iOS/Mobile Keyboard Handling ---
+    function setupKeyboardHandling() {
+        if (!window.visualViewport) return;
+        var vv = window.visualViewport;
+
+        function onViewportResize() {
+            if (!isOpen || desktopQuery.matches) return;
+            var keyboardHeight = Math.round(window.innerHeight - vv.height);
+
+            if (keyboardHeight > 100) {
+                chatWindow.style.height = vv.height + 'px';
+                chatWindow.style.bottom = keyboardHeight + 'px';
+            } else {
+                chatWindow.style.height = '';
+                chatWindow.style.bottom = '';
+            }
+            scrollToBottom();
+        }
+
+        vv.addEventListener('resize', onViewportResize);
+    }
+
+    setupKeyboardHandling();
+
     // --- Open / Close Chat ---
     function openChat() {
         isOpen = true;
@@ -53,6 +77,8 @@
 
     function closeChat() {
         isOpen = false;
+        chatWindow.style.height = '';
+        chatWindow.style.bottom = '';
         toggleBtn.classList.remove('hidden');
         chatWindow.classList.add('opacity-0', 'pointer-events-none');
         chatWindow.classList.remove('opacity-100', 'pointer-events-auto');
@@ -87,6 +113,11 @@
     if (closeHeaderBtn) {
         closeHeaderBtn.addEventListener('click', closeChat);
     }
+
+    // --- Focus: scroll to bottom after keyboard appears ---
+    chatInput.addEventListener('focus', function() {
+        setTimeout(scrollToBottom, 300);
+    });
 
     // --- Character Counter ---
     chatInput.addEventListener('input', function() {
