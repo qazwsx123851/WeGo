@@ -189,6 +189,10 @@ public class GeminiClientImpl implements GeminiClient {
             }
 
             JsonNode firstCandidate = candidates.get(0);
+            String finishReason = firstCandidate.path("finishReason").asText("");
+            if ("MAX_TOKENS".equals(finishReason)) {
+                log.warn("Gemini response truncated by MAX_TOKENS limit");
+            }
             JsonNode parts = firstCandidate.path("content").path("parts");
             if (parts.isEmpty()) {
                 throw GeminiException.apiError("No parts in response");
