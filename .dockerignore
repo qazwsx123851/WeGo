@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+
+# Claude
+.claude/
+
+# Build output (we build inside Docker)
+target/
+
+# Node artifacts (frontend-maven-plugin downloads its own)
+src/main/frontend/node/
+src/main/frontend/node_modules/
+src/main/frontend/dist/
+
+# Environment files (secrets via Railway env vars)
+.env
+.env.*
+*.pem
+*.key
+
+# Documentation
+docs/
+LICENSE
+
+# E2E tests (not needed for production build)
+e2e/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# OpenSpec
+openspec/
+
+# Test source (not needed in production image)
+src/test/
