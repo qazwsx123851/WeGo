@@ -22,8 +22,8 @@ COPY src/ src/
 RUN ./mvnw package -DskipTests -B -q
 
 # -- Extract layered JAR --
-RUN java -Djarmode=tools -jar target/wego-1.0.0-SNAPSHOT.jar extract \
-    --layers --destination /app/extracted
+RUN java -Djarmode=layertools -jar target/wego-1.0.0-SNAPSHOT.jar extract \
+    --destination /app/extracted
 
 # ============================================================
 # Stage 2: Runtime
