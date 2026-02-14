@@ -37,10 +37,11 @@
     function setupKeyboardHandling() {
         if (!window.visualViewport) return;
         var vv = window.visualViewport;
+        var rafId = 0;
 
-        function onViewportResize() {
+        function adjustForKeyboard() {
             if (!isOpen || desktopQuery.matches) return;
-            var keyboardHeight = Math.round(window.innerHeight - vv.height);
+            var keyboardHeight = Math.round(window.innerHeight - vv.height - vv.offsetTop);
 
             if (keyboardHeight > 100) {
                 chatWindow.style.height = vv.height + 'px';
@@ -52,7 +53,27 @@
             scrollToBottom();
         }
 
-        vv.addEventListener('resize', onViewportResize);
+        function scheduleAdjust() {
+            if (rafId) return;
+            rafId = requestAnimationFrame(function() {
+                rafId = 0;
+                adjustForKeyboard();
+            });
+        }
+
+        vv.addEventListener('resize', scheduleAdjust);
+        vv.addEventListener('scroll', scheduleAdjust);
+
+        // Reset on blur with delay to avoid send-button click miss
+        chatInput.addEventListener('blur', function() {
+            if (!isOpen || desktopQuery.matches) return;
+            setTimeout(function() {
+                if (document.activeElement !== chatInput) {
+                    chatWindow.style.height = '';
+                    chatWindow.style.bottom = '';
+                }
+            }, 150);
+        });
     }
 
     setupKeyboardHandling();
@@ -69,12 +90,13 @@
             chatWindow.classList.remove('sm:scale-0');
             chatWindow.classList.add('sm:scale-100');
         } else {
-            // Mobile: slide-up + backdrop
+            // Mobile: slide-up + backdrop + lock body scroll
             chatWindow.classList.remove('translate-y-full');
             chatWindow.classList.add('translate-y-0');
             if (backdrop) {
                 backdrop.classList.remove('hidden');
             }
+            document.body.classList.add('overflow-hidden');
         }
         chatInput.focus();
     }
@@ -100,12 +122,13 @@
             chatWindow.classList.add('sm:scale-0');
             chatWindow.classList.remove('sm:scale-100');
         } else {
-            // Mobile: slide-down + hide backdrop
+            // Mobile: slide-down + hide backdrop + unlock body scroll
             chatWindow.classList.add('translate-y-full');
             chatWindow.classList.remove('translate-y-0');
             if (backdrop) {
                 backdrop.classList.add('hidden');
             }
+            document.body.classList.remove('overflow-hidden');
         }
     }
 
