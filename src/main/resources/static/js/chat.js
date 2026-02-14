@@ -19,12 +19,16 @@
     var iconClose = document.getElementById('chat-icon-close');
     var backdrop = document.getElementById('chat-backdrop');
     var closeHeaderBtn = document.getElementById('chat-close-header');
+    var expandBtn = document.getElementById('chat-expand-btn');
+    var expandIcon = document.getElementById('chat-expand-icon');
+    var collapseIcon = document.getElementById('chat-collapse-icon');
 
     if (!toggleBtn || !chatWindow) return;
 
     var tripId = toggleBtn.getAttribute('data-trip-id');
     var isOpen = false;
     var isSending = false;
+    var isExpanded = false;
     var MAX_LENGTH = 500;
     var TYPING_SPEED_MS = 30;
     var desktopQuery = window.matchMedia('(min-width: 640px)');
@@ -79,6 +83,14 @@
         isOpen = false;
         chatWindow.style.height = '';
         chatWindow.style.bottom = '';
+        // Reset expand state (desktop only)
+        if (isExpanded) {
+            isExpanded = false;
+            chatWindow.style.width = '';
+            chatWindow.style.height = '';
+            if (expandIcon) expandIcon.classList.remove('hidden');
+            if (collapseIcon) collapseIcon.classList.add('hidden');
+        }
         toggleBtn.classList.remove('hidden');
         chatWindow.classList.add('opacity-0', 'pointer-events-none');
         chatWindow.classList.remove('opacity-100', 'pointer-events-auto');
@@ -95,6 +107,36 @@
                 backdrop.classList.add('hidden');
             }
         }
+    }
+
+    // --- Expand / Collapse (Desktop only) ---
+    // Uses window.innerHeight for reliable viewport measurement
+    // (CSS dvh/vh can overflow due to browser chrome)
+    function toggleExpand() {
+        if (!desktopQuery.matches) return;
+        isExpanded = !isExpanded;
+        if (isExpanded) {
+            var vh = window.innerHeight;
+            var vw = window.innerWidth;
+            var expandH = Math.round(vh * 0.85);
+            var expandW = Math.round(Math.min(Math.max(vw * 0.4, 416), 576));
+            chatWindow.style.width = expandW + 'px';
+            chatWindow.style.height = expandH + 'px';
+            var bottomOffset = Math.round((vh - expandH) / 2);
+            chatWindow.style.bottom = Math.max(bottomOffset, 24) + 'px';
+        } else {
+            chatWindow.style.width = '';
+            chatWindow.style.height = '';
+            chatWindow.style.bottom = '';
+        }
+        if (expandIcon) expandIcon.classList.toggle('hidden', isExpanded);
+        if (collapseIcon) collapseIcon.classList.toggle('hidden', !isExpanded);
+        if (expandBtn) expandBtn.setAttribute('aria-label', isExpanded ? '收合聊天視窗' : '展開聊天視窗');
+        scrollToBottom();
+    }
+
+    if (expandBtn) {
+        expandBtn.addEventListener('click', toggleExpand);
     }
 
     // --- Event Listeners ---
@@ -262,7 +304,7 @@
         wrapper.appendChild(avatar);
 
         var bubble = document.createElement('div');
-        bubble.className = 'bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-tl-sm px-3 py-2 max-w-[80%]';
+        bubble.className = 'bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-tl-sm px-3 py-2 max-w-[88%]';
 
         var p = document.createElement('p');
         p.className = 'text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words';
@@ -327,7 +369,7 @@
         wrapper.appendChild(avatar);
 
         var bubble = document.createElement('div');
-        bubble.className = 'bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-tl-sm px-3 py-2 max-w-[80%]';
+        bubble.className = 'bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-tl-sm px-3 py-2 max-w-[88%]';
 
         var p = document.createElement('p');
         p.className = 'text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words';
