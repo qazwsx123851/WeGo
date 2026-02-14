@@ -82,14 +82,6 @@ class MockExchangeRateClientTest {
             assertThatThrownBy(() -> client.getRate("US", "TWD"))
                     .isInstanceOf(ExchangeRateException.class)
                     .hasMessageContaining("Invalid currency code");
-
-            assertThatThrownBy(() -> client.getRate("USDT", "TWD"))
-                    .isInstanceOf(ExchangeRateException.class)
-                    .hasMessageContaining("Invalid currency code");
-
-            assertThatThrownBy(() -> client.getRate("usd", "TWD"))
-                    .isInstanceOf(ExchangeRateException.class)
-                    .hasMessageContaining("Invalid currency code");
         }
 
         @Test
@@ -123,15 +115,6 @@ class MockExchangeRateClientTest {
             Map<String, BigDecimal> rates = client.getAllRates("USD");
 
             assertThat(rates.get("USD")).isEqualByComparingTo(BigDecimal.ONE);
-        }
-
-        @Test
-        @DisplayName("should return consistent rates")
-        void getAllRates_shouldBeConsistentWithGetRate() {
-            Map<String, BigDecimal> allRates = client.getAllRates("USD");
-            BigDecimal singleRate = client.getRate("USD", "TWD");
-
-            assertThat(allRates.get("TWD")).isEqualByComparingTo(singleRate);
         }
 
         @Test

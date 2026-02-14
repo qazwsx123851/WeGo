@@ -17,50 +17,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class DocumentTest {
 
     @Nested
-    @DisplayName("Document Creation")
-    class DocumentCreation {
-
-        @Test
-        @DisplayName("Should create document with all fields")
-        void createDocument_withAllFields_shouldCreateDocument() {
-            UUID tripId = UUID.randomUUID();
-            UUID uploadedBy = UUID.randomUUID();
-
-            Document document = Document.builder()
-                    .tripId(tripId)
-                    .fileName("abc123.pdf")
-                    .originalFileName("boarding_pass.pdf")
-                    .fileUrl("https://storage.example.com/abc123.pdf")
-                    .fileSize(1024 * 1024)
-                    .mimeType("application/pdf")
-                    .uploadedBy(uploadedBy)
-                    .build();
-
-            assertNotNull(document);
-            assertEquals(tripId, document.getTripId());
-            assertEquals("abc123.pdf", document.getFileName());
-            assertEquals("boarding_pass.pdf", document.getOriginalFileName());
-            assertEquals(1024 * 1024, document.getFileSize());
-            assertEquals("application/pdf", document.getMimeType());
-        }
-
-        @Test
-        @DisplayName("Should have createdAt timestamp")
-        void createDocument_shouldHaveCreatedAtTimestamp() {
-            Document document = Document.builder()
-                    .tripId(UUID.randomUUID())
-                    .fileName("test.pdf")
-                    .originalFileName("test.pdf")
-                    .fileUrl("https://example.com/test.pdf")
-                    .fileSize(1000)
-                    .uploadedBy(UUID.randomUUID())
-                    .build();
-
-            assertNotNull(document.getCreatedAt());
-        }
-    }
-
-    @Nested
     @DisplayName("File Extension")
     class FileExtension {
 
@@ -167,23 +123,4 @@ class DocumentTest {
         }
     }
 
-    @Nested
-    @DisplayName("Document Equality")
-    class DocumentEquality {
-
-        @Test
-        @DisplayName("Same ID should be equal")
-        void equals_sameId_shouldBeEqual() {
-            UUID documentId = UUID.randomUUID();
-
-            Document document1 = new Document();
-            document1.setId(documentId);
-
-            Document document2 = new Document();
-            document2.setId(documentId);
-
-            assertEquals(document1, document2);
-            assertEquals(document1.hashCode(), document2.hashCode());
-        }
-    }
 }

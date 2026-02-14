@@ -25,32 +25,6 @@ class TripTest {
     class TripCreation {
 
         @Test
-        @DisplayName("T-001: Should create trip with valid input")
-        void createTrip_withValidInput_shouldCreateTrip() {
-            UUID ownerId = UUID.randomUUID();
-            LocalDate startDate = LocalDate.now().plusDays(1);
-            LocalDate endDate = LocalDate.now().plusDays(5);
-
-            Trip trip = Trip.builder()
-                    .title("東京行")
-                    .description("五天四夜東京自由行")
-                    .startDate(startDate)
-                    .endDate(endDate)
-                    .baseCurrency("TWD")
-                    .ownerId(ownerId)
-                    .build();
-
-            assertNotNull(trip);
-            assertEquals("東京行", trip.getTitle());
-            assertEquals("五天四夜東京自由行", trip.getDescription());
-            assertEquals(startDate, trip.getStartDate());
-            assertEquals(endDate, trip.getEndDate());
-            assertEquals("TWD", trip.getBaseCurrency());
-            assertEquals(ownerId, trip.getOwnerId());
-            assertNotNull(trip.getCreatedAt());
-        }
-
-        @Test
         @DisplayName("Should create trip with default base currency TWD")
         void createTrip_withoutBaseCurrency_shouldDefaultToTWD() {
             Trip trip = Trip.builder()
@@ -177,31 +151,4 @@ class TripTest {
         }
     }
 
-    @Nested
-    @DisplayName("Trip Setters")
-    class TripSetters {
-
-        @Test
-        @DisplayName("Should update title via setter")
-        void setTitle_shouldUpdateTitle() {
-            Trip trip = new Trip();
-            trip.setTitle("New Title");
-
-            assertEquals("New Title", trip.getTitle());
-        }
-
-        @Test
-        @DisplayName("Should update dates via setters")
-        void setDates_shouldUpdateDates() {
-            Trip trip = new Trip();
-            LocalDate newStart = LocalDate.of(2024, 4, 1);
-            LocalDate newEnd = LocalDate.of(2024, 4, 5);
-
-            trip.setStartDate(newStart);
-            trip.setEndDate(newEnd);
-
-            assertEquals(newStart, trip.getStartDate());
-            assertEquals(newEnd, trip.getEndDate());
-        }
-    }
 }

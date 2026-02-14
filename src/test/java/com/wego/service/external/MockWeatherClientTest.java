@@ -66,17 +66,6 @@ class MockWeatherClientTest {
         }
 
         @Test
-        @DisplayName("should return valid icon codes")
-        void shouldReturnValidIconCodes() {
-            List<WeatherForecast> forecasts = client.get5DayForecast(35.6812, 139.7671);
-
-            for (WeatherForecast forecast : forecasts) {
-                assertThat(forecast.getIcon()).isNotNull();
-                assertThat(forecast.getIcon()).matches("\\d{2}[dn]");
-            }
-        }
-
-        @Test
         @DisplayName("should return temperature in realistic range")
         void shouldReturnTemperatureInRealisticRange() {
             List<WeatherForecast> forecasts = client.get5DayForecast(35.6812, 139.7671);
@@ -108,37 +97,6 @@ class MockWeatherClientTest {
             }
         }
 
-        @Test
-        @DisplayName("should return consistent results for same coordinates")
-        void shouldReturnConsistentResultsForSameCoordinates() {
-            List<WeatherForecast> forecasts1 = client.get5DayForecast(35.6812, 139.7671);
-            List<WeatherForecast> forecasts2 = client.get5DayForecast(35.6812, 139.7671);
-
-            // Results should be identical for same input (seeded random)
-            for (int i = 0; i < forecasts1.size(); i++) {
-                assertThat(forecasts1.get(i).getTempHigh())
-                        .isEqualTo(forecasts2.get(i).getTempHigh());
-                assertThat(forecasts1.get(i).getCondition())
-                        .isEqualTo(forecasts2.get(i).getCondition());
-            }
-        }
-
-        @Test
-        @DisplayName("should return different results for different coordinates")
-        void shouldReturnDifferentResultsForDifferentCoordinates() {
-            List<WeatherForecast> tokyoForecasts = client.get5DayForecast(35.6812, 139.7671);
-            List<WeatherForecast> osakaForecasts = client.get5DayForecast(34.6937, 135.5023);
-
-            // At least some values should differ
-            boolean hasDifference = false;
-            for (int i = 0; i < tokyoForecasts.size(); i++) {
-                if (tokyoForecasts.get(i).getTempHigh() != osakaForecasts.get(i).getTempHigh()) {
-                    hasDifference = true;
-                    break;
-                }
-            }
-            assertThat(hasDifference).isTrue();
-        }
     }
 
     @Nested

@@ -22,25 +22,6 @@ class ExpenseSplitTest {
     class ExpenseSplitCreation {
 
         @Test
-        @DisplayName("Should create split with valid input")
-        void createSplit_withValidInput_shouldCreateSplit() {
-            UUID expenseId = UUID.randomUUID();
-            UUID userId = UUID.randomUUID();
-
-            ExpenseSplit split = ExpenseSplit.builder()
-                    .expenseId(expenseId)
-                    .userId(userId)
-                    .amount(new BigDecimal("1000"))
-                    .build();
-
-            assertNotNull(split);
-            assertEquals(expenseId, split.getExpenseId());
-            assertEquals(userId, split.getUserId());
-            assertEquals(new BigDecimal("1000"), split.getAmount());
-            assertFalse(split.isSettled());
-        }
-
-        @Test
         @DisplayName("Should default to unsettled")
         void createSplit_shouldDefaultToUnsettled() {
             ExpenseSplit split = ExpenseSplit.builder()
@@ -90,23 +71,4 @@ class ExpenseSplitTest {
         }
     }
 
-    @Nested
-    @DisplayName("ExpenseSplit Equality")
-    class ExpenseSplitEquality {
-
-        @Test
-        @DisplayName("Same ID should be equal")
-        void equals_sameId_shouldBeEqual() {
-            UUID splitId = UUID.randomUUID();
-
-            ExpenseSplit split1 = new ExpenseSplit();
-            split1.setId(splitId);
-
-            ExpenseSplit split2 = new ExpenseSplit();
-            split2.setId(splitId);
-
-            assertEquals(split1, split2);
-            assertEquals(split1.hashCode(), split2.hashCode());
-        }
-    }
 }

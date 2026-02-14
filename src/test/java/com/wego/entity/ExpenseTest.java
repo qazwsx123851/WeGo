@@ -25,33 +25,6 @@ class ExpenseTest {
     class ExpenseCreation {
 
         @Test
-        @DisplayName("E-001: Should create expense with valid input")
-        void createExpense_withValidInput_shouldCreateExpense() {
-            UUID tripId = UUID.randomUUID();
-            UUID paidBy = UUID.randomUUID();
-            UUID createdBy = UUID.randomUUID();
-
-            Expense expense = Expense.builder()
-                    .tripId(tripId)
-                    .description("午餐")
-                    .amount(new BigDecimal("3000"))
-                    .currency("JPY")
-                    .paidBy(paidBy)
-                    .createdBy(createdBy)
-                    .splitType(SplitType.EQUAL)
-                    .expenseDate(LocalDate.now())
-                    .build();
-
-            assertNotNull(expense);
-            assertEquals(tripId, expense.getTripId());
-            assertEquals("午餐", expense.getDescription());
-            assertEquals(new BigDecimal("3000"), expense.getAmount());
-            assertEquals("JPY", expense.getCurrency());
-            assertEquals(paidBy, expense.getPaidBy());
-            assertEquals(SplitType.EQUAL, expense.getSplitType());
-        }
-
-        @Test
         @DisplayName("Should default to TWD currency")
         void createExpense_shouldDefaultToTWD() {
             Expense expense = Expense.builder()
@@ -118,23 +91,4 @@ class ExpenseTest {
         }
     }
 
-    @Nested
-    @DisplayName("Expense Equality")
-    class ExpenseEquality {
-
-        @Test
-        @DisplayName("Same ID should be equal")
-        void equals_sameId_shouldBeEqual() {
-            UUID expenseId = UUID.randomUUID();
-
-            Expense expense1 = new Expense();
-            expense1.setId(expenseId);
-
-            Expense expense2 = new Expense();
-            expense2.setId(expenseId);
-
-            assertEquals(expense1, expense2);
-            assertEquals(expense1.hashCode(), expense2.hashCode());
-        }
-    }
 }

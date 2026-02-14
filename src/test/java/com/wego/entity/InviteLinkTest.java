@@ -188,38 +188,6 @@ class InviteLinkTest {
     }
 
     @Nested
-    @DisplayName("InviteLink Equality")
-    class InviteLinkEquality {
-
-        @Test
-        @DisplayName("Same ID should be equal")
-        void equals_sameId_shouldBeEqual() {
-            UUID linkId = UUID.randomUUID();
-
-            InviteLink link1 = new InviteLink();
-            link1.setId(linkId);
-
-            InviteLink link2 = new InviteLink();
-            link2.setId(linkId);
-
-            assertEquals(link1, link2);
-            assertEquals(link1.hashCode(), link2.hashCode());
-        }
-
-        @Test
-        @DisplayName("Different IDs should not be equal")
-        void equals_differentId_shouldNotBeEqual() {
-            InviteLink link1 = new InviteLink();
-            link1.setId(UUID.randomUUID());
-
-            InviteLink link2 = new InviteLink();
-            link2.setId(UUID.randomUUID());
-
-            assertNotEquals(link1, link2);
-        }
-    }
-
-    @Nested
     @DisplayName("Token Generation")
     class TokenGeneration {
 

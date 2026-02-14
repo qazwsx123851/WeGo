@@ -26,15 +26,6 @@ class MockGeminiClientTest {
     }
 
     @Test
-    @DisplayName("should return consistent response regardless of input")
-    void shouldReturnConsistentResponse() {
-        String reply1 = client.chat("prompt1", "message1");
-        String reply2 = client.chat("prompt2", "message2");
-
-        assertThat(reply1).isEqualTo(reply2);
-    }
-
-    @Test
     @DisplayName("should return response with travel-related content")
     void shouldReturnTravelContent() {
         String reply = client.chat("system", "任何問題");

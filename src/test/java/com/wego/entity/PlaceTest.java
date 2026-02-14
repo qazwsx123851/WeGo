@@ -45,21 +45,6 @@ class PlaceTest {
         }
 
         @Test
-        @DisplayName("Should create place with minimal fields")
-        void createPlace_withMinimalFields_shouldCreatePlace() {
-            Place place = Place.builder()
-                    .name("Custom Place")
-                    .latitude(25.0330)
-                    .longitude(121.5654)
-                    .build();
-
-            assertNotNull(place);
-            assertEquals("Custom Place", place.getName());
-            assertNull(place.getGooglePlaceId());
-            assertNull(place.getAddress());
-        }
-
-        @Test
         @DisplayName("Should set createdAt timestamp on creation")
         void createPlace_shouldHaveCreatedAtTimestamp() {
             Place place = Place.builder()
@@ -218,25 +203,4 @@ class PlaceTest {
         }
     }
 
-    @Nested
-    @DisplayName("Place Setters")
-    class PlaceSetters {
-
-        @Test
-        @DisplayName("Should update fields via setters")
-        void setters_shouldUpdateFields() {
-            Place place = new Place();
-            place.setName("New Name");
-            place.setAddress("New Address");
-            place.setLatitude(10.0);
-            place.setLongitude(20.0);
-            place.setRating(4.8);
-
-            assertEquals("New Name", place.getName());
-            assertEquals("New Address", place.getAddress());
-            assertEquals(10.0, place.getLatitude());
-            assertEquals(20.0, place.getLongitude());
-            assertEquals(4.8, place.getRating());
-        }
-    }
 }

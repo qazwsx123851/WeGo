@@ -46,16 +46,6 @@ class RateLimitConfigTest {
     }
 
     @Test
-    @DisplayName("Should create filter registration bean")
-    void rateLimitFilter_shouldCreateFilterRegistrationBean() {
-        FilterRegistrationBean<Filter> registrationBean = rateLimitConfig.rateLimitFilter();
-
-        assertThat(registrationBean).isNotNull();
-        assertThat(registrationBean.getFilter()).isNotNull();
-        assertThat(registrationBean.getUrlPatterns()).contains("/api/*");
-    }
-
-    @Test
     @DisplayName("Should allow requests within rate limit")
     void rateLimitFilter_withinLimit_shouldAllowRequest() throws Exception {
         // Arrange

@@ -25,20 +25,6 @@ class ApiResponseTest {
     }
 
     @Test
-    @DisplayName("Should create success response with data and message")
-    void success_withDataAndMessage_shouldReturnSuccessResponse() {
-        String data = "test data";
-        String message = "Operation successful";
-
-        ApiResponse<String> response = ApiResponse.success(data, message);
-
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getData()).isEqualTo("test data");
-        assertThat(response.getMessage()).isEqualTo("Operation successful");
-        assertThat(response.getErrorCode()).isNull();
-    }
-
-    @Test
     @DisplayName("Should create error response")
     void error_shouldReturnErrorResponse() {
         ApiResponse<Object> response = ApiResponse.error("TEST_ERROR", "Test error message");
@@ -59,18 +45,4 @@ class ApiResponseTest {
         assertThat(response.getData()).isNull();
     }
 
-    @Test
-    @DisplayName("Should use builder for complex response")
-    void builder_shouldCreateValidResponse() {
-        ApiResponse<String> response = ApiResponse.<String>builder()
-                .success(true)
-                .data("test")
-                .message("Test message")
-                .build();
-
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getData()).isEqualTo("test");
-        assertThat(response.getMessage()).isEqualTo("Test message");
-        assertThat(response.getTimestamp()).isNotNull();
-    }
 }

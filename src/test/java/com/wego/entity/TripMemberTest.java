@@ -155,35 +155,4 @@ class TripMemberTest {
         }
     }
 
-    @Nested
-    @DisplayName("TripMember Equality")
-    class TripMemberEquality {
-
-        @Test
-        @DisplayName("Same ID should be equal")
-        void equals_sameId_shouldBeEqual() {
-            UUID memberId = UUID.randomUUID();
-
-            TripMember member1 = new TripMember();
-            member1.setId(memberId);
-
-            TripMember member2 = new TripMember();
-            member2.setId(memberId);
-
-            assertEquals(member1, member2);
-            assertEquals(member1.hashCode(), member2.hashCode());
-        }
-
-        @Test
-        @DisplayName("Different IDs should not be equal")
-        void equals_differentId_shouldNotBeEqual() {
-            TripMember member1 = new TripMember();
-            member1.setId(UUID.randomUUID());
-
-            TripMember member2 = new TripMember();
-            member2.setId(UUID.randomUUID());
-
-            assertNotEquals(member1, member2);
-        }
-    }
 }

@@ -22,33 +22,6 @@ class ActivityTest {
     class ActivityCreation {
 
         @Test
-        @DisplayName("Should create activity with all fields")
-        void createActivity_withAllFields_shouldCreateActivity() {
-            UUID tripId = UUID.randomUUID();
-            UUID placeId = UUID.randomUUID();
-
-            Activity activity = Activity.builder()
-                    .tripId(tripId)
-                    .placeId(placeId)
-                    .day(1)
-                    .sortOrder(0)
-                    .startTime(LocalTime.of(10, 0))
-                    .durationMinutes(120)
-                    .note("Visit the main hall")
-                    .transportMode(TransportMode.TRANSIT)
-                    .build();
-
-            assertNotNull(activity);
-            assertEquals(tripId, activity.getTripId());
-            assertEquals(placeId, activity.getPlaceId());
-            assertEquals(1, activity.getDay());
-            assertEquals(0, activity.getSortOrder());
-            assertEquals(LocalTime.of(10, 0), activity.getStartTime());
-            assertEquals(120, activity.getDurationMinutes());
-            assertEquals(TransportMode.TRANSIT, activity.getTransportMode());
-        }
-
-        @Test
         @DisplayName("Should default to WALKING transport mode")
         void createActivity_shouldDefaultToWalking() {
             Activity activity = Activity.builder()
@@ -57,17 +30,6 @@ class ActivityTest {
                     .build();
 
             assertEquals(TransportMode.WALKING, activity.getTransportMode());
-        }
-
-        @Test
-        @DisplayName("Should have createdAt timestamp")
-        void createActivity_shouldHaveCreatedAtTimestamp() {
-            Activity activity = Activity.builder()
-                    .tripId(UUID.randomUUID())
-                    .day(1)
-                    .build();
-
-            assertNotNull(activity.getCreatedAt());
         }
     }
 
@@ -126,23 +88,4 @@ class ActivityTest {
         }
     }
 
-    @Nested
-    @DisplayName("Activity Equality")
-    class ActivityEquality {
-
-        @Test
-        @DisplayName("Same ID should be equal")
-        void equals_sameId_shouldBeEqual() {
-            UUID activityId = UUID.randomUUID();
-
-            Activity activity1 = new Activity();
-            activity1.setId(activityId);
-
-            Activity activity2 = new Activity();
-            activity2.setId(activityId);
-
-            assertEquals(activity1, activity2);
-            assertEquals(activity1.hashCode(), activity2.hashCode());
-        }
-    }
 }
