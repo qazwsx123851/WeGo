@@ -785,7 +785,7 @@ Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMa
 
 | 項目 | 數量 |
 |------|------|
-| 單元測試 | 1011 個測試方法，74 個測試檔案 |
+| 單元測試 | 1060 個測試方法，79 個測試檔案 |
 | E2E 測試 | ~118 個測試案例，10 個 spec 檔案 |
 | REST API 端點 | 55 個 |
 | Web 端點 | 37 個 |

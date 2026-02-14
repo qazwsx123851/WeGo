@@ -53,7 +53,7 @@ public class ChatApiController {
         log.debug("POST /api/trips/{}/chat - Chat request", tripId);
 
         UUID userId = requireUserId(principal);
-        ChatResponse response = chatService.chat(tripId, userId, request.getMessage());
+        ChatResponse response = chatService.chat(tripId, userId, request.getMessage(), request.getTimezone());
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }

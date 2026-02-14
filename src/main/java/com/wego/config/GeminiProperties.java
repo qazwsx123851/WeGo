@@ -38,4 +38,6 @@ public class GeminiProperties {
     private int circuitBreakerFailureThreshold = 3;
 
     private int circuitBreakerCooldownMinutes = 5;
+
+    private boolean searchGroundingEnabled = false;
 }

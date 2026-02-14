@@ -6,7 +6,7 @@
 |------|------|
 | 建立日期 | 2026-02-11 |
 | 最後更新 | 2026-02-12 |
-| 後端 REST endpoint 總數 | 55 |
+| 後端 REST endpoint 總數 | 58 |
 | 前端實際使用的 endpoint | ~24 |
 | Orphan endpoints (API-only) | ~31 |
 
@@ -18,6 +18,7 @@
 
 | 模組 | Endpoint | Method | CSRF | 說明 |
 |------|----------|--------|------|------|
+| `chat.js` | `/api/trips/{tripId}/chat` | POST | Yes | AI 聊天 |
 | `app.js` (WeatherUI) | `/api/weather/forecast?lat=&lng=` | GET | No | 天氣預報 |
 | `expense.js` | `/api/exchange-rates?from=&to=` | GET | No | 匯率查詢 |
 | `todo.js` | `/api/trips/{tripId}/todos` | GET | No | Todo 列表 |

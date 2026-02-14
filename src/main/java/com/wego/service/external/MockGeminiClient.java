@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * Mock implementation of GeminiClient for testing and development.
  * Returns a static travel recommendation response.
@@ -31,9 +33,9 @@ public class MockGeminiClient implements GeminiClient {
             "以上推薦都在你行程動線附近，不會影響下午的安排。需要更詳細的資訊嗎？";
 
     @Override
-    public String chat(String systemPrompt, String userMessage) {
+    public GeminiChatResult chatWithMetadata(String systemPrompt, String userMessage) {
         log.info("[MOCK] Gemini chat request received: {}", truncate(userMessage, 100));
-        return MOCK_REPLY;
+        return new GeminiChatResult(MOCK_REPLY, List.of());
     }
 
     private String truncate(String text, int maxLength) {

@@ -41,7 +41,7 @@ public class WebConfig implements WebMvcConfigurer {
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        CacheControl cacheControl = CacheControl.maxAge(7, TimeUnit.DAYS).cachePublic();
+        CacheControl cacheControl = CacheControl.maxAge(1, TimeUnit.DAYS).cachePublic();
 
         registry
             .addResourceHandler("/css/**")

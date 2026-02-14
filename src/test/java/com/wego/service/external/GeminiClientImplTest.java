@@ -227,6 +227,116 @@ class GeminiClientImplTest {
     }
 
     @Nested
+    @DisplayName("Search grounding")
+    class SearchGrounding {
+
+        @Test
+        @DisplayName("should include google_search tool when grounding enabled")
+        void shouldIncludeToolsWhenGroundingEnabled() {
+            properties.setSearchGroundingEnabled(true);
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
+
+            client.chat("prompt", "message");
+
+            ArgumentCaptor<HttpEntity<String>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+            verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(String.class));
+
+            String body = captor.getValue().getBody();
+            assertThat(body).contains("\"tools\"");
+            assertThat(body).contains("\"google_search\"");
+        }
+
+        @Test
+        @DisplayName("should not include tools when grounding disabled")
+        void shouldNotIncludeToolsWhenGroundingDisabled() {
+            properties.setSearchGroundingEnabled(false);
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
+
+            client.chat("prompt", "message");
+
+            ArgumentCaptor<HttpEntity<String>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+            verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(String.class));
+
+            String body = captor.getValue().getBody();
+            assertThat(body).doesNotContain("\"tools\"");
+            assertThat(body).doesNotContain("\"google_search\"");
+        }
+
+        @Test
+        @DisplayName("should extract grounding sources from response metadata")
+        void shouldExtractGroundingSources() {
+            String responseWithGrounding = """
+                    {
+                        "candidates": [{
+                            "content": {
+                                "parts": [{"text": "東京明天天氣晴朗"}],
+                                "role": "model"
+                            },
+                            "groundingMetadata": {
+                                "webSearchQueries": ["東京明天天氣"],
+                                "groundingChunks": [
+                                    {"web": {"uri": "https://weather.example.com/tokyo", "title": "東京天氣預報"}},
+                                    {"web": {"uri": "https://news.example.com/weather", "title": "天氣新聞"}}
+                                ]
+                            }
+                        }]
+                    }
+                    """;
+
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenReturn(ResponseEntity.ok(responseWithGrounding));
+
+            GeminiClient.GeminiChatResult result = client.chatWithMetadata("prompt", "message");
+
+            assertThat(result.reply()).isEqualTo("東京明天天氣晴朗");
+            assertThat(result.sources()).hasSize(2);
+            assertThat(result.sources().get(0).title()).isEqualTo("東京天氣預報");
+            assertThat(result.sources().get(0).uri()).isEqualTo("https://weather.example.com/tokyo");
+            assertThat(result.sources().get(1).title()).isEqualTo("天氣新聞");
+        }
+
+        @Test
+        @DisplayName("should return empty sources when no grounding metadata")
+        void shouldReturnEmptySourcesWhenNoGrounding() {
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
+
+            GeminiClient.GeminiChatResult result = client.chatWithMetadata("prompt", "message");
+
+            assertThat(result.reply()).isEqualTo("推薦你去鼎泰豐！");
+            assertThat(result.sources()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("should handle grounding metadata with empty chunks")
+        void shouldHandleEmptyGroundingChunks() {
+            String responseWithEmptyChunks = """
+                    {
+                        "candidates": [{
+                            "content": {
+                                "parts": [{"text": "回覆內容"}],
+                                "role": "model"
+                            },
+                            "groundingMetadata": {
+                                "groundingChunks": []
+                            }
+                        }]
+                    }
+                    """;
+
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenReturn(ResponseEntity.ok(responseWithEmptyChunks));
+
+            GeminiClient.GeminiChatResult result = client.chatWithMetadata("prompt", "message");
+
+            assertThat(result.reply()).isEqualTo("回覆內容");
+            assertThat(result.sources()).isEmpty();
+        }
+    }
+
+    @Nested
     @DisplayName("Circuit breaker")
     class CircuitBreaker {
 

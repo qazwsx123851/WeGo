@@ -24,4 +24,7 @@ public class ChatRequest {
     @NotBlank(message = "訊息不能為空")
     @Size(max = 500, message = "訊息長度不能超過 500 字")
     private String message;
+
+    @Size(max = 50, message = "時區格式無效")
+    private String timezone;
 }

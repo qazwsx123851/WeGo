@@ -3,6 +3,7 @@
 > 最後更新: 2026-02-13 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-13: AI 旅遊聊天機器人 — Gemini API、安全強化（prompt injection 防護、circuit breaker、Unicode 驗證、OOM 修復）
 > - 2026-02-13: 檔案管理頁效能優化 — Signed URL CDN 直連、Document N+1 批次查詢、Caffeine 快取
 > - 2026-02-12: 例外處理收緊 (24→19 catch blocks)、模板 head fragment 統一 (27/27)、ViewHelper 單元測試、表單防重複提交
 > - 2026-02-12: Auth 遷移 (`@CurrentUser UserPrincipal`)、新增 ViewHelper/common.js、Web Controller 測試全覆蓋、PermissionChecker 快取
@@ -43,7 +44,7 @@
 | Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 | Unit |
 | Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙 | Unit + E2E |
 
-**測試統計**: 1011 單元測試 (74 個測試檔案) + ~118 E2E 測試 (Playwright)
+**測試統計**: 1060 單元測試 (79 個測試檔案) + 11 個 E2E spec (Playwright)
 
 ---
 
@@ -76,6 +77,8 @@
 | `OPENWEATHERMAP_ENABLED` | ❌ | 啟用天氣 API | `true` / `false` |
 | `EXCHANGERATE_API_KEY` | ❌ | 匯率 API (可選) | |
 | `EXCHANGERATE_ENABLED` | ❌ | 啟用匯率 API | `true` / `false` |
+| `GEMINI_API_KEY` | ❌ | Gemini AI API Key (可選) | |
+| `GEMINI_ENABLED` | ❌ | 啟用 AI 聊天 | `true` / `false` |
 
 ### 載入環境變數
 
@@ -258,6 +261,8 @@ src/
 | `ActivityViewHelper` | Activity 顯示邏輯（分組、日期、交通驗證） | - (純邏輯) |
 | `ExpenseViewHelper` | Expense 顯示邏輯（分組、人均、分帳） | - (純邏輯) |
 | `PermissionChecker` | 角色權限檢查 (含請求級 Caffeine 快取) | TripMemberRepository, CacheManager |
+| `ChatService` | AI 聊天 prompt 組裝、輸入清理、Gemini 整合 | GeminiClient, TripRepository, ActivityRepository, PlaceRepository |
+| `RateLimitService` | 應用層限流（Caffeine 滑動視窗） | Caffeine Cache |
 | `CustomOAuth2UserService` | OAuth2 使用者處理 | UserRepository |
 | `WebExceptionHandler` | Web 錯誤頁面處理 | - |
 
@@ -279,6 +284,7 @@ src/
 | `OpenWeatherMapClient` | OpenWeatherMap 5-day | MockWeatherClient |
 | `SupabaseStorageClient` | Supabase Storage | MockStorageClient |
 | `ExchangeRateApiClient` | ExchangeRate-API | MockExchangeRateClient (固定匯率) |
+| `GeminiClientImpl` | Gemini API (gemini-2.5-flash) | MockGeminiClient (固定回覆) |
 
 #### Google Routes API 遷移 (2026-02-02)
 
@@ -460,6 +466,11 @@ Phase 4 完成的安全修復：
 | 驗證 | 分帳金額/百分比驗證 |
 | Rate Limiting | Caffeine cache 防止記憶體耗盡 |
 | 資料清理 | 刪除行程時級聯刪除相關資料 |
+| Prompt Injection | 結構分離 — 行程資料移至 user message，sanitizeField 清理 |
+| AI 回覆截斷 | maxOutputTokens (1500) + 5000 字安全截斷 |
+| Circuit Breaker | Gemini API 連續 3 次失敗斷路，5 分鐘冷卻 |
+| Unicode 繞過 | 零寬度字元清理 + 2KB byte 驗證 |
+| OOM 防護 | RateLimitService ConcurrentHashMap → Caffeine |
 
 ### E2E 測試架構
 
@@ -477,7 +488,8 @@ Playwright E2E 測試覆蓋以下流程：
 | `member.spec.ts` | 8 | 成員管理、角色變更 |
 | `settlement.spec.ts` | 6 | 結算流程 |
 | `profile.spec.ts` | 5 | 個人檔案編輯 |
-| **總計** | **~118** | 10 個 spec 檔案 |
+| `chat.spec.ts` | TBD | AI 聊天功能 |
+| **總計** | **TBD** | 11 個 spec 檔案 |
 
 ---
 

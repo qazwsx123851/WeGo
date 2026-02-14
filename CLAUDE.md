@@ -93,6 +93,7 @@ GOOGLE_CLIENT_SECRET=xxx
 GOOGLE_MAPS_API_KEY=
 OPENWEATHERMAP_API_KEY=
 EXCHANGERATE_API_KEY=
+GEMINI_API_KEY=
 ```
 
 ---
@@ -176,8 +177,6 @@ EXCHANGERATE_API_KEY=
 
 ## 關鍵錯誤模式
 
-> 完整列表: `docs/bug.md`
-
 | 錯誤 | 症狀 | 修正 |
 |------|------|------|
 | **SpEL Null** | `EL1007E: Property cannot be found on null` | 使用 `?.` 或 `?:` |
@@ -209,7 +208,6 @@ EXCHANGERATE_API_KEY=
 | 文件 | 內容 |
 |------|------|
 | `docs/CONTRIB.md` | 專案結構、開發流程 |
-| `docs/bug.md` | 完整錯誤模式列表 |
 | `docs/tdd-guide.md` | TDD 測試規範 |
 | `docs/software-design-document.md` | 架構設計、ADR |
 | `~/.claude/skills/thymeleaf-spel.md` | Thymeleaf 完整參考 |

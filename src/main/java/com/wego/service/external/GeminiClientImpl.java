@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -22,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * @contract
  *   - pre: GeminiProperties must be configured with valid apiKey
- *   - post: All API calls include API key in URL
+ *   - post: All API calls include API key in header
  *   - throws: GeminiException on API errors or invalid responses
  *
  * @see GeminiClient
@@ -66,7 +68,7 @@ public class GeminiClientImpl implements GeminiClient {
     }
 
     @Override
-    public String chat(String systemPrompt, String userMessage) {
+    public GeminiChatResult chatWithMetadata(String systemPrompt, String userMessage) {
         checkCircuitBreaker();
 
         log.debug("Sending chat request to Gemini model: {}", properties.getModel());
@@ -74,8 +76,8 @@ public class GeminiClientImpl implements GeminiClient {
         String url = String.format(API_URL, properties.getModel());
 
         String requestBody = buildRequestBody(systemPrompt, userMessage);
-        log.debug("Gemini request - model: {}, systemPromptLength: {}, userMessageLength: {}",
-                properties.getModel(), systemPrompt.length(), userMessage.length());
+        log.info("Gemini request: model={}, searchGrounding={}, bodyLength={}",
+                properties.getModel(), properties.isSearchGroundingEnabled(), requestBody.length());
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -88,10 +90,13 @@ public class GeminiClientImpl implements GeminiClient {
                     String.class
             );
 
-            String reply = extractReply(response.getBody());
+            String responseBody = response.getBody();
+            GeminiChatResult result = extractResult(responseBody);
             recordSuccess();
-            log.info("Received Gemini reply ({} chars)", reply.length());
-            return reply;
+            boolean hasGrounding = responseBody != null && responseBody.contains("groundingMetadata");
+            log.info("Gemini response: {} chars, {} sources, hasGroundingMetadata={}",
+                    result.reply().length(), result.sources().size(), hasGrounding);
+            return result;
 
         } catch (GeminiException e) {
             recordFailure();
@@ -163,13 +168,25 @@ public class GeminiClientImpl implements GeminiClient {
             generationConfig.put("maxOutputTokens", properties.getMaxOutputTokens());
             root.set("generationConfig", generationConfig);
 
+            // Add Google Search grounding tool if enabled
+            if (properties.isSearchGroundingEnabled()) {
+                var tools = objectMapper.createArrayNode();
+                var googleSearchTool = objectMapper.createObjectNode();
+                googleSearchTool.set("google_search", objectMapper.createObjectNode());
+                tools.add(googleSearchTool);
+                root.set("tools", tools);
+            }
+
             return objectMapper.writeValueAsString(root);
         } catch (Exception e) {
             throw GeminiException.apiError("Failed to build request: " + e.getMessage());
         }
     }
 
-    private String extractReply(String responseBody) {
+    /**
+     * Extracts reply text and grounding sources from Gemini API response.
+     */
+    private GeminiChatResult extractResult(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
 
@@ -203,11 +220,53 @@ public class GeminiClientImpl implements GeminiClient {
                 log.warn("Gemini response too long ({} chars), truncating to {}", reply.length(), MAX_REPLY_LENGTH);
                 reply = reply.substring(0, MAX_REPLY_LENGTH) + "…(回覆已截斷)";
             }
-            return reply;
+
+            // Extract grounding sources from groundingMetadata
+            List<GeminiChatResult.SearchSource> sources = extractGroundingSources(firstCandidate);
+
+            return new GeminiChatResult(reply, sources);
         } catch (GeminiException e) {
             throw e;
         } catch (Exception e) {
             throw GeminiException.apiError("Failed to parse response: " + e.getMessage());
         }
+    }
+
+    /**
+     * Extracts search sources from groundingMetadata.groundingChunks in the response.
+     * Returns empty list if no grounding metadata is present (model did not search).
+     */
+    private List<GeminiChatResult.SearchSource> extractGroundingSources(JsonNode candidate) {
+        JsonNode groundingMetadata = candidate.path("groundingMetadata");
+        if (groundingMetadata.isMissingNode()) {
+            return List.of();
+        }
+
+        JsonNode chunks = groundingMetadata.path("groundingChunks");
+        if (chunks.isMissingNode() || !chunks.isArray() || chunks.isEmpty()) {
+            return List.of();
+        }
+
+        List<GeminiChatResult.SearchSource> sources = new ArrayList<>();
+        for (JsonNode chunk : chunks) {
+            JsonNode web = chunk.path("web");
+            if (!web.isMissingNode()) {
+                String title = web.path("title").asText("");
+                String uri = web.path("uri").asText("");
+                if (!uri.isEmpty()) {
+                    sources.add(new GeminiChatResult.SearchSource(
+                            title.isEmpty() ? uri : title, uri));
+                }
+            }
+        }
+
+        if (!sources.isEmpty()) {
+            JsonNode queries = groundingMetadata.path("webSearchQueries");
+            if (queries.isArray() && !queries.isEmpty()) {
+                log.debug("Gemini used Google Search with queries: {}", queries);
+            }
+        }
+
+        return List.copyOf(sources);
     }
 }

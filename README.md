@@ -30,6 +30,11 @@
 - **即時預覽** - 檔案預覽含安全沙箱（CSP 隔離）
 - **儲存空間** - 每行程 100MB 額度，使用量即時顯示
 
+### AI 旅遊助手
+- **智慧問答** - 基於行程資料的 AI 旅遊建議（Gemini API）
+- **即時推薦** - 餐廳、景點、交通、文化體驗的在地建議
+- **安全防護** - Prompt injection 防護、Circuit breaker、Rate limiting
+
 ### 使用者體驗
 - **深色模式** - 支援系統偏好設定與手動切換，FOUC 防護
 - **響應式設計** - Mobile-first，適配 375px 至 1440px+
@@ -47,7 +52,7 @@
 | 資料庫 | Supabase（PostgreSQL 15+） |
 | 檔案儲存 | Supabase Storage |
 | 部署 | Railway |
-| 外部 API | Google Maps、OpenWeatherMap、ExchangeRate-API |
+| 外部 API | Google Maps、OpenWeatherMap、ExchangeRate-API、Gemini API |
 | 認證 | Google OAuth 2.0 + Spring Security |
 | 快取 | Caffeine（統計、匯率、權限、Signed URL） |
 | 限流 | Bucket4j（IP 層）+ 應用層限流 |
@@ -56,15 +61,15 @@
 
 | 指標 | 數量 |
 |------|------|
-| REST API 端點 | 55 個 |
+| REST API 端點 | 58 個 |
 | Web 頁面端點 | 37 個 |
-| Service 類別 | 20 個（含 ViewHelper） |
+| Service 類別 | 22 個（含 ViewHelper） |
 | Entity / Enum | 10 / 6 個 |
 | Repository | 10 個 |
-| HTML 模板 | 27 個 |
-| JS 模組 | 7 個 |
-| 單元測試 | ~1011 個（74 個測試檔案） |
-| E2E 測試 | ~118 個（10 個 Playwright spec） |
+| HTML 模板 | 31 個 |
+| JS 模組 | 8 個 |
+| 單元測試 | ~1060 個（79 個測試檔案） |
+| E2E 測試 | 11 個 Playwright spec |
 
 ---
 
@@ -89,12 +94,12 @@ wego/
 │   ├── repository/      # 資料存取（10 個 Repository）
 │   ├── entity/          # JPA Entities（10 個）
 │   ├── dto/             # Request / Response DTOs
-│   └── external/        # 外部 API 整合（4 組 Interface + Impl + Mock）
+│   └── external/        # 外部 API 整合（5 組 Interface + Impl + Mock）
 ├── src/main/resources/
 │   ├── templates/       # Thymeleaf 模板（27 個）
 │   └── static/          # CSS, JS, Images
-├── src/test/            # 單元測試（~1011 tests）
-├── e2e/                 # E2E 測試（Playwright, ~118 tests）
+├── src/test/            # 單元測試（~1060 tests, 79 files）
+├── e2e/                 # E2E 測試（Playwright, 11 specs）
 └── docs/                # 專案文件（19 份）
 ```
 
@@ -138,7 +143,6 @@ wego/
 | 文件 | 說明 |
 |------|------|
 | [docs/RUNBOOK.md](docs/RUNBOOK.md) | 運維手冊 |
-| [docs/bug.md](docs/bug.md) | Bug 追蹤與安全審查 |
 | [docs/plan.md](docs/plan.md) | 開發計畫與里程碑 |
 | [docs/task.md](docs/task.md) | 任務追蹤 |
 

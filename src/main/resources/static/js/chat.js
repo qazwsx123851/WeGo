@@ -192,7 +192,10 @@
             {
                 method: 'POST',
                 headers: headers,
-                body: JSON.stringify({ message: message })
+                body: JSON.stringify({
+                message: message,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            })
             },
             35000
         ).then(function(response) {
@@ -203,7 +206,7 @@
             removeLoadingDots(dotsEl);
 
             if (result.status === 200 && result.data.success) {
-                typeMessage(result.data.data.reply);
+                typeMessage(result.data.data.reply, result.data.data.sources);
             } else {
                 var errorMsg = getErrorMessage(result.status, result.data);
                 appendBotMessage(errorMsg);
@@ -316,7 +319,7 @@
     }
 
     // --- Typing Animation ---
-    function typeMessage(fullText) {
+    function typeMessage(fullText, sources) {
         var wrapper = document.createElement('div');
         wrapper.className = 'flex gap-2';
 
@@ -349,22 +352,106 @@
                 clearInterval(timer);
                 // Replace with formatted HTML after typing completes
                 p.innerHTML = formatted;
+                // Append search sources after reply
+                if (sources && sources.length > 0) {
+                    bubble.appendChild(buildSourcesElement(sources));
+                }
                 enableInput();
                 scrollToBottom();
             }
         }, TYPING_SPEED_MS);
     }
 
-    // --- Format Reply (bold markers) ---
+    // --- Build Sources Element ---
+    function buildSourcesElement(sources) {
+        var container = document.createElement('div');
+        container.className = 'mt-2 pt-2 border-t border-gray-200 dark:border-gray-600 flex flex-wrap gap-1.5';
+
+        for (var i = 0; i < sources.length; i++) {
+            var source = sources[i];
+            var link = document.createElement('a');
+            var safeUrl = source.url || '';
+            if (!/^https?:\/\//i.test(safeUrl)) {
+                safeUrl = '#';
+            }
+            link.href = safeUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.className = 'inline-flex items-center gap-1 text-[11px] text-primary-600 dark:text-primary-400 '
+                + 'hover:underline bg-primary-50 dark:bg-primary-900/20 rounded-full px-2 py-0.5 '
+                + 'max-w-[200px] truncate';
+
+            var icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            icon.setAttribute('class', 'w-3 h-3 flex-shrink-0');
+            icon.setAttribute('fill', 'none');
+            icon.setAttribute('stroke', 'currentColor');
+            icon.setAttribute('viewBox', '0 0 24 24');
+            var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('d', 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1');
+            icon.appendChild(path);
+
+            link.appendChild(icon);
+            link.appendChild(document.createTextNode(WeGo.escapeHtml(source.title || source.url)));
+            container.appendChild(link);
+        }
+
+        return container;
+    }
+
+    // --- Format Reply (Markdown rendering) ---
     function formatReply(text) {
         if (!text) return '';
-        // Escape HTML first
         var escaped = WeGo.escapeHtml(text);
-        // Convert **bold** to <strong>
-        escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        // Convert newlines to <br>
-        escaped = escaped.replace(/\n/g, '<br>');
-        return escaped;
+        var lines = escaped.split('\n');
+        var result = [];
+        var listType = null; // null, 'ul', or 'ol'
+
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+
+            // ### Heading
+            if (/^#{1,3}\s+/.test(line)) {
+                if (listType) { result.push('</' + listType + '>'); listType = null; }
+                var headingText = line.replace(/^#{1,3}\s+/, '');
+                result.push('<strong class="block text-sm font-semibold mt-2 mb-1">' + inlineMd(headingText) + '</strong>');
+                continue;
+            }
+
+            // Bullet list item: - or * at start
+            if (/^[\-\*]\s+/.test(line)) {
+                if (listType && listType !== 'ul') { result.push('</' + listType + '>'); listType = null; }
+                if (!listType) { result.push('<ul class="list-disc list-inside space-y-0.5 my-1">'); listType = 'ul'; }
+                result.push('<li>' + inlineMd(line.replace(/^[\-\*]\s+/, '')) + '</li>');
+                continue;
+            }
+
+            // Numbered list item: 1. 2. etc
+            if (/^\d+\.\s+/.test(line)) {
+                if (listType && listType !== 'ol') { result.push('</' + listType + '>'); listType = null; }
+                if (!listType) { result.push('<ol class="list-decimal list-inside space-y-0.5 my-1">'); listType = 'ol'; }
+                result.push('<li>' + inlineMd(line.replace(/^\d+\.\s+/, '')) + '</li>');
+                continue;
+            }
+
+            // Close open list
+            if (listType) { result.push('</' + listType + '>'); listType = null; }
+
+            // Empty line = paragraph break
+            if (line.trim() === '') { result.push('<br>'); continue; }
+
+            // Regular paragraph
+            result.push('<span>' + inlineMd(line) + '</span><br>');
+        }
+
+        if (listType) { result.push('</' + listType + '>'); }
+        return result.join('');
+    }
+
+    function inlineMd(text) {
+        return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     }
 
     function enableInput() {
