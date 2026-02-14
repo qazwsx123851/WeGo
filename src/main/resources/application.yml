@@ -139,7 +139,7 @@ wego:
       read-timeout-ms: 30000
       circuit-breaker-failure-threshold: 3
       circuit-breaker-cooldown-minutes: 5
-      search-grounding-enabled: ${GEMINI_SEARCH_GROUNDING:false}
+      search-grounding-enabled: ${GEMINI_SEARCH_GROUNDING:true}
 
   chat:
     max-message-length: 500
