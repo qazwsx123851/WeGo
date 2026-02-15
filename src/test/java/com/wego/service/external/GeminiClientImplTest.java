@@ -231,13 +231,13 @@ class GeminiClientImplTest {
     class SearchGrounding {
 
         @Test
-        @DisplayName("should include google_search tool when grounding enabled")
-        void shouldIncludeToolsWhenGroundingEnabled() {
+        @DisplayName("should include google_search tool when global enabled AND request enabled")
+        void shouldIncludeToolsWhenBothEnabled() {
             properties.setSearchGroundingEnabled(true);
             when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
                     .thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
 
-            client.chat("prompt", "message");
+            client.chatWithMetadata("prompt", "message", true);
 
             ArgumentCaptor<HttpEntity<String>> captor = ArgumentCaptor.forClass(HttpEntity.class);
             verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(String.class));
@@ -248,13 +248,30 @@ class GeminiClientImplTest {
         }
 
         @Test
-        @DisplayName("should not include tools when grounding disabled")
-        void shouldNotIncludeToolsWhenGroundingDisabled() {
+        @DisplayName("should not include tools when global enabled but request disabled")
+        void shouldNotIncludeToolsWhenRequestDisabled() {
+            properties.setSearchGroundingEnabled(true);
+            when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                    .thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
+
+            client.chatWithMetadata("prompt", "message", false);
+
+            ArgumentCaptor<HttpEntity<String>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+            verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(String.class));
+
+            String body = captor.getValue().getBody();
+            assertThat(body).doesNotContain("\"tools\"");
+            assertThat(body).doesNotContain("\"google_search\"");
+        }
+
+        @Test
+        @DisplayName("should not include tools when global disabled even if request enabled")
+        void shouldNotIncludeToolsWhenGlobalDisabled() {
             properties.setSearchGroundingEnabled(false);
             when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
                     .thenReturn(ResponseEntity.ok(SUCCESS_RESPONSE));
 
-            client.chat("prompt", "message");
+            client.chatWithMetadata("prompt", "message", true);
 
             ArgumentCaptor<HttpEntity<String>> captor = ArgumentCaptor.forClass(HttpEntity.class);
             verify(restTemplate).postForEntity(anyString(), captor.capture(), eq(String.class));

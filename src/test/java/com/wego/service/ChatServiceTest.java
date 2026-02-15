@@ -34,6 +34,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -91,10 +92,10 @@ class ChatServiceTest {
         void shouldThrowWhenNotMember() {
             when(permissionChecker.canView(tripId, userId)).thenReturn(false);
 
-            assertThatThrownBy(() -> chatService.chat(tripId, userId, "test", null))
+            assertThatThrownBy(() -> chatService.chat(tripId, userId, "test", null, false))
                     .isInstanceOf(ForbiddenException.class);
 
-            verify(geminiClient, never()).chatWithMetadata(anyString(), anyString());
+            verify(geminiClient, never()).chatWithMetadata(anyString(), anyString(), anyBoolean());
         }
     }
 
@@ -109,11 +110,11 @@ class ChatServiceTest {
             when(chatProperties.getRateLimitPerMinute()).thenReturn(5);
             when(rateLimitService.isAllowed(eq("chat:" + userId), eq(5))).thenReturn(false);
 
-            assertThatThrownBy(() -> chatService.chat(tripId, userId, "test", null))
+            assertThatThrownBy(() -> chatService.chat(tripId, userId, "test", null, false))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorCode()).isEqualTo("RATE_LIMITED"));
 
-            verify(geminiClient, never()).chatWithMetadata(anyString(), anyString());
+            verify(geminiClient, never()).chatWithMetadata(anyString(), anyString(), anyBoolean());
         }
     }
 
@@ -134,10 +135,10 @@ class ChatServiceTest {
         void shouldReturnReply() {
             when(activityRepository.findByTripIdOrderByDayAscSortOrderAsc(tripId))
                     .thenReturn(List.of());
-            when(geminiClient.chatWithMetadata(anyString(), anyString()))
+            when(geminiClient.chatWithMetadata(anyString(), anyString(), anyBoolean()))
                     .thenReturn(new GeminiClient.GeminiChatResult("推薦你去鼎泰豐！", List.of()));
 
-            ChatResponse response = chatService.chat(tripId, userId, "推薦餐廳", null);
+            ChatResponse response = chatService.chat(tripId, userId, "推薦餐廳", null, false);
 
             assertThat(response.getReply()).isEqualTo("推薦你去鼎泰豐！");
         }
@@ -147,13 +148,13 @@ class ChatServiceTest {
         void shouldSeparateSystemPromptAndTripContext() {
             when(activityRepository.findByTripIdOrderByDayAscSortOrderAsc(tripId))
                     .thenReturn(List.of());
-            when(geminiClient.chatWithMetadata(anyString(), anyString())).thenReturn(new GeminiClient.GeminiChatResult("reply", List.of()));
+            when(geminiClient.chatWithMetadata(anyString(), anyString(), anyBoolean())).thenReturn(new GeminiClient.GeminiChatResult("reply", List.of()));
 
-            chatService.chat(tripId, userId, "test", null);
+            chatService.chat(tripId, userId, "test", null, false);
 
             ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
-            verify(geminiClient).chatWithMetadata(systemCaptor.capture(), userCaptor.capture());
+            verify(geminiClient).chatWithMetadata(systemCaptor.capture(), userCaptor.capture(), anyBoolean());
 
             // System prompt should contain instructions but NOT trip-specific data
             String systemPrompt = systemCaptor.getValue();
@@ -208,12 +209,12 @@ class ChatServiceTest {
                     .thenReturn(List.of(activity1, activity2));
             when(placeRepository.findAllById(any()))
                     .thenReturn(List.of(place1, place2));
-            when(geminiClient.chatWithMetadata(anyString(), anyString())).thenReturn(new GeminiClient.GeminiChatResult("reply", List.of()));
+            when(geminiClient.chatWithMetadata(anyString(), anyString(), anyBoolean())).thenReturn(new GeminiClient.GeminiChatResult("reply", List.of()));
 
-            chatService.chat(tripId, userId, "test", null);
+            chatService.chat(tripId, userId, "test", null, false);
 
             ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
-            verify(geminiClient).chatWithMetadata(anyString(), userCaptor.capture());
+            verify(geminiClient).chatWithMetadata(anyString(), userCaptor.capture(), anyBoolean());
 
             String userMessage = userCaptor.getValue();
             // Compact format: time ranges instead of duration
@@ -758,10 +759,10 @@ class ChatServiceTest {
         @Test
         @DisplayName("should return friendly error message when Gemini fails")
         void shouldReturnFriendlyErrorOnGeminiFailure() {
-            when(geminiClient.chatWithMetadata(anyString(), anyString()))
+            when(geminiClient.chatWithMetadata(anyString(), anyString(), anyBoolean()))
                     .thenThrow(GeminiException.apiError("API error"));
 
-            ChatResponse response = chatService.chat(tripId, userId, "test", null);
+            ChatResponse response = chatService.chat(tripId, userId, "test", null, false);
 
             assertThat(response.getReply()).contains("暫時無法回覆");
         }
@@ -769,10 +770,10 @@ class ChatServiceTest {
         @Test
         @DisplayName("should return friendly error message when Gemini times out")
         void shouldReturnFriendlyErrorOnTimeout() {
-            when(geminiClient.chatWithMetadata(anyString(), anyString()))
+            when(geminiClient.chatWithMetadata(anyString(), anyString(), anyBoolean()))
                     .thenThrow(GeminiException.timeout());
 
-            ChatResponse response = chatService.chat(tripId, userId, "test", null);
+            ChatResponse response = chatService.chat(tripId, userId, "test", null, false);
 
             assertThat(response.getReply()).contains("暫時無法回覆");
         }

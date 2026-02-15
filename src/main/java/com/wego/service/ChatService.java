@@ -113,9 +113,9 @@ public class ChatService {
      *   - post: Returns ChatResponse with AI reply
      *   - throws: ForbiddenException if user is not a trip member
      *   - throws: BusinessException if rate limited
-     *   - calls: GeminiClient#chat
+     *   - calls: GeminiClient#chatWithMetadata
      */
-    public ChatResponse chat(UUID tripId, UUID userId, String message, String timezone) {
+    public ChatResponse chat(UUID tripId, UUID userId, String message, String timezone, boolean searchGrounding) {
         if (!permissionChecker.canView(tripId, userId)) {
             throw new ForbiddenException("你沒有權限存取此行程的聊天功能");
         }
@@ -138,7 +138,7 @@ public class ChatService {
                 + tripContext + "\n使用者問題：" + message;
 
         try {
-            var result = geminiClient.chatWithMetadata(SYSTEM_PROMPT, userPayload);
+            var result = geminiClient.chatWithMetadata(SYSTEM_PROMPT, userPayload, searchGrounding);
             List<ChatResponse.SearchSource> sources = result.sources().isEmpty()
                     ? null
                     : result.sources().stream()

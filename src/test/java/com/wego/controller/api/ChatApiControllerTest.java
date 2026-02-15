@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -75,7 +76,7 @@ class ChatApiControllerTest {
         @DisplayName("should return 200 with AI reply on valid request")
         void shouldReturn200OnValidRequest() throws Exception {
             ChatResponse response = ChatResponse.builder().reply("推薦你去鼎泰豐！").build();
-            when(chatService.chat(eq(tripId), eq(userId), eq("推薦餐廳"), any())).thenReturn(response);
+            when(chatService.chat(eq(tripId), eq(userId), eq("推薦餐廳"), any(), anyBoolean())).thenReturn(response);
 
             mockMvc.perform(post("/api/trips/{tripId}/chat", tripId)
                             .with(oauth2Login().oauth2User(userPrincipal))
@@ -99,7 +100,7 @@ class ChatApiControllerTest {
                                     ChatRequest.builder().message("").build())))
                     .andExpect(status().isBadRequest());
 
-            verify(chatService, never()).chat(any(), any(), any(), any());
+            verify(chatService, never()).chat(any(), any(), any(), any(), anyBoolean());
         }
 
         @Test
@@ -115,14 +116,14 @@ class ChatApiControllerTest {
                                     ChatRequest.builder().message(longMessage).build())))
                     .andExpect(status().isBadRequest());
 
-            verify(chatService, never()).chat(any(), any(), any(), any());
+            verify(chatService, never()).chat(any(), any(), any(), any(), anyBoolean());
         }
 
         @Test
         @DisplayName("should pass timezone from request to service")
         void shouldPassTimezoneToService() throws Exception {
             ChatResponse response = ChatResponse.builder().reply("ok").build();
-            when(chatService.chat(eq(tripId), eq(userId), eq("test"), eq("Asia/Tokyo")))
+            when(chatService.chat(eq(tripId), eq(userId), eq("test"), eq("Asia/Tokyo"), anyBoolean()))
                     .thenReturn(response);
 
             mockMvc.perform(post("/api/trips/{tripId}/chat", tripId)
@@ -133,13 +134,13 @@ class ChatApiControllerTest {
                                     ChatRequest.builder().message("test").timezone("Asia/Tokyo").build())))
                     .andExpect(status().isOk());
 
-            verify(chatService).chat(eq(tripId), eq(userId), eq("test"), eq("Asia/Tokyo"));
+            verify(chatService).chat(eq(tripId), eq(userId), eq("test"), eq("Asia/Tokyo"), anyBoolean());
         }
 
         @Test
         @DisplayName("should return 403 when user is not a trip member")
         void shouldReturn403WhenNotMember() throws Exception {
-            when(chatService.chat(eq(tripId), eq(userId), any(), any()))
+            when(chatService.chat(eq(tripId), eq(userId), any(), any(), anyBoolean()))
                     .thenThrow(new ForbiddenException("你沒有權限存取此行程的聊天功能"));
 
             mockMvc.perform(post("/api/trips/{tripId}/chat", tripId)
@@ -154,7 +155,7 @@ class ChatApiControllerTest {
         @Test
         @DisplayName("should return 400 when rate limited")
         void shouldReturn400WhenRateLimited() throws Exception {
-            when(chatService.chat(eq(tripId), eq(userId), any(), any()))
+            when(chatService.chat(eq(tripId), eq(userId), any(), any(), anyBoolean()))
                     .thenThrow(new BusinessException("RATE_LIMITED", "請求太頻繁，請稍後再試"));
 
             mockMvc.perform(post("/api/trips/{tripId}/chat", tripId)

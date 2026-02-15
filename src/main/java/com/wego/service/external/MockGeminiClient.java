@@ -33,8 +33,9 @@ public class MockGeminiClient implements GeminiClient {
             "以上推薦都在你行程動線附近，不會影響下午的安排。需要更詳細的資訊嗎？";
 
     @Override
-    public GeminiChatResult chatWithMetadata(String systemPrompt, String userMessage) {
-        log.info("[MOCK] Gemini chat request received: {}", truncate(userMessage, 100));
+    public GeminiChatResult chatWithMetadata(String systemPrompt, String userMessage, boolean useSearchGrounding) {
+        log.info("[MOCK] Gemini chat request received (searchGrounding={}): {}",
+                useSearchGrounding, truncate(userMessage, 100));
         return new GeminiChatResult(MOCK_REPLY, List.of());
     }
 

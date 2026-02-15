@@ -13,6 +13,7 @@ import lombok.Setter;
  *
  * @contract
  *   - message: Must not be blank and must be ≤ 500 characters
+ *   - searchGrounding: defaults to false when not provided in JSON
  */
 @Getter
 @Setter
@@ -27,4 +28,6 @@ public class ChatRequest {
 
     @Size(max = 50, message = "時區格式無效")
     private String timezone;
+
+    private boolean searchGrounding;
 }

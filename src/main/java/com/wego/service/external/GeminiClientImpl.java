@@ -68,16 +68,18 @@ public class GeminiClientImpl implements GeminiClient {
     }
 
     @Override
-    public GeminiChatResult chatWithMetadata(String systemPrompt, String userMessage) {
+    public GeminiChatResult chatWithMetadata(String systemPrompt, String userMessage, boolean useSearchGrounding) {
         checkCircuitBreaker();
 
+        boolean effectiveGrounding = properties.isSearchGroundingEnabled() && useSearchGrounding;
         log.debug("Sending chat request to Gemini model: {}", properties.getModel());
 
         String url = String.format(API_URL, properties.getModel());
 
-        String requestBody = buildRequestBody(systemPrompt, userMessage);
-        log.info("Gemini request: model={}, searchGrounding={}, bodyLength={}",
-                properties.getModel(), properties.isSearchGroundingEnabled(), requestBody.length());
+        String requestBody = buildRequestBody(systemPrompt, userMessage, effectiveGrounding);
+        log.info("Gemini request: model={}, searchGrounding={} (requested={}, global={}), bodyLength={}",
+                properties.getModel(), effectiveGrounding, useSearchGrounding,
+                properties.isSearchGroundingEnabled(), requestBody.length());
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -143,7 +145,7 @@ public class GeminiClientImpl implements GeminiClient {
         }
     }
 
-    private String buildRequestBody(String systemPrompt, String userMessage) {
+    private String buildRequestBody(String systemPrompt, String userMessage, boolean useSearchGrounding) {
         try {
             var root = objectMapper.createObjectNode();
 
@@ -168,8 +170,8 @@ public class GeminiClientImpl implements GeminiClient {
             generationConfig.put("maxOutputTokens", properties.getMaxOutputTokens());
             root.set("generationConfig", generationConfig);
 
-            // Add Google Search grounding tool if enabled
-            if (properties.isSearchGroundingEnabled()) {
+            // Add Google Search grounding tool if enabled (global kill-switch AND per-request flag)
+            if (useSearchGrounding) {
                 var tools = objectMapper.createArrayNode();
                 var googleSearchTool = objectMapper.createObjectNode();
                 googleSearchTool.set("google_search", objectMapper.createObjectNode());

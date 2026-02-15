@@ -29,9 +29,12 @@
     var isOpen = false;
     var isSending = false;
     var isExpanded = false;
+    var useSearchGrounding = false;
     var MAX_LENGTH = 500;
     var TYPING_SPEED_MS = 30;
     var desktopQuery = window.matchMedia('(min-width: 640px)');
+    var searchToggleBtn = document.getElementById('chat-search-toggle');
+    var searchLabel = document.getElementById('chat-search-label');
 
     // --- iOS/Mobile Keyboard Handling ---
     function setupKeyboardHandling() {
@@ -105,6 +108,15 @@
         isOpen = false;
         chatWindow.style.height = '';
         chatWindow.style.bottom = '';
+        // Reset search grounding toggle
+        useSearchGrounding = false;
+        if (searchToggleBtn) {
+            searchToggleBtn.setAttribute('aria-pressed', 'false');
+            searchToggleBtn.classList.remove('text-white', 'bg-primary-500', 'border-primary-500', 'hover:bg-primary-600');
+            searchToggleBtn.classList.add('text-gray-400', 'dark:text-gray-500', 'border-gray-300', 'dark:border-gray-500', 'hover:bg-gray-100', 'dark:hover:bg-gray-600');
+            if (searchLabel) searchLabel.textContent = '即時搜尋';
+        }
+        if (chatInput) chatInput.placeholder = '輸入你的問題...';
         // Reset expand state (desktop only)
         if (isExpanded) {
             isExpanded = false;
@@ -177,6 +189,25 @@
 
     if (closeHeaderBtn) {
         closeHeaderBtn.addEventListener('click', closeChat);
+    }
+
+    // --- Search grounding toggle ---
+    if (searchToggleBtn) {
+        searchToggleBtn.addEventListener('click', function() {
+            useSearchGrounding = !useSearchGrounding;
+            searchToggleBtn.setAttribute('aria-pressed', String(useSearchGrounding));
+            if (useSearchGrounding) {
+                searchToggleBtn.classList.remove('text-gray-400', 'dark:text-gray-500', 'border-gray-300', 'dark:border-gray-500', 'hover:bg-gray-100', 'dark:hover:bg-gray-600');
+                searchToggleBtn.classList.add('text-white', 'bg-primary-500', 'border-primary-500', 'hover:bg-primary-600');
+                if (searchLabel) searchLabel.textContent = '搜尋中';
+                chatInput.placeholder = '輸入問題，搜尋最新資訊...';
+            } else {
+                searchToggleBtn.classList.remove('text-white', 'bg-primary-500', 'border-primary-500', 'hover:bg-primary-600');
+                searchToggleBtn.classList.add('text-gray-400', 'dark:text-gray-500', 'border-gray-300', 'dark:border-gray-500', 'hover:bg-gray-100', 'dark:hover:bg-gray-600');
+                if (searchLabel) searchLabel.textContent = '即時搜尋';
+                chatInput.placeholder = '輸入你的問題...';
+            }
+        });
     }
 
     // --- Focus: scroll to bottom after keyboard appears ---
@@ -259,7 +290,8 @@
                 headers: headers,
                 body: JSON.stringify({
                 message: message,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                searchGrounding: useSearchGrounding
             })
             },
             35000

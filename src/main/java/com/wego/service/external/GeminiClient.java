@@ -24,7 +24,7 @@ public interface GeminiClient {
     }
 
     /**
-     * Sends a chat request to Gemini and returns reply with metadata.
+     * Sends a chat request to Gemini with per-request search grounding control.
      *
      * @contract
      *   - pre: systemPrompt != null and not blank
@@ -34,9 +34,17 @@ public interface GeminiClient {
      *
      * @param systemPrompt The system instruction for the AI
      * @param userMessage The user's question
+     * @param useSearchGrounding whether to enable Google Search grounding for this request
      * @return The AI-generated reply with metadata
      */
-    GeminiChatResult chatWithMetadata(String systemPrompt, String userMessage);
+    GeminiChatResult chatWithMetadata(String systemPrompt, String userMessage, boolean useSearchGrounding);
+
+    /**
+     * Sends a chat request to Gemini without search grounding.
+     */
+    default GeminiChatResult chatWithMetadata(String systemPrompt, String userMessage) {
+        return chatWithMetadata(systemPrompt, userMessage, false);
+    }
 
     /**
      * Sends a chat request to Gemini with a system prompt and user message.
