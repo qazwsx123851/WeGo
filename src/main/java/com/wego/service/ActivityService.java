@@ -18,6 +18,7 @@ import com.wego.repository.ActivityRepository;
 import com.wego.repository.PlaceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -631,17 +633,60 @@ public class ActivityService {
      * @return RecalculationResult with statistics
      * @throws ForbiddenException if user lacks edit permission
      */
+    /**
+     * Checks if user has edit permission on the trip.
+     * Used by controller to validate before dispatching async operations.
+     *
+     * @throws ForbiddenException if user lacks edit permission
+     */
+    public void checkTransportRecalculatePermission(UUID tripId, UUID userId) {
+        if (!permissionChecker.canEdit(tripId, userId)) {
+            throw new ForbiddenException("activity", "recalculate transport");
+        }
+    }
+
     @Transactional
     public RecalculationResult recalculateAllTransport(UUID tripId, UUID userId, int maxApiCalls) {
         log.info("Recalculating all transport for trip {} by user {}, max API calls: {}",
                 tripId, userId, maxApiCalls);
+        return recalculateAllTransportInternal(tripId, userId, maxApiCalls);
+    }
 
-        // Check permission
+    /**
+     * Async variant of recalculateAllTransport for non-blocking execution.
+     *
+     * Runs on the "transportExecutor" thread pool. Falls back to synchronous
+     * execution (CallerRunsPolicy) when the pool is saturated.
+     *
+     * @contract
+     *   - pre: tripId != null, userId != null, maxApiCalls > 0
+     *   - post: All activities have transport times recalculated asynchronously
+     *   - post: Returns CompletableFuture with RecalculationResult
+     *   - calls: recalculateAllTransport (synchronous)
+     *   - calledBy: ActivityWebController#recalculateTransport (AJAX path)
+     */
+    @Async("transportExecutor")
+    @Transactional
+    public CompletableFuture<RecalculationResult> recalculateAllTransportAsync(
+            UUID tripId, UUID userId, int maxApiCalls) {
+        log.info("Starting async transport recalculation for trip {} by user {}", tripId, userId);
+        try {
+            RecalculationResult result = recalculateAllTransportInternal(tripId, userId, maxApiCalls);
+            return CompletableFuture.completedFuture(result);
+        } catch (Exception e) {
+            log.error("Async transport recalculation failed for trip {}: {}", tripId, e.getMessage(), e);
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * Internal implementation shared by sync and async variants.
+     */
+    private RecalculationResult recalculateAllTransportInternal(UUID tripId, UUID userId, int maxApiCalls) {
         if (!permissionChecker.canEdit(tripId, userId)) {
             throw new ForbiddenException("activity", "recalculate transport");
         }
 
-        // Get all activities for the trip, ordered by day and sortOrder
         List<Activity> activities = activityRepository.findByTripIdOrderByDayAscSortOrderAsc(tripId);
 
         if (activities.isEmpty()) {
@@ -651,11 +696,9 @@ public class ActivityService {
                     .build();
         }
 
-        // Perform batch recalculation with rate limiting
         RecalculationResult result = transportCalculationService.batchRecalculateWithRateLimit(
                 activities, maxApiCalls);
 
-        // Save all updated activities
         activityRepository.saveAll(activities);
 
         log.info("Completed transport recalculation for trip {}: {}",

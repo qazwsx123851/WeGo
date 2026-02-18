@@ -518,28 +518,27 @@ class ActivityWebControllerTest {
         }
 
         @Test
-        @DisplayName("AJAX POST should return JSON success")
+        @DisplayName("AJAX POST should return 202 Accepted with async message")
         void ajaxPost_shouldReturnJsonSuccess() throws Exception {
-            when(activityService.recalculateAllTransport(eq(tripId), eq(userId), eq(50)))
-                    .thenReturn(buildResult());
+            // Permission check passes (no throw)
+            // Async method is fire-and-forget
 
             mockMvc.perform(post("/trips/{tripId}/recalculate-transport", tripId)
                             .with(oauth2Login())
                             .with(csrf())
                             .header("X-Requested-With", "XMLHttpRequest")
                             .header("Accept", "application/json"))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.message").isNotEmpty())
-                    .andExpect(jsonPath("$.data.totalActivities").value(5))
-                    .andExpect(jsonPath("$.data.apiSuccessCount").value(2));
+                    .andExpect(jsonPath("$.async").value(true));
         }
 
         @Test
         @DisplayName("AJAX POST should return 403 JSON when forbidden")
         void ajaxPost_forbidden_shouldReturnForbiddenJson() throws Exception {
-            when(activityService.recalculateAllTransport(any(), any(), anyInt()))
-                    .thenThrow(new ForbiddenException("activity", "recalculate transport"));
+            doThrow(new ForbiddenException("activity", "recalculate transport"))
+                    .when(activityService).checkTransportRecalculatePermission(any(), any());
 
             mockMvc.perform(post("/trips/{tripId}/recalculate-transport", tripId)
                             .with(oauth2Login())
@@ -554,8 +553,8 @@ class ActivityWebControllerTest {
         @Test
         @DisplayName("regular POST should redirect with error when forbidden")
         void regularPost_forbidden_shouldRedirectWithError() throws Exception {
-            when(activityService.recalculateAllTransport(any(), any(), anyInt()))
-                    .thenThrow(new ForbiddenException("activity", "recalculate transport"));
+            doThrow(new ForbiddenException("activity", "recalculate transport"))
+                    .when(activityService).checkTransportRecalculatePermission(any(), any());
 
             mockMvc.perform(post("/trips/{tripId}/recalculate-transport", tripId)
                             .with(oauth2Login())

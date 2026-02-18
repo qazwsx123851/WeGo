@@ -615,9 +615,9 @@ public class ActivityWebController extends BaseWebController {
      * @contract
      *   - pre: tripId != null, principal != null
      *   - pre: user has OWNER or EDITOR role
-     *   - post: All activities have transport times recalculated
-     *   - post: Redirects to activities list with result message
-     *   - calls: ActivityService#recalculateAllTransport
+     *   - post: AJAX: fires async recalculation and returns 202 Accepted immediately
+     *   - post: Form: waits for result and redirects with message
+     *   - calls: ActivityService#recalculateAllTransportAsync (AJAX), ActivityService#recalculateAllTransport (form)
      *   - calledBy: Web browser POST request
      */
     @PostMapping("/recalculate-transport")
@@ -636,29 +636,25 @@ public class ActivityWebController extends BaseWebController {
         }
 
         try {
-            // Recalculate all transport with default max 50 API calls
-            var result = activityService.recalculateAllTransport(tripId, user.getId(), 50);
+            // Check permission eagerly (before async dispatch)
+            activityService.checkTransportRecalculatePermission(tripId, user.getId());
 
-            // Build success message
+            if (isAjax) {
+                // Async: fire and return immediately for AJAX requests
+                activityService.recalculateAllTransportAsync(tripId, user.getId(), 50);
+                return ResponseEntity.accepted().body(Map.of(
+                        "success", true,
+                        "message", "交通時間重新計算中，完成後請重新整理頁面查看結果",
+                        "async", true
+                ));
+            }
+
+            // Sync: traditional form submission waits for result
+            var result = activityService.recalculateAllTransport(tripId, user.getId(), 50);
             String message = result.getSuccessMessage();
 
             log.info("Transport recalculation completed for trip {}: total={}, api={}, fallback={}",
                     tripId, result.getTotalActivities(), result.getApiSuccessCount(), result.getFallbackCount());
-
-            if (isAjax) {
-                return ResponseEntity.ok(Map.of(
-                        "success", true,
-                        "message", message,
-                        "data", Map.of(
-                                "totalActivities", result.getTotalActivities(),
-                                "apiSuccessCount", result.getApiSuccessCount(),
-                                "fallbackCount", result.getFallbackCount(),
-                                "skippedCount", result.getSkippedCount(),
-                                "manualCount", result.getManualCount(),
-                                "rateLimitReached", result.isRateLimitReached()
-                        )
-                ));
-            }
 
             redirectAttributes.addFlashAttribute("success", message);
             return "redirect:/trips/" + tripId + "/activities";

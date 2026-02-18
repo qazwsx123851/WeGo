@@ -166,8 +166,6 @@ class ExpenseServiceTest {
             when(permissionChecker.canEdit(tripId, userId)).thenReturn(true);
             when(tripRepository.findById(tripId)).thenReturn(Optional.of(testTrip));
             when(tripMemberRepository.findByTripId(tripId)).thenReturn(Arrays.asList(member1, member2));
-            when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-            when(userRepository.findById(testUser2.getId())).thenReturn(Optional.of(testUser2));
             when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> {
                 Expense expense = invocation.getArgument(0);
                 expense.setId(expenseId);
@@ -175,7 +173,7 @@ class ExpenseServiceTest {
             });
             when(expenseSplitRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
             when(expenseSplitRepository.findByExpenseId(expenseId)).thenReturn(Collections.emptyList());
-            when(userRepository.findAllById(any())).thenReturn(List.of());
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser, testUser2));
 
             // When
             ExpenseResponse response = expenseService.createExpense(tripId, request, userId);

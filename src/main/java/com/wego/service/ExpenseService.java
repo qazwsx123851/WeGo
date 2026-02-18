@@ -537,22 +537,28 @@ public class ExpenseService {
 
     /**
      * Builds an ExpenseResponse from an Expense entity.
+     * Uses batch user loading to minimize DB queries (2 queries instead of 3).
      */
     private ExpenseResponse buildExpenseResponse(Expense expense) {
         ExpenseResponse response = ExpenseResponse.fromEntity(expense);
 
-        // Get payer info
-        userRepository.findById(expense.getPaidBy()).ifPresent(user -> {
-            response.setPaidByName(user.getNickname());
-            response.setPaidByAvatarUrl(user.getAvatarUrl());
-        });
-
-        // Get splits with user info
+        // 1 query: get splits
         List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expense.getId());
-        Map<UUID, User> userMap = getUserMap(splits.stream()
-                .map(ExpenseSplit::getUserId)
-                .distinct()
-                .collect(Collectors.toList()));
+
+        // Collect ALL user IDs (payer + split participants) for single batch query
+        Set<UUID> allUserIds = new HashSet<>();
+        allUserIds.add(expense.getPaidBy());
+        splits.forEach(s -> allUserIds.add(s.getUserId()));
+
+        // 1 query: batch load all users
+        Map<UUID, User> userMap = getUserMap(new ArrayList<>(allUserIds));
+
+        // Set payer info from map (no separate query)
+        User payer = userMap.get(expense.getPaidBy());
+        if (payer != null) {
+            response.setPaidByName(payer.getNickname());
+            response.setPaidByAvatarUrl(payer.getAvatarUrl());
+        }
 
         List<ExpenseSplitResponse> splitResponses = splits.stream()
                 .map(split -> {
