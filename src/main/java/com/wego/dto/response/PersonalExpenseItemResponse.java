@@ -33,6 +33,7 @@ public class PersonalExpenseItemResponse {
     private BigDecimal amount;    // converted to baseCurrency
     private BigDecimal originalAmount;
     private String originalCurrency;
+    private BigDecimal exchangeRate; // nullable; null means same currency (1:1)
     private String category;
     private LocalDate expenseDate; // nullable
     private String paidByName;   // AUTO only; null for MANUAL

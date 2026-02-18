@@ -15,6 +15,7 @@ import com.wego.entity.TripMember;
 import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ValidationException;
+import com.wego.dto.response.ExchangeRateResponse;
 import com.wego.repository.ExpenseSplitRepository;
 import com.wego.repository.ExpenseSplitRepository.AutoSplitProjection;
 import com.wego.repository.PersonalExpenseRepository;
@@ -44,11 +45,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PersonalExpenseServiceTest {
+
+    @Mock
+    private ExchangeRateService exchangeRateService;
 
     @Mock
     private ExpenseSplitRepository expenseSplitRepository;
@@ -101,6 +106,7 @@ class PersonalExpenseServiceTest {
         @DisplayName("should merge AUTO and MANUAL items, sorted by expenseDate ASC nulls last")
         void getPersonalExpenses_mergeAndSort_correctOrder() {
             when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
 
             // AUTO item: Day 3 (2024-03-15)
             AutoSplitProjection autoSplit = mock(AutoSplitProjection.class);
@@ -173,9 +179,100 @@ class PersonalExpenseServiceTest {
         }
 
         @Test
+        @DisplayName("foreign currency with null exchangeRate fetches rate on-the-fly")
+        void getPersonalExpenses_foreignCurrencyNullRate_fetchesRateOnTheFly() {
+            when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
+            when(exchangeRateService.getRate("JPY", "TWD"))
+                    .thenReturn(ExchangeRateResponse.fresh("JPY", "TWD",
+                            new BigDecimal("0.2049"), java.time.Instant.now()));
+
+            AutoSplitProjection jpySplit = mock(AutoSplitProjection.class);
+            when(jpySplit.getAmount()).thenReturn(new BigDecimal("10000.00"));
+            when(jpySplit.getCurrency()).thenReturn("JPY");
+            when(jpySplit.getExchangeRate()).thenReturn(null);
+            when(jpySplit.getDescription()).thenReturn("JPY expense");
+            when(jpySplit.getExpenseDate()).thenReturn(LocalDate.of(2024, 3, 5));
+            when(jpySplit.getPaidBy()).thenReturn(payerUserId);
+            when(jpySplit.getTripExpenseId()).thenReturn(UUID.randomUUID());
+
+            User payer = User.builder().id(payerUserId).nickname("Alice")
+                    .email("a@test.com").providerId("p1").build();
+
+            when(expenseSplitRepository.findPersonalSplitsByUserIdAndTripId(userId, tripId))
+                    .thenReturn(List.of(jpySplit));
+            when(userRepository.findAllById(anyIterable())).thenReturn(List.of(payer));
+            when(personalExpenseRepository.findByUserIdAndTripId(userId, tripId))
+                    .thenReturn(List.of());
+
+            List<PersonalExpenseItemResponse> result =
+                    personalExpenseService.getPersonalExpenses(userId, tripId);
+
+            assertThat(result).hasSize(1);
+            // 10000 * 0.2049 = 2049.00
+            assertThat(result.get(0).getAmount()).isEqualByComparingTo(new BigDecimal("2049.00"));
+            verify(exchangeRateService).getRate("JPY", "TWD");
+        }
+
+        @Test
+        @DisplayName("foreign currency with null rate and API failure uses original amount")
+        void getPersonalExpenses_foreignCurrencyApiFails_usesOriginalAmount() {
+            when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
+            when(exchangeRateService.getRate("JPY", "TWD"))
+                    .thenThrow(new RuntimeException("API unavailable"));
+
+            PersonalExpense manual = PersonalExpense.builder()
+                    .id(UUID.randomUUID()).userId(userId).tripId(tripId)
+                    .description("JPY manual").amount(new BigDecimal("5000.00"))
+                    .currency("JPY").exchangeRate(null)
+                    .expenseDate(LocalDate.of(2024, 3, 5)).build();
+
+            when(expenseSplitRepository.findPersonalSplitsByUserIdAndTripId(userId, tripId))
+                    .thenReturn(List.of());
+            when(userRepository.findAllById(anyIterable())).thenReturn(List.of());
+            when(personalExpenseRepository.findByUserIdAndTripId(userId, tripId))
+                    .thenReturn(List.of(manual));
+
+            List<PersonalExpenseItemResponse> result =
+                    personalExpenseService.getPersonalExpenses(userId, tripId);
+
+            assertThat(result).hasSize(1);
+            // Fallback: original amount used as-is
+            assertThat(result.get(0).getAmount()).isEqualByComparingTo(new BigDecimal("5000.00"));
+        }
+
+        @Test
+        @DisplayName("same currency with null exchangeRate does NOT call exchange service")
+        void getPersonalExpenses_sameCurrencyNullRate_noApiFetch() {
+            when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
+
+            PersonalExpense twdExpense = PersonalExpense.builder()
+                    .id(UUID.randomUUID()).userId(userId).tripId(tripId)
+                    .description("TWD item").amount(new BigDecimal("100.00"))
+                    .currency("TWD").exchangeRate(null)
+                    .expenseDate(LocalDate.of(2024, 3, 5)).build();
+
+            when(expenseSplitRepository.findPersonalSplitsByUserIdAndTripId(userId, tripId))
+                    .thenReturn(List.of());
+            when(userRepository.findAllById(anyIterable())).thenReturn(List.of());
+            when(personalExpenseRepository.findByUserIdAndTripId(userId, tripId))
+                    .thenReturn(List.of(twdExpense));
+
+            List<PersonalExpenseItemResponse> result =
+                    personalExpenseService.getPersonalExpenses(userId, tripId);
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getAmount()).isEqualByComparingTo(new BigDecimal("100.00"));
+            verify(exchangeRateService, never()).getRate(any(), any());
+        }
+
+        @Test
         @DisplayName("should set AUTO source fields correctly")
         void getPersonalExpenses_autoItem_hasCorrectFields() {
             when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
 
             UUID tripExpenseId = UUID.randomUUID();
             AutoSplitProjection autoSplit = mock(AutoSplitProjection.class);
@@ -579,6 +676,126 @@ class PersonalExpenseServiceTest {
         }
 
         @Test
+        @DisplayName("same currency as baseCurrency stores null exchangeRate")
+        void createPersonalExpense_sameCurrency_exchangeRateIsNull() {
+            when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
+
+            CreatePersonalExpenseRequest request = CreatePersonalExpenseRequest.builder()
+                    .description("Lunch")
+                    .amount(new BigDecimal("150.00"))
+                    .currency("TWD") // same as mockTrip.baseCurrency
+                    .expenseDate(LocalDate.of(2024, 3, 10))
+                    .build();
+
+            ArgumentCaptor<PersonalExpense> captor = ArgumentCaptor.forClass(PersonalExpense.class);
+            PersonalExpense savedExpense = PersonalExpense.builder()
+                    .id(UUID.randomUUID()).userId(userId).tripId(tripId)
+                    .description("Lunch").amount(new BigDecimal("150.00"))
+                    .currency("TWD").expenseDate(LocalDate.of(2024, 3, 10))
+                    .build();
+            when(personalExpenseRepository.save(any(PersonalExpense.class))).thenReturn(savedExpense);
+
+            personalExpenseService.createPersonalExpense(userId, tripId, request);
+
+            verify(personalExpenseRepository).save(captor.capture());
+            assertThat(captor.getValue().getExchangeRate()).isNull();
+            verify(exchangeRateService, never()).getRate(any(), any());
+        }
+
+        @Test
+        @DisplayName("foreign currency auto-fetches exchangeRate from ExchangeRateService")
+        void createPersonalExpense_foreignCurrency_exchangeRateAutoFetched() {
+            when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
+            when(exchangeRateService.getRate("JPY", "TWD"))
+                    .thenReturn(ExchangeRateResponse.fresh("JPY", "TWD",
+                            new BigDecimal("0.2234"), java.time.Instant.now()));
+
+            CreatePersonalExpenseRequest request = CreatePersonalExpenseRequest.builder()
+                    .description("Ramen")
+                    .amount(new BigDecimal("1000"))
+                    .currency("JPY")
+                    .expenseDate(LocalDate.of(2024, 3, 10))
+                    .build();
+
+            ArgumentCaptor<PersonalExpense> captor = ArgumentCaptor.forClass(PersonalExpense.class);
+            PersonalExpense savedExpense = PersonalExpense.builder()
+                    .id(UUID.randomUUID()).userId(userId).tripId(tripId)
+                    .description("Ramen").amount(new BigDecimal("1000"))
+                    .currency("JPY").exchangeRate(new BigDecimal("0.223400"))
+                    .expenseDate(LocalDate.of(2024, 3, 10))
+                    .build();
+            when(personalExpenseRepository.save(any(PersonalExpense.class))).thenReturn(savedExpense);
+
+            personalExpenseService.createPersonalExpense(userId, tripId, request);
+
+            verify(personalExpenseRepository).save(captor.capture());
+            assertThat(captor.getValue().getExchangeRate())
+                    .isEqualByComparingTo(new BigDecimal("0.223400"));
+        }
+
+        @Test
+        @DisplayName("manual exchangeRate in request overrides auto-fetch")
+        void createPersonalExpense_manualRate_usesManualRate() {
+            when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
+
+            CreatePersonalExpenseRequest request = CreatePersonalExpenseRequest.builder()
+                    .description("Taxi")
+                    .amount(new BigDecimal("50"))
+                    .currency("USD")
+                    .exchangeRate(new BigDecimal("31.5")) // manual rate
+                    .expenseDate(LocalDate.of(2024, 3, 10))
+                    .build();
+
+            ArgumentCaptor<PersonalExpense> captor = ArgumentCaptor.forClass(PersonalExpense.class);
+            PersonalExpense savedExpense = PersonalExpense.builder()
+                    .id(UUID.randomUUID()).userId(userId).tripId(tripId)
+                    .description("Taxi").amount(new BigDecimal("50"))
+                    .currency("USD").exchangeRate(new BigDecimal("31.500000"))
+                    .expenseDate(LocalDate.of(2024, 3, 10))
+                    .build();
+            when(personalExpenseRepository.save(any(PersonalExpense.class))).thenReturn(savedExpense);
+
+            personalExpenseService.createPersonalExpense(userId, tripId, request);
+
+            verify(personalExpenseRepository).save(captor.capture());
+            assertThat(captor.getValue().getExchangeRate())
+                    .isEqualByComparingTo(new BigDecimal("31.500000"));
+            verify(exchangeRateService, never()).getRate(any(), any());
+        }
+
+        @Test
+        @DisplayName("API failure stores null exchangeRate gracefully")
+        void createPersonalExpense_apiFails_exchangeRateIsNull() {
+            when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
+            when(exchangeRateService.getRate("USD", "TWD"))
+                    .thenThrow(new RuntimeException("API unavailable"));
+
+            CreatePersonalExpenseRequest request = CreatePersonalExpenseRequest.builder()
+                    .description("Coffee")
+                    .amount(new BigDecimal("5"))
+                    .currency("USD")
+                    .expenseDate(LocalDate.of(2024, 3, 10))
+                    .build();
+
+            ArgumentCaptor<PersonalExpense> captor = ArgumentCaptor.forClass(PersonalExpense.class);
+            PersonalExpense savedExpense = PersonalExpense.builder()
+                    .id(UUID.randomUUID()).userId(userId).tripId(tripId)
+                    .description("Coffee").amount(new BigDecimal("5"))
+                    .currency("USD").expenseDate(LocalDate.of(2024, 3, 10))
+                    .build();
+            when(personalExpenseRepository.save(any(PersonalExpense.class))).thenReturn(savedExpense);
+
+            personalExpenseService.createPersonalExpense(userId, tripId, request);
+
+            verify(personalExpenseRepository).save(captor.capture());
+            assertThat(captor.getValue().getExchangeRate()).isNull();
+        }
+
+        @Test
         @DisplayName("null expenseDate is allowed (no date validation performed)")
         void createPersonalExpense_nullDate_successfullyCreates() {
             when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
@@ -641,6 +858,63 @@ class PersonalExpenseServiceTest {
             assertThatThrownBy(() ->
                     personalExpenseService.updatePersonalExpense(expenseId, userId, request))
                     .isInstanceOf(ForbiddenException.class);
+        }
+
+        @Test
+        @DisplayName("changing currency re-resolves exchangeRate")
+        void updatePersonalExpense_currencyChanged_rateReResolved() {
+            UUID expenseId = UUID.randomUUID();
+
+            PersonalExpense expense = PersonalExpense.builder()
+                    .id(expenseId).userId(userId).tripId(tripId)
+                    .description("Old expense").amount(new BigDecimal("100.00"))
+                    .currency("TWD").exchangeRate(null)
+                    .build();
+
+            when(personalExpenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
+            when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
+            when(exchangeRateService.getRate("JPY", "TWD"))
+                    .thenReturn(ExchangeRateResponse.fresh("JPY", "TWD",
+                            new BigDecimal("0.2200"), java.time.Instant.now()));
+            when(personalExpenseRepository.save(any(PersonalExpense.class))).thenReturn(expense);
+
+            UpdatePersonalExpenseRequest request = UpdatePersonalExpenseRequest.builder()
+                    .currency("JPY")
+                    .build();
+
+            personalExpenseService.updatePersonalExpense(expenseId, userId, request);
+
+            verify(exchangeRateService).getRate("JPY", "TWD");
+            verify(personalExpenseRepository).save(expense);
+            assertThat(expense.getExchangeRate()).isEqualByComparingTo(new BigDecimal("0.220000"));
+        }
+
+        @Test
+        @DisplayName("changing only amount does not overwrite exchangeRate")
+        void updatePersonalExpense_amountOnly_rateUnchanged() {
+            UUID expenseId = UUID.randomUUID();
+            BigDecimal existingRate = new BigDecimal("0.220000");
+
+            PersonalExpense expense = PersonalExpense.builder()
+                    .id(expenseId).userId(userId).tripId(tripId)
+                    .description("JPY expense").amount(new BigDecimal("1000"))
+                    .currency("JPY").exchangeRate(existingRate)
+                    .build();
+
+            when(personalExpenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
+            when(permissionChecker.isMember(tripId, userId)).thenReturn(true);
+            when(tripRepository.findById(tripId)).thenReturn(Optional.of(mockTrip));
+            when(personalExpenseRepository.save(any(PersonalExpense.class))).thenReturn(expense);
+
+            UpdatePersonalExpenseRequest request = UpdatePersonalExpenseRequest.builder()
+                    .amount(new BigDecimal("2000"))
+                    .build();
+
+            personalExpenseService.updatePersonalExpense(expenseId, userId, request);
+
+            // Rate should remain unchanged
+            assertThat(expense.getExchangeRate()).isEqualByComparingTo(existingRate);
         }
 
         @Test

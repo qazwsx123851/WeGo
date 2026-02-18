@@ -291,23 +291,19 @@ var CATEGORY_LABELS = {
     OTHER: '其他'
 };
 
-// M6: Chart tab switching with opacity transition
-var chartTransitionTimer = null;
-
+// M6: Chart tab switching — instant hide + fade in (no height jump)
 function showChart(type) {
-    if (chartTransitionTimer) clearTimeout(chartTransitionTimer);
-
     var catDiv = document.getElementById('chart-category');
     var dailyDiv = document.getElementById('chart-daily');
     var catTab = document.getElementById('chart-tab-category');
     var dailyTab = document.getElementById('chart-tab-daily');
 
     if (type === 'category') {
-        if (dailyDiv) { dailyDiv.style.opacity = '0'; chartTransitionTimer = setTimeout(function() { dailyDiv.classList.add('hidden'); }, 150); }
-        if (catDiv) { catDiv.classList.remove('hidden'); setTimeout(function() { catDiv.style.opacity = '1'; }, 10); }
+        if (dailyDiv) { dailyDiv.classList.add('hidden'); dailyDiv.style.opacity = '0'; }
+        if (catDiv) { catDiv.classList.remove('hidden'); catDiv.style.opacity = '0'; setTimeout(function() { catDiv.style.opacity = '1'; }, 10); }
     } else {
-        if (catDiv) { catDiv.style.opacity = '0'; chartTransitionTimer = setTimeout(function() { catDiv.classList.add('hidden'); }, 150); }
-        if (dailyDiv) { dailyDiv.classList.remove('hidden'); setTimeout(function() { dailyDiv.style.opacity = '1'; }, 10); }
+        if (catDiv) { catDiv.classList.add('hidden'); catDiv.style.opacity = '0'; }
+        if (dailyDiv) { dailyDiv.classList.remove('hidden'); dailyDiv.style.opacity = '0'; setTimeout(function() { dailyDiv.style.opacity = '1'; }, 10); }
     }
 
     if (catTab) {
@@ -329,11 +325,12 @@ function showChart(type) {
         dailyTab.classList.toggle('dark:text-gray-400', type !== 'daily');
     }
 
+    // Resize chart after tab becomes visible + enable scroll if needed
     if (type === 'daily' && dailyChart) {
-        var canvas = document.getElementById('personal-daily-chart');
-        if (canvas) {
-            var minWidth = canvas.dataset.minWidth || 200;
-            canvas.style.minWidth = minWidth + 'px';
+        setTimeout(function() { dailyChart.resize(); }, 20);
+        var wrapper = document.getElementById('daily-chart-wrapper');
+        if (wrapper && wrapper.dataset.needsScroll === 'true') {
+            wrapper.classList.add('overflow-x-auto', 'overscroll-x-contain');
         }
     }
 }
@@ -374,11 +371,55 @@ function initPersonalCharts() {
             renderCategoryLegend(categoryData, total);
         }
 
-        // Daily bar chart
+        // Daily bar chart (upgraded)
         var dailyCanvas = document.getElementById('personal-daily-chart');
         if (dailyCanvas && Object.keys(dailyData).length > 0) {
-            var dLabels = Object.keys(dailyData);
-            var dData = Object.values(dailyData).map(function(v) { return parseFloat(v); });
+            var isDark = document.documentElement.classList.contains('dark');
+            var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+            var textColor = isDark ? '#9CA3AF' : '#6B7280';
+            var tooltipBg = isDark ? 'rgba(31,41,55,0.95)' : 'rgba(255,255,255,0.95)';
+            var tooltipTitle = isDark ? '#F3F4F6' : '#1F2937';
+            var tooltipBody = isDark ? '#D1D5DB' : '#4B5563';
+            var tooltipBorder = isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB';
+
+            var rawLabels = Object.keys(dailyData);
+            var rawData = Object.values(dailyData).map(function(v) { return parseFloat(v); });
+
+            // Trim future zero-value dates (use local date, not UTC)
+            var now = new Date();
+            var today = now.getFullYear() + '-'
+                + String(now.getMonth() + 1).padStart(2, '0') + '-'
+                + String(now.getDate()).padStart(2, '0');
+            var dLabels = [];
+            var dData = [];
+            rawLabels.forEach(function(label, i) {
+                if (label <= today || rawData[i] > 0) {
+                    dLabels.push(label);
+                    dData.push(rawData[i]);
+                }
+            });
+            if (dLabels.length === 0) {
+                dLabels = rawLabels;
+                dData = rawData;
+            }
+
+            // Bar colors: orange for non-zero, light gray for zero
+            var barColors = dData.map(function(v) {
+                return v > 0 ? '#F97316' : (isDark ? 'rgba(75,85,99,0.3)' : 'rgba(209,213,219,0.5)');
+            });
+            var hoverColors = dData.map(function(v) {
+                return v > 0 ? '#EA580C' : (isDark ? 'rgba(75,85,99,0.5)' : 'rgba(209,213,219,0.7)');
+            });
+
+            // Determine if horizontal scroll is needed (>14 days)
+            var needsScroll = dLabels.length > 14;
+            var wrapper = document.getElementById('daily-chart-wrapper');
+            if (needsScroll && wrapper) {
+                wrapper.dataset.needsScroll = 'true';
+                wrapper.classList.add('overflow-x-auto', 'overscroll-x-contain');
+                dailyCanvas.style.minWidth = (dLabels.length * 48) + 'px';
+            }
+
             dailyChart = new Chart(dailyCanvas, {
                 type: 'bar',
                 data: {
@@ -386,20 +427,90 @@ function initPersonalCharts() {
                     datasets: [{
                         label: '花費',
                         data: dData,
-                        backgroundColor: '#F97316',
-                        borderRadius: 4
+                        backgroundColor: barColors,
+                        hoverBackgroundColor: hoverColors,
+                        borderRadius: 6,
+                        maxBarThickness: 40,
+                        borderSkipped: false
                     }]
                 },
                 options: {
-                    responsive: false,
+                    responsive: !needsScroll,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true } }
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: tooltipBg,
+                            titleColor: tooltipTitle,
+                            bodyColor: tooltipBody,
+                            borderColor: tooltipBorder,
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                title: function(items) {
+                                    var label = items[0].label || '';
+                                    var parts = label.split('-');
+                                    if (parts.length === 3) {
+                                        return parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+                                    }
+                                    return label;
+                                },
+                                label: function(item) {
+                                    if (item.raw === 0) return '無花費';
+                                    return '花費 $' + item.raw.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: textColor,
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 8,
+                                font: { size: 11 },
+                                callback: function(val) {
+                                    var label = this.getLabelForValue(val);
+                                    var parts = label.split('-');
+                                    if (parts.length === 3) {
+                                        return parseInt(parts[1]) + '/' + parseInt(parts[2]);
+                                    }
+                                    return label;
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: gridColor },
+                            border: { display: false },
+                            ticks: {
+                                color: textColor,
+                                font: { size: 11 },
+                                maxTicksLimit: 5,
+                                callback: function(value) {
+                                    if (value >= 10000) return '$' + (value / 1000) + 'K';
+                                    if (value >= 1000) {
+                                        var k = value / 1000;
+                                        return '$' + (k % 1 === 0 ? k : k.toFixed(1)) + 'K';
+                                    }
+                                    return '$' + value;
+                                }
+                            }
+                        }
+                    }
                 }
             });
         }
     } catch (e) {
-        // Chart init failed silently
+        if (typeof console !== 'undefined') console.error('[PersonalChart] init failed:', e);
     }
 }
 
@@ -472,10 +583,86 @@ function injectDateHeaders() {
     });
 }
 
+// === Exchange Rate auto-fetch for create/edit forms ===
+function initExchangeRate() {
+    var currencySelect = document.getElementById('currency');
+    var baseCurrencyInput = document.getElementById('baseCurrency');
+    if (!currencySelect || !baseCurrencyInput) return;
+
+    var baseCurrency = baseCurrencyInput.value;
+
+    currencySelect.addEventListener('change', function() {
+        onCurrencyChange(this.value, baseCurrency, false);
+    });
+
+    // Check initial state (for edit form with pre-selected foreign currency)
+    if (currencySelect.value && currencySelect.value !== baseCurrency) {
+        onCurrencyChange(currencySelect.value, baseCurrency, true);
+    }
+}
+
+function onCurrencyChange(currency, baseCurrency, isInit) {
+    var row = document.getElementById('exchange-rate-row');
+    var rateInput = document.getElementById('exchangeRate');
+    var rateFrom = document.getElementById('rate-from');
+    var rateError = document.getElementById('rate-error');
+
+    if (currency === baseCurrency) {
+        if (row) row.classList.add('hidden');
+        if (rateInput) rateInput.value = '';
+        return;
+    }
+
+    if (row) row.classList.remove('hidden');
+    if (rateFrom) rateFrom.textContent = currency;
+
+    // On init with existing value (edit form), don't overwrite
+    if (isInit && rateInput && rateInput.value) return;
+
+    // On currency change (not init), always fetch fresh rate
+    fetchExchangeRate(currency, baseCurrency);
+}
+
+function fetchExchangeRate(from, to) {
+    var rateInput = document.getElementById('exchangeRate');
+    var rateError = document.getElementById('rate-error');
+
+    if (rateInput) rateInput.placeholder = '取得中...';
+    if (rateError) rateError.classList.add('hidden');
+
+    WeGo.fetchWithTimeout('/api/exchange-rates?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to))
+        .then(function(res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        })
+        .then(function(data) {
+            if (data.success && data.data && data.data.rate) {
+                if (rateInput) {
+                    rateInput.value = data.data.rate;
+                    rateInput.placeholder = '匯率';
+                }
+            } else {
+                throw new Error('No rate data');
+            }
+        })
+        .catch(function() {
+            if (rateInput) rateInput.placeholder = '請手動輸入';
+            if (rateError) rateError.classList.remove('hidden');
+        });
+}
+
 // Consolidated DOMContentLoaded handler
 document.addEventListener('DOMContentLoaded', function() {
     initPersonalCharts();
     injectDateHeaders();
+    initExchangeRate();
+
+    // Re-init charts on theme change so dark mode colors update
+    window.addEventListener('themechange', function() {
+        if (categoryChart) { categoryChart.destroy(); categoryChart = null; }
+        if (dailyChart) { dailyChart.destroy(); dailyChart = null; }
+        initPersonalCharts();
+    });
 
     // C1: Set initial header CTA href based on URL param
     var url = new URL(window.location);

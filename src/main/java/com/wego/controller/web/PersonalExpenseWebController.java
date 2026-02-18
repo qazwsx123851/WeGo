@@ -55,7 +55,10 @@ public class PersonalExpenseWebController {
             @PathVariable UUID tripId,
             Model model,
             @CurrentUser UserPrincipal principal) {
+        UUID userId = principal.getUser().getId();
+        String baseCurrency = personalExpenseService.getBaseCurrency(tripId, userId);
         model.addAttribute("tripId", tripId);
+        model.addAttribute("baseCurrency", baseCurrency);
         model.addAttribute("categories", ExpenseCategories.ALL);
         model.addAttribute("request", new CreatePersonalExpenseRequest());
         return "expense/personal-create";
@@ -88,7 +91,9 @@ public class PersonalExpenseWebController {
             @CurrentUser UserPrincipal principal) {
 
         if (bindingResult.hasErrors()) {
+            UUID uid = principal.getUser().getId();
             model.addAttribute("tripId", tripId);
+            model.addAttribute("baseCurrency", personalExpenseService.getBaseCurrency(tripId, uid));
             model.addAttribute("categories", ExpenseCategories.ALL);
             return "expense/personal-create";
         }
@@ -126,6 +131,8 @@ public class PersonalExpenseWebController {
 
         UUID userId = principal.getUser().getId();
 
+        String baseCurrency = personalExpenseService.getBaseCurrency(tripId, userId);
+
         var expense = personalExpenseService.getPersonalExpenses(userId, tripId)
                 .stream()
                 .filter(e -> id.equals(e.getId()))
@@ -136,11 +143,13 @@ public class PersonalExpenseWebController {
                 .description(expense.getDescription())
                 .amount(expense.getOriginalAmount())
                 .currency(expense.getOriginalCurrency())
+                .exchangeRate(expense.getExchangeRate())
                 .category(expense.getCategory())
                 .expenseDate(expense.getExpenseDate())
                 .build();
 
         model.addAttribute("tripId", tripId);
+        model.addAttribute("baseCurrency", baseCurrency);
         model.addAttribute("expenseId", id);
         model.addAttribute("categories", ExpenseCategories.ALL);
         model.addAttribute("request", updateRequest);
@@ -176,7 +185,9 @@ public class PersonalExpenseWebController {
             @CurrentUser UserPrincipal principal) {
 
         if (bindingResult.hasErrors()) {
+            UUID uid = principal.getUser().getId();
             model.addAttribute("tripId", tripId);
+            model.addAttribute("baseCurrency", personalExpenseService.getBaseCurrency(tripId, uid));
             model.addAttribute("expenseId", id);
             model.addAttribute("categories", ExpenseCategories.ALL);
             return "expense/personal-edit";

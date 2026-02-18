@@ -19,6 +19,7 @@ import com.wego.repository.PersonalExpenseRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
+import com.wego.util.CurrencyConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,7 +50,7 @@ import java.util.stream.Collectors;
  *
  * @contract
  *   - invariant: all public methods check isMember before processing
- *   - invariant: toBase(amount, null) returns amount unchanged
+ *   - invariant: toBaseWithFallback fetches rate on-the-fly when stored rate is null for foreign currency
  */
 @Slf4j
 @Service
@@ -60,6 +61,7 @@ public class PersonalExpenseService {
     private static final BigDecimal BUDGET_THRESHOLD_YELLOW = new BigDecimal("0.80");
     private static final BigDecimal BUDGET_THRESHOLD_RED = new BigDecimal("1.00");
 
+    private final ExchangeRateService exchangeRateService;
     private final ExpenseSplitRepository expenseSplitRepository;
     private final PersonalExpenseRepository personalExpenseRepository;
     private final TripRepository tripRepository;
@@ -88,7 +90,9 @@ public class PersonalExpenseService {
         if (!permissionChecker.isMember(tripId, userId)) {
             throw new ForbiddenException("Not a member of this trip");
         }
-        return getPersonalExpensesInternal(userId, tripId);
+        var trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip", tripId.toString()));
+        return getPersonalExpensesInternal(userId, tripId, trip.getBaseCurrency());
     }
 
     /**
@@ -118,7 +122,7 @@ public class PersonalExpenseService {
         var trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip", tripId.toString()));
 
-        List<PersonalExpenseItemResponse> items = getPersonalExpensesInternal(userId, tripId);
+        List<PersonalExpenseItemResponse> items = getPersonalExpensesInternal(userId, tripId, trip.getBaseCurrency());
 
         BigDecimal totalAmount = items.stream()
                 .map(PersonalExpenseItemResponse::getAmount)
@@ -206,13 +210,16 @@ public class PersonalExpenseService {
                 ? request.getCurrency()
                 : trip.getBaseCurrency();
 
+        BigDecimal exchangeRate = resolveExchangeRate(
+                currency, trip.getBaseCurrency(), request.getExchangeRate());
+
         var expense = PersonalExpense.builder()
                 .userId(userId)
                 .tripId(tripId)
                 .description(request.getDescription())
                 .amount(request.getAmount())
                 .currency(currency)
-                .exchangeRate(request.getExchangeRate())
+                .exchangeRate(exchangeRate)
                 .category(request.getCategory())
                 .expenseDate(request.getExpenseDate())
                 .note(request.getNote())
@@ -221,7 +228,9 @@ public class PersonalExpenseService {
         var saved = personalExpenseRepository.save(expense);
         log.debug("Created personal expense id={} userId={} tripId={}", saved.getId(), userId, tripId);
 
-        BigDecimal baseAmount = toBase(saved.getAmount(), saved.getExchangeRate());
+        BigDecimal baseAmount = toBaseWithFallback(
+                saved.getAmount(), saved.getExchangeRate(),
+                saved.getCurrency(), trip.getBaseCurrency());
         return PersonalExpenseItemResponse.builder()
                 .source(Source.MANUAL)
                 .id(saved.getId())
@@ -229,6 +238,7 @@ public class PersonalExpenseService {
                 .amount(baseAmount)
                 .originalAmount(saved.getAmount())
                 .originalCurrency(saved.getCurrency())
+                .exchangeRate(saved.getExchangeRate())
                 .category(saved.getCategory())
                 .expenseDate(saved.getExpenseDate())
                 .build();
@@ -268,16 +278,24 @@ public class PersonalExpenseService {
             throw new ForbiddenException("Not your expense");
         }
 
+        var trip = tripRepository.findById(expense.getTripId())
+                .orElseThrow(() -> new ResourceNotFoundException("Trip", expense.getTripId().toString()));
+
         if (request.getExpenseDate() != null) {
-            var trip = tripRepository.findById(expense.getTripId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Trip", expense.getTripId().toString()));
             validateExpenseDate(request.getExpenseDate(), trip.getStartDate(), trip.getEndDate());
         }
 
         if (request.getDescription() != null) expense.setDescription(request.getDescription());
         if (request.getAmount() != null) expense.setAmount(request.getAmount());
-        if (request.getCurrency() != null) expense.setCurrency(request.getCurrency());
-        if (request.getExchangeRate() != null) expense.setExchangeRate(request.getExchangeRate());
+        if (request.getCurrency() != null) {
+            expense.setCurrency(request.getCurrency());
+            BigDecimal newRate = resolveExchangeRate(
+                    request.getCurrency(), trip.getBaseCurrency(), request.getExchangeRate());
+            expense.setExchangeRate(newRate);
+        } else if (request.getExchangeRate() != null
+                && request.getExchangeRate().compareTo(BigDecimal.ZERO) > 0) {
+            expense.setExchangeRate(CurrencyConverter.roundRate(request.getExchangeRate()));
+        }
         if (request.getCategory() != null) expense.setCategory(request.getCategory());
         if (request.getExpenseDate() != null) expense.setExpenseDate(request.getExpenseDate());
         if (request.getNote() != null) expense.setNote(request.getNote());
@@ -286,7 +304,9 @@ public class PersonalExpenseService {
         var saved = personalExpenseRepository.save(expense);
         log.debug("Updated personal expense id={} userId={}", saved.getId(), userId);
 
-        BigDecimal baseAmount = toBase(saved.getAmount(), saved.getExchangeRate());
+        BigDecimal baseAmount = toBaseWithFallback(
+                saved.getAmount(), saved.getExchangeRate(),
+                saved.getCurrency(), trip.getBaseCurrency());
         return PersonalExpenseItemResponse.builder()
                 .source(Source.MANUAL)
                 .id(saved.getId())
@@ -294,6 +314,7 @@ public class PersonalExpenseService {
                 .amount(baseAmount)
                 .originalAmount(saved.getAmount())
                 .originalCurrency(saved.getCurrency())
+                .exchangeRate(saved.getExchangeRate())
                 .category(saved.getCategory())
                 .expenseDate(saved.getExpenseDate())
                 .build();
@@ -366,13 +387,32 @@ public class PersonalExpenseService {
         log.debug("Set personal budget tripId={} userId={} budget={}", tripId, userId, request.getBudget());
     }
 
+    /**
+     * Returns the base currency for the given trip.
+     *
+     * @param tripId The trip ID
+     * @param userId The requesting user ID (for membership check)
+     * @return The trip's base currency code
+     * @throws ForbiddenException if user is not a trip member
+     * @throws ResourceNotFoundException if trip not found
+     */
+    public String getBaseCurrency(UUID tripId, UUID userId) {
+        if (!permissionChecker.isMember(tripId, userId)) {
+            throw new ForbiddenException("Not a member of this trip");
+        }
+        return tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip", tripId.toString()))
+                .getBaseCurrency();
+    }
+
     // ========== Private Helpers ==========
 
     /**
      * Internal merge logic shared by getPersonalExpenses and getPersonalSummary.
      * Avoids exposing a second public method purely for DRY purposes.
      */
-    private List<PersonalExpenseItemResponse> getPersonalExpensesInternal(UUID userId, UUID tripId) {
+    private List<PersonalExpenseItemResponse> getPersonalExpensesInternal(UUID userId, UUID tripId,
+                                                                           String baseCurrency) {
         List<AutoSplitProjection> autoSplits = expenseSplitRepository
                 .findPersonalSplitsByUserIdAndTripId(userId, tripId);
 
@@ -391,7 +431,9 @@ public class PersonalExpenseService {
             String payerName = payerMap.containsKey(split.getPaidBy())
                     ? payerMap.get(split.getPaidBy()).getNickname()
                     : "Unknown";
-            BigDecimal baseAmount = toBase(split.getAmount(), split.getExchangeRate());
+            BigDecimal baseAmount = toBaseWithFallback(
+                    split.getAmount(), split.getExchangeRate(),
+                    split.getCurrency(), baseCurrency);
             result.add(PersonalExpenseItemResponse.builder()
                     .source(Source.AUTO)
                     .id(null)
@@ -399,6 +441,7 @@ public class PersonalExpenseService {
                     .amount(baseAmount)
                     .originalAmount(split.getAmount())
                     .originalCurrency(split.getCurrency())
+                    .exchangeRate(split.getExchangeRate())
                     .category(split.getCategory())
                     .expenseDate(split.getExpenseDate())
                     .paidByName(payerName)
@@ -407,7 +450,9 @@ public class PersonalExpenseService {
         }
 
         for (PersonalExpense manual : manualItems) {
-            BigDecimal baseAmount = toBase(manual.getAmount(), manual.getExchangeRate());
+            BigDecimal baseAmount = toBaseWithFallback(
+                    manual.getAmount(), manual.getExchangeRate(),
+                    manual.getCurrency(), baseCurrency);
             result.add(PersonalExpenseItemResponse.builder()
                     .source(Source.MANUAL)
                     .id(manual.getId())
@@ -415,6 +460,7 @@ public class PersonalExpenseService {
                     .amount(baseAmount)
                     .originalAmount(manual.getAmount())
                     .originalCurrency(manual.getCurrency())
+                    .exchangeRate(manual.getExchangeRate())
                     .category(manual.getCategory())
                     .expenseDate(manual.getExpenseDate())
                     .paidByName(null)
@@ -430,18 +476,60 @@ public class PersonalExpenseService {
     }
 
     /**
+     * Resolves the exchange rate for a personal expense.
+     * If currency equals baseCurrency, returns null (no conversion needed).
+     * If a manual rate is provided, uses it. Otherwise fetches from ExchangeRateService.
+     * On API failure, logs a warning and returns null (graceful degradation).
+     *
+     * @param currency     The expense currency code
+     * @param baseCurrency The trip's base currency code
+     * @param requestRate  Manual exchange rate from request (nullable)
+     * @return The resolved exchange rate, or null if same currency or API failure
+     */
+    private BigDecimal resolveExchangeRate(String currency, String baseCurrency, BigDecimal requestRate) {
+        if (currency.equals(baseCurrency)) {
+            return null;
+        }
+        if (requestRate != null && requestRate.compareTo(BigDecimal.ZERO) > 0) {
+            return CurrencyConverter.roundRate(requestRate);
+        }
+        try {
+            var rateResponse = exchangeRateService.getRate(currency, baseCurrency);
+            return CurrencyConverter.roundRate(rateResponse.getRate());
+        } catch (Exception e) {
+            log.warn("Failed to fetch exchange rate {}->{}: {}", currency, baseCurrency, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Converts an amount to baseCurrency using the given exchange rate.
-     * A null or zero exchangeRate means the amount is already in baseCurrency.
+     * When exchangeRate is null and currency differs from baseCurrency, fetches rate on-the-fly
+     * (same defensive pattern as SettlementService.convertToBaseCurrency).
      *
      * @param amount       The original amount (never null)
-     * @param exchangeRate The exchange rate to baseCurrency (nullable)
+     * @param exchangeRate The stored exchange rate (nullable)
+     * @param currency     The original currency code (nullable)
+     * @param baseCurrency The trip's base currency code
      * @return Amount in baseCurrency, rounded HALF_UP to 2 decimal places
      */
-    private BigDecimal toBase(BigDecimal amount, BigDecimal exchangeRate) {
-        if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) == 0) {
+    private BigDecimal toBaseWithFallback(BigDecimal amount, BigDecimal exchangeRate,
+                                           String currency, String baseCurrency) {
+        if (currency == null || currency.equals(baseCurrency)) {
             return amount.setScale(2, RoundingMode.HALF_UP);
         }
-        return amount.multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
+        if (exchangeRate != null && exchangeRate.compareTo(BigDecimal.ZERO) > 0) {
+            return amount.multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
+        }
+        try {
+            var rateResponse = exchangeRateService.getRate(currency, baseCurrency);
+            BigDecimal rate = CurrencyConverter.roundRate(rateResponse.getRate());
+            return amount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
+        } catch (Exception e) {
+            log.warn("Failed to fetch rate {}->{}, using original amount: {}",
+                    currency, baseCurrency, e.getMessage());
+            return amount.setScale(2, RoundingMode.HALF_UP);
+        }
     }
 
     /**

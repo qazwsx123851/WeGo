@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" th:fragment="personalTab">
 <body>
-<div class="max-w-4xl mx-auto px-4 py-6">
+<div class="max-w-4xl mx-auto px-4 py-6"
+     th:with="currSymbol=${(defaultCurrency ?: 'TWD') == 'TWD' ? 'NT$' : '$'}">
     <!-- 1. Summary card — only show when expenses exist -->
     <div class="mb-3 glass-card overflow-hidden"
          th:if="${personalExpenses != null and not #lists.isEmpty(personalExpenses)}">
@@ -10,7 +11,7 @@
             <div>
                 <p class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">個人總覽</p>
                 <p class="text-3xl font-bold text-gray-900 dark:text-white tabular-nums"
-                   th:text="${personalSummary != null ? '$' + #numbers.formatDecimal(personalSummary.totalAmount, 0, 'COMMA', 0, 'POINT') : '$0'}">$0</p>
+                   th:text="${personalSummary != null ? currSymbol + #numbers.formatDecimal(personalSummary.totalAmount, 0, 'COMMA', 0, 'POINT') : currSymbol + '0'}">NT$0</p>
                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5" th:text="${defaultCurrency ?: 'TWD'}">TWD</p>
             </div>
             <a th:href="|/trips/${tripId}/personal-expenses/create|"
@@ -27,7 +28,7 @@
             <div class="px-5 py-3">
                 <p class="text-xs text-gray-400 dark:text-gray-500 mb-0.5">日均花費</p>
                 <p class="text-lg font-semibold text-gray-800 dark:text-gray-200 tabular-nums"
-                   th:text="${personalSummary?.dailyAverage != null ? '$' + #numbers.formatDecimal(personalSummary.dailyAverage, 0, 'COMMA', 0, 'POINT') : '-'}">-</p>
+                   th:text="${personalSummary?.dailyAverage != null ? currSymbol + #numbers.formatDecimal(personalSummary.dailyAverage, 0, 'COMMA', 0, 'POINT') : '-'}">-</p>
             </div>
             <div class="px-5 py-3">
                 <p class="text-xs text-gray-400 dark:text-gray-500 mb-0.5">記帳筆數</p>
@@ -45,9 +46,9 @@
                     <span class="text-xs tabular-nums text-gray-600 dark:text-gray-300"
                           id="budget-display"
                           th:data-budget="${personalSummary.budget}">
-                        $<th:block th:text="${#numbers.formatDecimal(personalSummary.totalAmount, 0, 'COMMA', 0, 'POINT')}"/>
+                        <th:block th:text="${currSymbol + #numbers.formatDecimal(personalSummary.totalAmount, 0, 'COMMA', 0, 'POINT')}"/>
                         <span class="text-gray-300 dark:text-gray-600">/</span>
-                        $<th:block th:text="${#numbers.formatDecimal(personalSummary.budget, 0, 'COMMA', 0, 'POINT')}"/>
+                        <th:block th:text="${currSymbol + #numbers.formatDecimal(personalSummary.budget, 0, 'COMMA', 0, 'POINT')}"/>
                     </span>
                     <button onclick="showBudgetModal()"
                             class="p-1 rounded text-gray-300 hover:text-gray-500 dark:hover:text-gray-300 transition-colors cursor-pointer"
@@ -121,10 +122,10 @@
         </div>
 
         <!-- Daily bar -->
-        <div id="chart-daily" class="hidden overflow-x-auto overscroll-x-contain transition-opacity duration-200" style="-webkit-overflow-scrolling: touch">
-            <canvas id="personal-daily-chart"
-                    th:attr="data-min-width=${personalSummary.dailyAmounts != null ? personalSummary.dailyAmounts.size() * 44 : 200}"
-                    style="height: 160px"></canvas>
+        <div id="chart-daily" class="hidden transition-opacity duration-200">
+            <div id="daily-chart-wrapper" style="-webkit-overflow-scrolling: touch">
+                <canvas id="personal-daily-chart" style="height: 200px"></canvas>
+            </div>
         </div>
     </div>
 
@@ -140,9 +141,35 @@
                  th:attr="data-date=${expense.expenseDate != null ? #temporals.format(expense.expenseDate, 'MM/dd') : ''}"
                  onclick="toggleAutoItem(this.dataset.expenseId)">
                 <div class="flex items-center gap-3">
-                    <div class="flex-shrink-0 w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    <div class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+                         th:classappend="${expense.category == 'FOOD'} ? 'bg-orange-100 dark:bg-orange-900/30' : (${expense.category == 'TRANSPORT'} ? 'bg-blue-100 dark:bg-blue-900/30' : (${expense.category == 'ACCOMMODATION'} ? 'bg-purple-100 dark:bg-purple-900/30' : (${expense.category == 'SHOPPING'} ? 'bg-pink-100 dark:bg-pink-900/30' : (${expense.category == 'ENTERTAINMENT'} ? 'bg-rose-100 dark:bg-rose-900/30' : (${expense.category == 'HEALTH'} ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-700')))))">
+                        <!-- Food Icon -->
+                        <svg th:if="${expense.category == 'FOOD'}" class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        <!-- Transport Icon -->
+                        <svg th:if="${expense.category == 'TRANSPORT'}" class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <!-- Accommodation Icon -->
+                        <svg th:if="${expense.category == 'ACCOMMODATION'}" class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        <!-- Shopping Icon -->
+                        <svg th:if="${expense.category == 'SHOPPING'}" class="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                        </svg>
+                        <!-- Entertainment Icon -->
+                        <svg th:if="${expense.category == 'ENTERTAINMENT'}" class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <!-- Health Icon -->
+                        <svg th:if="${expense.category == 'HEALTH'}" class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                        </svg>
+                        <!-- Other Icon -->
+                        <svg th:if="${expense.category == 'OTHER' or expense.category == null}" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
                         </svg>
                     </div>
                     <div class="flex-1 min-w-0">
@@ -157,7 +184,7 @@
                     </div>
                     <div class="flex items-center gap-1.5 flex-shrink-0">
                         <p class="text-sm font-semibold text-gray-900 dark:text-white tabular-nums"
-                           th:text="${'$' + #numbers.formatDecimal(expense.amount, 0, 'COMMA', 2, 'POINT')}">$0</p>
+                           th:text="${currSymbol + #numbers.formatDecimal(expense.amount, 0, 'COMMA', 2, 'POINT')}">NT$0</p>
                         <svg class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 transition-transform duration-200"
                              th:id="|auto-chevron-${expense.tripExpenseId}|"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,33 +222,33 @@
                 <div class="flex items-center gap-3">
                     <!-- Category-colored icon with per-category SVG -->
                     <div class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
-                         th:classappend="${expense.category?.name() == 'FOOD'} ? 'bg-orange-100 dark:bg-orange-900/30' : (${expense.category?.name() == 'TRANSPORT'} ? 'bg-blue-100 dark:bg-blue-900/30' : (${expense.category?.name() == 'ACCOMMODATION'} ? 'bg-purple-100 dark:bg-purple-900/30' : (${expense.category?.name() == 'SHOPPING'} ? 'bg-pink-100 dark:bg-pink-900/30' : (${expense.category?.name() == 'ENTERTAINMENT'} ? 'bg-rose-100 dark:bg-rose-900/30' : (${expense.category?.name() == 'HEALTH'} ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-700')))))">
+                         th:classappend="${expense.category == 'FOOD'} ? 'bg-orange-100 dark:bg-orange-900/30' : (${expense.category == 'TRANSPORT'} ? 'bg-blue-100 dark:bg-blue-900/30' : (${expense.category == 'ACCOMMODATION'} ? 'bg-purple-100 dark:bg-purple-900/30' : (${expense.category == 'SHOPPING'} ? 'bg-pink-100 dark:bg-pink-900/30' : (${expense.category == 'ENTERTAINMENT'} ? 'bg-rose-100 dark:bg-rose-900/30' : (${expense.category == 'HEALTH'} ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-700')))))">
                         <!-- Food Icon -->
-                        <svg th:if="${expense.category?.name() == 'FOOD'}" class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg th:if="${expense.category == 'FOOD'}" class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
                         </svg>
                         <!-- Transport Icon -->
-                        <svg th:if="${expense.category?.name() == 'TRANSPORT'}" class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg th:if="${expense.category == 'TRANSPORT'}" class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                         </svg>
                         <!-- Accommodation Icon -->
-                        <svg th:if="${expense.category?.name() == 'ACCOMMODATION'}" class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg th:if="${expense.category == 'ACCOMMODATION'}" class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                         </svg>
                         <!-- Shopping Icon -->
-                        <svg th:if="${expense.category?.name() == 'SHOPPING'}" class="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg th:if="${expense.category == 'SHOPPING'}" class="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
                         </svg>
                         <!-- Entertainment Icon -->
-                        <svg th:if="${expense.category?.name() == 'ENTERTAINMENT'}" class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg th:if="${expense.category == 'ENTERTAINMENT'}" class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         <!-- Health Icon -->
-                        <svg th:if="${expense.category?.name() == 'HEALTH'}" class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg th:if="${expense.category == 'HEALTH'}" class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
                         </svg>
                         <!-- Other Icon -->
-                        <svg th:if="${expense.category?.name() == 'OTHER' or expense.category == null}" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg th:if="${expense.category == 'OTHER' or expense.category == null}" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
                         </svg>
                     </div>
@@ -231,8 +258,8 @@
                         <div class="flex items-center gap-1.5 mt-0.5">
                             <!-- L2: Category-colored badge -->
                             <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                                  th:classappend="${expense.category?.name() == 'FOOD'} ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : (${expense.category?.name() == 'TRANSPORT'} ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : (${expense.category?.name() == 'ACCOMMODATION'} ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : (${expense.category?.name() == 'SHOPPING'} ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400' : (${expense.category?.name() == 'ENTERTAINMENT'} ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400' : (${expense.category?.name() == 'HEALTH'} ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400')))))"
-                                  th:text="${expense.category?.name() == 'FOOD'} ? '餐飲' : (${expense.category?.name() == 'TRANSPORT'} ? '交通' : (${expense.category?.name() == 'ACCOMMODATION'} ? '住宿' : (${expense.category?.name() == 'SHOPPING'} ? '購物' : (${expense.category?.name() == 'ENTERTAINMENT'} ? '娛樂' : (${expense.category?.name() == 'HEALTH'} ? '健康' : '其他')))))">其他</span>
+                                  th:classappend="${expense.category == 'FOOD'} ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : (${expense.category == 'TRANSPORT'} ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : (${expense.category == 'ACCOMMODATION'} ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : (${expense.category == 'SHOPPING'} ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400' : (${expense.category == 'ENTERTAINMENT'} ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400' : (${expense.category == 'HEALTH'} ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400')))))"
+                                  th:text="${expense.category == 'FOOD'} ? '餐飲' : (${expense.category == 'TRANSPORT'} ? '交通' : (${expense.category == 'ACCOMMODATION'} ? '住宿' : (${expense.category == 'SHOPPING'} ? '購物' : (${expense.category == 'ENTERTAINMENT'} ? '娛樂' : (${expense.category == 'HEALTH'} ? '健康' : '其他')))))">其他</span>
                             <span class="text-gray-200 dark:text-gray-600 text-xs"
                                   th:if="${expense.expenseDate != null}">·</span>
                             <span class="text-xs text-gray-400 dark:text-gray-500"
@@ -243,7 +270,7 @@
                     <!-- H2: 44px touch targets + gap-2 spacing -->
                     <div class="flex items-center gap-2 flex-shrink-0">
                         <p class="text-sm font-semibold text-gray-900 dark:text-white tabular-nums mr-0.5"
-                           th:text="${'$' + #numbers.formatDecimal(expense.amount, 0, 'COMMA', 2, 'POINT')}">$0</p>
+                           th:text="${currSymbol + #numbers.formatDecimal(expense.amount, 0, 'COMMA', 2, 'POINT')}">NT$0</p>
                         <a th:href="|/trips/${tripId}/personal-expenses/${expense.id}/edit|"
                            class="p-2 text-gray-300 dark:text-gray-600 hover:text-blue-500 transition-colors cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
                            aria-label="編輯">
