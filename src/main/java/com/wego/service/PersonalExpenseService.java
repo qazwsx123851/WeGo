@@ -57,6 +57,9 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class PersonalExpenseService {
 
+    private static final BigDecimal BUDGET_THRESHOLD_YELLOW = new BigDecimal("0.80");
+    private static final BigDecimal BUDGET_THRESHOLD_RED = new BigDecimal("1.00");
+
     private final ExpenseSplitRepository expenseSplitRepository;
     private final PersonalExpenseRepository personalExpenseRepository;
     private final TripRepository tripRepository;
@@ -139,8 +142,10 @@ public class PersonalExpenseService {
 
         Map<LocalDate, BigDecimal> dailyAmounts = new TreeMap<>();
         LocalDate start = trip.getStartDate();
-        LocalDate end = trip.getEndDate() != null ? trip.getEndDate() : start;
-        start.datesUntil(end.plusDays(1)).forEach(d -> dailyAmounts.put(d, BigDecimal.ZERO));
+        if (start != null) {
+            LocalDate end = trip.getEndDate() != null ? trip.getEndDate() : start;
+            start.datesUntil(end.plusDays(1)).forEach(d -> dailyAmounts.put(d, BigDecimal.ZERO));
+        }
         items.stream()
                 .filter(i -> i.getExpenseDate() != null)
                 .forEach(i -> dailyAmounts.merge(i.getExpenseDate(), i.getAmount(), BigDecimal::add));
@@ -255,6 +260,10 @@ public class PersonalExpenseService {
         var expense = personalExpenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PersonalExpense", id.toString()));
 
+        if (!permissionChecker.isMember(expense.getTripId(), userId)) {
+            throw new ForbiddenException("Not a member of this trip");
+        }
+
         if (!expense.getUserId().equals(userId)) {
             throw new ForbiddenException("Not your expense");
         }
@@ -308,6 +317,10 @@ public class PersonalExpenseService {
     public void deletePersonalExpense(UUID id, UUID userId) {
         var expense = personalExpenseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PersonalExpense", id.toString()));
+
+        if (!permissionChecker.isMember(expense.getTripId(), userId)) {
+            throw new ForbiddenException("Not a member of this trip");
+        }
 
         if (!expense.getUserId().equals(userId)) {
             throw new ForbiddenException("Not your expense");
@@ -443,8 +456,8 @@ public class PersonalExpenseService {
             return BudgetStatus.NONE;
         }
         BigDecimal ratio = total.divide(budget, 4, RoundingMode.HALF_UP);
-        if (ratio.compareTo(new BigDecimal("1.00")) >= 0) return BudgetStatus.RED;
-        if (ratio.compareTo(new BigDecimal("0.80")) >= 0) return BudgetStatus.YELLOW;
+        if (ratio.compareTo(BUDGET_THRESHOLD_RED) >= 0) return BudgetStatus.RED;
+        if (ratio.compareTo(BUDGET_THRESHOLD_YELLOW) >= 0) return BudgetStatus.YELLOW;
         return BudgetStatus.GREEN;
     }
 
