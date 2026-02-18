@@ -249,4 +249,37 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID
            "GROUP BY e.tripId")
     List<Object[]> sumBalancesByUserAndTripIds(@Param("userId") UUID userId,
                                                @Param("tripIds") List<UUID> tripIds);
+
+    /**
+     * Finds all expense splits for a user in a trip, joined with the expense data.
+     * Used as the AUTO source for personal expense view.
+     *
+     * @contract
+     *   - pre: userId != null, tripId != null
+     *   - post: Returns all splits where the user is a split participant in the trip
+     *   - calls: JOIN ExpenseSplit es with Expense e
+     */
+    @Query("SELECT es.id AS splitId, es.amount AS amount, " +
+           "e.id AS tripExpenseId, e.description AS description, " +
+           "e.currency AS currency, e.exchangeRate AS exchangeRate, " +
+           "e.category AS category, e.expenseDate AS expenseDate, e.paidBy AS paidBy " +
+           "FROM ExpenseSplit es JOIN Expense e ON es.expenseId = e.id " +
+           "WHERE es.userId = :userId AND e.tripId = :tripId")
+    List<AutoSplitProjection> findPersonalSplitsByUserIdAndTripId(
+            @Param("userId") UUID userId, @Param("tripId") UUID tripId);
+
+    /**
+     * Projection for personal expense AUTO source (ExpenseSplit + Expense JOIN).
+     */
+    interface AutoSplitProjection {
+        UUID getSplitId();
+        BigDecimal getAmount();
+        UUID getTripExpenseId();
+        String getDescription();
+        String getCurrency();
+        BigDecimal getExchangeRate();  // nullable - null means same currency
+        String getCategory();
+        java.time.LocalDate getExpenseDate();
+        UUID getPaidBy();
+    }
 }
