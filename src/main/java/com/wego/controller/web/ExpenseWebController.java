@@ -1,5 +1,7 @@
 package com.wego.controller.web;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wego.dto.request.CreateExpenseRequest;
 import com.wego.dto.request.UpdateExpenseRequest;
 import com.wego.dto.response.ActivityResponse;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +63,7 @@ public class ExpenseWebController extends BaseWebController {
     private final ExpenseViewHelper expenseViewHelper;
     private final SettlementService settlementService;
     private final PersonalExpenseService personalExpenseService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Show trip expenses page.
@@ -113,6 +117,8 @@ public class ExpenseWebController extends BaseWebController {
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
 
+        model.addAttribute("tripId", tripId);
+
         // Personal expense summary for the personal tab
         try {
             List<PersonalExpenseItemResponse> personalExpenses =
@@ -123,11 +129,47 @@ public class ExpenseWebController extends BaseWebController {
                     personalExpenseService.getPersonalSummary(user.getId(), tripId);
             model.addAttribute("personalSummary", personalSummary);
             model.addAttribute("hasBudget", personalSummary.getBudget() != null);
+
+            // Serialize chart data as JSON strings for use in templates
+            String categoryBreakdownJson = "{}";
+            String dailyAmountsJson = "{}";
+            int budgetPercentageCapped = 0;
+
+            if (personalSummary.getCategoryBreakdown() != null) {
+                try {
+                    categoryBreakdownJson = objectMapper.writeValueAsString(personalSummary.getCategoryBreakdown());
+                } catch (JsonProcessingException e) {
+                    log.warn("Failed to serialize categoryBreakdown: {}", e.getMessage());
+                }
+            }
+            if (personalSummary.getDailyAmounts() != null) {
+                try {
+                    dailyAmountsJson = objectMapper.writeValueAsString(personalSummary.getDailyAmounts());
+                } catch (JsonProcessingException e) {
+                    log.warn("Failed to serialize dailyAmounts: {}", e.getMessage());
+                }
+            }
+            if (personalSummary.getBudget() != null && personalSummary.getTotalAmount() != null
+                    && personalSummary.getBudget().compareTo(BigDecimal.ZERO) > 0) {
+                budgetPercentageCapped = personalSummary.getTotalAmount()
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(personalSummary.getBudget(), 0, RoundingMode.HALF_UP)
+                        .min(BigDecimal.valueOf(100))
+                        .intValue();
+            }
+
+            model.addAttribute("personalCategoryBreakdownJson", categoryBreakdownJson);
+            model.addAttribute("personalDailyAmountsJson", dailyAmountsJson);
+            model.addAttribute("budgetPercentageCapped", budgetPercentageCapped);
+
         } catch (Exception e) {
             log.warn("Failed to load personal expenses for trip {}: {}", tripId, e.getMessage());
             model.addAttribute("personalExpenses", List.of());
             model.addAttribute("personalSummary", null);
             model.addAttribute("hasBudget", false);
+            model.addAttribute("personalCategoryBreakdownJson", "{}");
+            model.addAttribute("personalDailyAmountsJson", "{}");
+            model.addAttribute("budgetPercentageCapped", 0);
         }
 
         return "expense/list";

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="personalTab">
+<body>
+<div>
+    <!-- 1. Summary card -->
+    <div class="glass-card mx-4 mb-4 p-4 mt-4">
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">個人總花費</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white"
+                   th:text="${personalSummary != null ? '$' + #numbers.formatDecimal(personalSummary.totalAmount, 0, 'COMMA', 0, 'POINT') : '$0'}">$0</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-500 dark:text-gray-400">日均</p>
+                <p class="text-lg font-semibold text-gray-700 dark:text-gray-300"
+                   th:text="${personalSummary?.dailyAverage != null ? '$' + #numbers.formatDecimal(personalSummary.dailyAverage, 0, 'COMMA', 0, 'POINT') : '-'}">-</p>
+            </div>
+            <a th:href="|/trips/${tripId}/personal-expenses/create|"
+               class="btn-cta text-sm px-3 py-2">+ 新增</a>
+        </div>
+
+        <!-- Budget progress bar (only when budget set) -->
+        <div th:if="${hasBudget and personalSummary != null}">
+            <div class="flex items-center justify-between mb-1">
+                <span class="text-sm text-gray-600 dark:text-gray-400">預算進度</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium"
+                          th:text="${'$' + #numbers.formatDecimal(personalSummary.totalAmount, 0, 'COMMA', 0, 'POINT') + ' / $' + #numbers.formatDecimal(personalSummary.budget, 0, 'COMMA', 0, 'POINT')}">-</span>
+                    <button onclick="showBudgetModal()" class="p-1 text-gray-400 hover:text-gray-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div class="h-2 rounded-full transition-all duration-300"
+                     th:classappend="${personalSummary.budgetStatus?.name() == 'RED'} ? 'bg-red-500' : (${personalSummary.budgetStatus?.name() == 'YELLOW'} ? 'bg-yellow-400' : 'bg-emerald-500')"
+                     th:style="'width: ' + ${budgetPercentageCapped} + '%'">
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget prompt (no budget set yet) -->
+        <div th:if="${!hasBudget}" class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p class="text-sm text-blue-700 dark:text-blue-300 mb-2">設定旅遊預算來追蹤花費進度</p>
+            <div class="flex gap-2">
+                <button onclick="showBudgetModal()" class="text-sm btn-cta px-3 py-1.5">設定預算</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Charts card -->
+    <div class="glass-card mx-4 mb-4 p-4" th:if="${personalSummary != null}">
+        <div class="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg mb-4">
+            <button onclick="showChart('category')"
+                    id="chart-tab-category"
+                    class="flex-1 py-1.5 px-2 rounded-md text-xs font-medium bg-white dark:bg-gray-700 shadow-sm">類別分布</button>
+            <button onclick="showChart('daily')"
+                    id="chart-tab-daily"
+                    class="flex-1 py-1.5 px-2 rounded-md text-xs font-medium text-gray-500">每日趨勢</button>
+        </div>
+        <div id="chart-category" style="max-height:220px; position:relative">
+            <canvas id="personal-category-chart"></canvas>
+        </div>
+        <div id="chart-daily" class="hidden overflow-x-auto overscroll-x-contain" style="-webkit-overflow-scrolling: touch">
+            <canvas id="personal-daily-chart"
+                    th:attr="data-min-width=${personalSummary.dailyAmounts != null ? personalSummary.dailyAmounts.size() * 44 : 200}"
+                    style="height: 160px"></canvas>
+        </div>
+    </div>
+
+    <!-- 3. Expense list -->
+    <div class="mx-4">
+        <div th:if="${personalExpenses == null or #lists.isEmpty(personalExpenses)}"
+             class="glass-card p-8 text-center">
+            <p class="text-gray-500 dark:text-gray-400">尚無個人費用記錄</p>
+            <a th:href="|/trips/${tripId}/personal-expenses/create|"
+               class="btn-cta mt-4 inline-block px-4 py-2 text-sm">新增第一筆</a>
+        </div>
+
+        <div th:if="${personalExpenses != null}" th:each="expense : ${personalExpenses}" class="glass-card mb-2 p-4">
+            <!-- AUTO item -->
+            <div th:if="${expense.source?.name() == 'AUTO'}">
+                <div class="flex items-center justify-between cursor-pointer"
+                     th:data-expense-id="${expense.tripExpenseId}"
+                     onclick="toggleAutoItem(this.dataset.expenseId)">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800 dark:text-gray-200" th:text="${expense.description}">Description</p>
+                            <p class="text-xs text-gray-500" th:text="${expense.expenseDate != null ? #temporals.format(expense.expenseDate, 'MM/dd') : ''}"></p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white"
+                           th:text="${'$' + #numbers.formatDecimal(expense.amount, 0, 'COMMA', 2, 'POINT')}">$0.00</p>
+                        <p class="text-xs text-blue-500">自動同步</p>
+                    </div>
+                </div>
+                <!-- Inline expanded detail -->
+                <div th:id="|auto-detail-${expense.tripExpenseId}|" class="hidden mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div class="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>原始金額</span>
+                        <span th:text="${(expense.originalCurrency ?: '') + ' ' + #numbers.formatDecimal((expense.originalAmount ?: 0), 0, 'COMMA', 2, 'POINT')}">TWD 0.00</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mb-2">
+                        <span>付款人</span>
+                        <span th:text="${expense.paidByName ?: ''}">Name</span>
+                    </div>
+                    <a th:href="|/trips/${tripId}/expenses/${expense.tripExpenseId}|"
+                       class="text-xs text-blue-500 hover:text-blue-700">查看團隊分帳 →</a>
+                </div>
+            </div>
+
+            <!-- MANUAL item -->
+            <div th:if="${expense.source?.name() == 'MANUAL'}">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800 dark:text-gray-200" th:text="${expense.description}">Description</p>
+                            <p class="text-xs text-gray-500" th:text="${expense.expenseDate != null ? #temporals.format(expense.expenseDate, 'MM/dd') : ''}"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white"
+                               th:text="${'$' + #numbers.formatDecimal(expense.amount, 0, 'COMMA', 2, 'POINT')}">$0.00</p>
+                            <p class="text-xs text-gray-400" th:text="${expense.category ?: ''}"></p>
+                        </div>
+                        <div class="flex gap-1">
+                            <a th:href="|/trips/${tripId}/personal-expenses/${expense.id}/edit|"
+                               class="p-2 text-gray-400 hover:text-blue-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </a>
+                            <button th:data-expense-id="${expense.id}"
+                                    th:data-trip-id="${tripId}"
+                                    onclick="deleteManualExpense(this)"
+                                    class="p-2 text-gray-400 hover:text-red-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget Modal -->
+    <div id="budget-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+        <div class="glass-card mx-4 p-6 w-full max-w-sm">
+            <h3 class="text-lg font-semibold mb-4">設定個人預算</h3>
+            <input id="budget-input" type="number" min="1" step="1"
+                   class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 mb-4 dark:bg-gray-800"
+                   placeholder="輸入預算金額">
+            <div class="flex gap-2 justify-end">
+                <button onclick="closeBudgetModal()" class="btn-text px-4 py-2">取消</button>
+                <button onclick="submitBudget()" class="btn-cta px-4 py-2">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart data passed via data attributes -->
+    <div id="personal-chart-data"
+         th:if="${personalSummary != null}"
+         th:data-category-breakdown="${personalCategoryBreakdownJson}"
+         th:data-daily-amounts="${personalDailyAmountsJson}"
+         style="display:none">
+    </div>
+</div>
+</body>
+</html>

@@ -33,6 +33,21 @@
         </div>
     </header>
 
+    <!-- Tab Switcher -->
+    <div class="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl mx-4 mb-0 mt-2">
+        <button id="tab-team"
+                th:classappend="${param.tab != 'personal'} ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'"
+                class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-200"
+                onclick="switchTab('team')">團隊分帳</button>
+        <button id="tab-personal"
+                th:classappend="${param.tab == 'personal'} ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'"
+                class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-200"
+                onclick="switchTab('personal')">個人記帳</button>
+    </div>
+
+    <!-- Team Content -->
+    <div id="content-team" th:classappend="${param.tab == 'personal'} ? 'hidden' : ''">
+
     <!-- Main Content -->
     <main class="max-w-4xl mx-auto px-4 py-6">
         <!-- Summary Card -->
@@ -240,6 +255,13 @@
             </div>
         </section>
     </main>
+
+    </div><!-- end #content-team -->
+
+    <!-- Personal Content -->
+    <div id="content-personal" th:classappend="${param.tab != 'personal'} ? 'hidden' : ''">
+        <div th:replace="~{expense/personal-tab :: personalTab}"></div>
+    </div>
 
     <!-- Expense Detail Modal -->
     <div id="expense-detail-modal" class="fixed inset-0 z-[55] hidden" aria-modal="true" role="dialog" aria-labelledby="expense-modal-title">
@@ -815,6 +837,8 @@
             }
         });
     </script>
+
+    <script th:src="@{/js/personal-expense.js}" defer></script>
 
     <style>
         /* Animation for spinner */

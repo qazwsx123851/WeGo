@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head(title='新增個人費用')}"></head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-40 rounded-none border-x-0 border-t-0">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a th:href="|/trips/${tripId}/expenses?tab=personal|"
+                   class="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                   aria-label="返回個人記帳">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </a>
+                <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">新增個人費用</h1>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <form th:action="|/trips/${tripId}/personal-expenses|"
+              method="post"
+              id="personal-expense-form"
+              data-prevent-double-submit
+              class="space-y-6">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+            <!-- Amount & Description Section -->
+            <section class="glass-card p-6">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">金額</h2>
+
+                <div class="space-y-4">
+                    <!-- Amount Input -->
+                    <div class="space-y-1.5">
+                        <label for="amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            金額 <span class="text-error">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 font-medium">$</span>
+                            <input type="number"
+                                   id="amount"
+                                   name="amount"
+                                   th:value="${request?.amount}"
+                                   step="0.01"
+                                   min="0.01"
+                                   required
+                                   inputmode="decimal"
+                                   placeholder="0.00"
+                                   class="w-full pl-8 pr-20 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 text-lg font-mono">
+                            <select id="currency"
+                                    name="currency"
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg py-1.5 px-2 text-sm font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 cursor-pointer">
+                                <option value="TWD" th:selected="${request?.currency == 'TWD' or request?.currency == null}">TWD</option>
+                                <option value="USD" th:selected="${request?.currency == 'USD'}">USD</option>
+                                <option value="JPY" th:selected="${request?.currency == 'JPY'}">JPY</option>
+                                <option value="EUR" th:selected="${request?.currency == 'EUR'}">EUR</option>
+                                <option value="KRW" th:selected="${request?.currency == 'KRW'}">KRW</option>
+                                <option value="CNY" th:selected="${request?.currency == 'CNY'}">CNY</option>
+                                <option value="GBP" th:selected="${request?.currency == 'GBP'}">GBP</option>
+                                <option value="THB" th:selected="${request?.currency == 'THB'}">THB</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="space-y-1.5">
+                        <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            描述 <span class="text-error">*</span>
+                        </label>
+                        <input type="text"
+                               id="description"
+                               name="description"
+                               th:value="${request?.description}"
+                               required
+                               maxlength="200"
+                               placeholder="例如：午餐、計程車、門票..."
+                               class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200">
+                    </div>
+
+                    <!-- Category -->
+                    <div class="space-y-1.5">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">類別</label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <!-- Food -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="FOOD" class="peer sr-only"
+                                       th:checked="${request?.category == 'FOOD' or request?.category == null}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-orange-500 peer-checked:bg-orange-50 dark:peer-checked:bg-orange-900/20 transition-all duration-200">
+                                    <div class="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">餐飲</span>
+                                </div>
+                            </label>
+
+                            <!-- Transport -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="TRANSPORT" class="peer sr-only"
+                                       th:checked="${request?.category == 'TRANSPORT'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-blue-500 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-900/20 transition-all duration-200">
+                                    <div class="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">交通</span>
+                                </div>
+                            </label>
+
+                            <!-- Accommodation -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="ACCOMMODATION" class="peer sr-only"
+                                       th:checked="${request?.category == 'ACCOMMODATION'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-purple-500 peer-checked:bg-purple-50 dark:peer-checked:bg-purple-900/20 transition-all duration-200">
+                                    <div class="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">住宿</span>
+                                </div>
+                            </label>
+
+                            <!-- Shopping -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="SHOPPING" class="peer sr-only"
+                                       th:checked="${request?.category == 'SHOPPING'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-pink-500 peer-checked:bg-pink-50 dark:peer-checked:bg-pink-900/20 transition-all duration-200">
+                                    <div class="w-8 h-8 rounded-xl bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">購物</span>
+                                </div>
+                            </label>
+
+                            <!-- Entertainment -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="ENTERTAINMENT" class="peer sr-only"
+                                       th:checked="${request?.category == 'ENTERTAINMENT'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-rose-500 peer-checked:bg-rose-50 dark:peer-checked:bg-rose-900/20 transition-all duration-200">
+                                    <div class="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">娛樂</span>
+                                </div>
+                            </label>
+
+                            <!-- Health -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="HEALTH" class="peer sr-only"
+                                       th:checked="${request?.category == 'HEALTH'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 dark:peer-checked:bg-emerald-900/20 transition-all duration-200">
+                                    <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">健康</span>
+                                </div>
+                            </label>
+
+                            <!-- Other -->
+                            <label class="cursor-pointer">
+                                <input type="radio" name="category" value="OTHER" class="peer sr-only"
+                                       th:checked="${request?.category == 'OTHER'}">
+                                <div class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 peer-checked:border-gray-500 peer-checked:bg-gray-50 dark:peer-checked:bg-gray-700/50 transition-all duration-200">
+                                    <div class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">其他</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Date -->
+                    <div class="space-y-1.5">
+                        <label for="expenseDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">日期</label>
+                        <div class="relative">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <input type="date"
+                                   id="expenseDate"
+                                   name="expenseDate"
+                                   th:value="${request?.expenseDate != null ? #temporals.format(request.expenseDate, 'yyyy-MM-dd') : ''}"
+                                   placeholder="選擇日期（選填）"
+                                   class="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notes Section -->
+            <section class="glass-card p-6">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">備註</h2>
+                <textarea id="note"
+                          name="note"
+                          th:text="${request?.note}"
+                          rows="3"
+                          maxlength="500"
+                          placeholder="可選填的備註資訊..."
+                          class="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200 resize-none"></textarea>
+            </section>
+
+            <!-- Submit Button -->
+            <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800">
+                <div class="max-w-4xl mx-auto flex gap-3">
+                    <a th:href="|/trips/${tripId}/expenses?tab=personal|"
+                       class="flex-1 btn-text text-center py-3 rounded-xl border border-gray-200 dark:border-gray-700">
+                        取消
+                    </a>
+                    <button type="submit" class="flex-1 btn-cta py-3">新增費用</button>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <script th:src="@{/js/app.js}" defer></script>
+</body>
+</html>
