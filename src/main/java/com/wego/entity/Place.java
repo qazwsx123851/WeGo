@@ -1,5 +1,6 @@
 package com.wego.entity;
 
+import com.wego.domain.geo.GeoUtils;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -41,7 +42,6 @@ import java.util.UUID;
 @Builder
 public class Place {
 
-    private static final double EARTH_RADIUS_METERS = 6_371_000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -97,18 +97,7 @@ public class Place {
      * @return Distance in meters
      */
     public double distanceTo(Place other) {
-        double lat1 = Math.toRadians(this.latitude);
-        double lat2 = Math.toRadians(other.latitude);
-        double deltaLat = Math.toRadians(other.latitude - this.latitude);
-        double deltaLon = Math.toRadians(other.longitude - this.longitude);
-
-        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
-                + Math.cos(lat1) * Math.cos(lat2)
-                * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
-
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return EARTH_RADIUS_METERS * c;
+        return GeoUtils.haversineDistanceMeters(this.latitude, this.longitude, other.latitude, other.longitude);
     }
 
     /**

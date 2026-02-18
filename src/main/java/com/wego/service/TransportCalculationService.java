@@ -1,5 +1,6 @@
 package com.wego.service;
 
+import com.wego.domain.geo.GeoUtils;
 import com.wego.dto.response.DirectionResult;
 import com.wego.dto.response.TransportCalculationResult;
 import com.wego.entity.Activity;
@@ -58,7 +59,6 @@ public class TransportCalculationService {
     private static final double BICYCLING_WARNING_THRESHOLD_METERS = 30_000;   // 30 km
     private static final double LONG_DISTANCE_WARNING_THRESHOLD_METERS = 100_000; // 100 km
 
-    private static final double EARTH_RADIUS_METERS = 6_371_000;
 
     private final GoogleMapsClient googleMapsClient;
     private final PlaceRepository placeRepository;
@@ -657,17 +657,7 @@ public class TransportCalculationService {
      * @return Distance in meters
      */
     private double calculateDistanceMeters(double lat1, double lng1, double lat2, double lng2) {
-        double lat1Rad = Math.toRadians(lat1);
-        double lat2Rad = Math.toRadians(lat2);
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLng = Math.toRadians(lng2 - lng1);
-
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1Rad) * Math.cos(lat2Rad) *
-                        Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return EARTH_RADIUS_METERS * c;
+        return GeoUtils.haversineDistanceMeters(lat1, lng1, lat2, lng2);
     }
 
     /**

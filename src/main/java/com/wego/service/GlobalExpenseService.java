@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -107,16 +108,26 @@ public class GlobalExpenseService {
             return List.of();
         }
 
+        // Batch query: fetch all balances in one query instead of 2N queries
+        Map<UUID, BigDecimal> balanceMap = expenseSplitRepository
+                .sumBalancesByUserAndTripIds(userId, unsettledTripIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> {
+                            BigDecimal owedToUser = row[1] instanceof BigDecimal bd ? bd : new BigDecimal(row[1].toString());
+                            BigDecimal owedByUser = row[2] instanceof BigDecimal bd ? bd : new BigDecimal(row[2].toString());
+                            return owedToUser.subtract(owedByUser);
+                        }
+                ));
+
         return tripRepository.findAllById(unsettledTripIds).stream()
-                .map(trip -> {
-                    BigDecimal balance = calculateUserBalanceInTrip(userId, trip.getId());
-                    return TripExpenseSummaryResponse.builder()
-                            .tripId(trip.getId())
-                            .tripTitle(trip.getTitle())
-                            .coverImageUrl(trip.getCoverImageUrl())
-                            .userBalance(balance)
-                            .build();
-                })
+                .map(trip -> TripExpenseSummaryResponse.builder()
+                        .tripId(trip.getId())
+                        .tripTitle(trip.getTitle())
+                        .coverImageUrl(trip.getCoverImageUrl())
+                        .userBalance(balanceMap.getOrDefault(trip.getId(), BigDecimal.ZERO))
+                        .build())
                 .sorted(Comparator.comparing(t -> t.getUserBalance().abs(),
                         Comparator.reverseOrder()))
                 .collect(Collectors.toList());

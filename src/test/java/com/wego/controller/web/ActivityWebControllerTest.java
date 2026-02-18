@@ -3,8 +3,8 @@ package com.wego.controller.web;
 import com.wego.dto.response.ActivityResponse;
 import com.wego.dto.response.ExpenseResponse;
 import com.wego.dto.response.PlaceResponse;
+import com.wego.dto.response.RecalculationResult;
 import com.wego.dto.response.TripResponse;
-import com.wego.entity.Place;
 import com.wego.entity.Role;
 import com.wego.entity.TransportMode;
 import com.wego.entity.User;
@@ -13,6 +13,7 @@ import com.wego.service.ActivityService;
 import com.wego.service.ActivityViewHelper;
 import com.wego.service.ExpenseService;
 import com.wego.service.PlaceService;
+import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.service.TripService;
 import com.wego.service.UserService;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -50,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 /**
@@ -91,7 +94,7 @@ class ActivityWebControllerTest {
     private TripResponse testTrip;
     private TripResponse viewerTrip;
     private ActivityResponse testActivity;
-    private Place testPlace;
+    private UUID testPlaceId;
 
     @BeforeEach
     void setUp() {
@@ -160,13 +163,7 @@ class ActivityWebControllerTest {
                 .transportMode(TransportMode.WALKING)
                 .build();
 
-        testPlace = Place.builder()
-                .id(placeResponse.getId())
-                .name("Tokyo Tower")
-                .address("4 Chome-2-8 Shibakoen")
-                .latitude(35.6586)
-                .longitude(139.7454)
-                .build();
+        testPlaceId = placeResponse.getId();
 
         testPrincipal = new UserPrincipal(testUser);
     }
@@ -291,7 +288,7 @@ class ActivityWebControllerTest {
             when(tripService.getTrip(tripId, userId)).thenReturn(testTrip);
             when(placeService.findOrCreate(anyString(), anyString(), anyString(),
                     any(Double.class), any(Double.class), anyString()))
-                    .thenReturn(testPlace);
+                    .thenReturn(testPlaceId);
             when(activityService.createActivity(eq(tripId), any(), eq(userId)))
                     .thenReturn(testActivity);
 
@@ -408,7 +405,7 @@ class ActivityWebControllerTest {
             when(tripService.getTrip(tripId, userId)).thenReturn(testTrip);
             when(placeService.findOrCreate(anyString(), anyString(), anyString(),
                     any(Double.class), any(Double.class), anyString()))
-                    .thenReturn(testPlace);
+                    .thenReturn(testPlaceId);
             when(activityService.updateActivity(eq(activityId), any(), eq(userId)))
                     .thenReturn(testActivity);
 
@@ -438,7 +435,7 @@ class ActivityWebControllerTest {
             when(tripService.getTrip(tripId, userId)).thenReturn(testTrip);
             when(placeService.findOrCreate(anyString(), anyString(), anyString(),
                     any(Double.class), any(Double.class), anyString()))
-                    .thenReturn(testPlace);
+                    .thenReturn(testPlaceId);
             when(activityService.updateActivity(eq(activityId), any(), eq(userId)))
                     .thenThrow(new RuntimeException("Update failed"));
 
@@ -487,6 +484,85 @@ class ActivityWebControllerTest {
                             .with(csrf()))
                     .andExpect(status().is3xxRedirection())
                     .andExpect(redirectedUrl("/trips/" + tripId + "/activities"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /trips/{tripId}/recalculate-transport")
+    class RecalculateTransportTests {
+
+        private RecalculationResult buildResult() {
+            return RecalculationResult.builder()
+                    .totalActivities(5)
+                    .recalculatedCount(3)
+                    .apiSuccessCount(2)
+                    .fallbackCount(1)
+                    .skippedCount(1)
+                    .manualCount(1)
+                    .rateLimitReached(false)
+                    .build();
+        }
+
+        @Test
+        @DisplayName("regular POST should redirect with success flash")
+        void regularPost_shouldRedirectWithSuccessFlash() throws Exception {
+            when(activityService.recalculateAllTransport(eq(tripId), eq(userId), eq(50)))
+                    .thenReturn(buildResult());
+
+            mockMvc.perform(post("/trips/{tripId}/recalculate-transport", tripId)
+                            .with(oauth2Login())
+                            .with(csrf()))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/trips/" + tripId + "/activities"))
+                    .andExpect(flash().attributeExists("success"));
+        }
+
+        @Test
+        @DisplayName("AJAX POST should return JSON success")
+        void ajaxPost_shouldReturnJsonSuccess() throws Exception {
+            when(activityService.recalculateAllTransport(eq(tripId), eq(userId), eq(50)))
+                    .thenReturn(buildResult());
+
+            mockMvc.perform(post("/trips/{tripId}/recalculate-transport", tripId)
+                            .with(oauth2Login())
+                            .with(csrf())
+                            .header("X-Requested-With", "XMLHttpRequest")
+                            .header("Accept", "application/json"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").isNotEmpty())
+                    .andExpect(jsonPath("$.data.totalActivities").value(5))
+                    .andExpect(jsonPath("$.data.apiSuccessCount").value(2));
+        }
+
+        @Test
+        @DisplayName("AJAX POST should return 403 JSON when forbidden")
+        void ajaxPost_forbidden_shouldReturnForbiddenJson() throws Exception {
+            when(activityService.recalculateAllTransport(any(), any(), anyInt()))
+                    .thenThrow(new ForbiddenException("activity", "recalculate transport"));
+
+            mockMvc.perform(post("/trips/{tripId}/recalculate-transport", tripId)
+                            .with(oauth2Login())
+                            .with(csrf())
+                            .header("X-Requested-With", "XMLHttpRequest")
+                            .header("Accept", "application/json"))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
+        }
+
+        @Test
+        @DisplayName("regular POST should redirect with error when forbidden")
+        void regularPost_forbidden_shouldRedirectWithError() throws Exception {
+            when(activityService.recalculateAllTransport(any(), any(), anyInt()))
+                    .thenThrow(new ForbiddenException("activity", "recalculate transport"));
+
+            mockMvc.perform(post("/trips/{tripId}/recalculate-transport", tripId)
+                            .with(oauth2Login())
+                            .with(csrf()))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/trips/" + tripId + "/activities"))
+                    .andExpect(flash().attributeExists("error"));
         }
     }
 }

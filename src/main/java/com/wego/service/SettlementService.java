@@ -1,5 +1,6 @@
 package com.wego.service;
 
+import com.wego.domain.TripConstants;
 import com.wego.domain.permission.PermissionChecker;
 import com.wego.domain.settlement.DebtSimplifier;
 import com.wego.domain.settlement.Settlement;
@@ -46,7 +47,6 @@ import java.util.stream.Collectors;
 @Service
 public class SettlementService {
 
-    private static final String UNKNOWN_USER_NAME = "Unknown";
 
     private final ExpenseRepository expenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
@@ -157,10 +157,10 @@ public class SettlementService {
 
                     return SettlementResponse.SettlementItemResponse.builder()
                             .fromUserId(settlement.getFromUserId())
-                            .fromUserName(fromUser != null ? fromUser.getNickname() : UNKNOWN_USER_NAME)
+                            .fromUserName(fromUser != null ? fromUser.getNickname() : TripConstants.UNKNOWN_USER_NAME)
                             .fromUserAvatarUrl(fromUser != null ? fromUser.getAvatarUrl() : null)
                             .toUserId(settlement.getToUserId())
-                            .toUserName(toUser != null ? toUser.getNickname() : UNKNOWN_USER_NAME)
+                            .toUserName(toUser != null ? toUser.getNickname() : TripConstants.UNKNOWN_USER_NAME)
                             .toUserAvatarUrl(toUser != null ? toUser.getAvatarUrl() : null)
                             .amount(settlement.getAmount())
                             .build();

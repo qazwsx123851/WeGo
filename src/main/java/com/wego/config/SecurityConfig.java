@@ -50,11 +50,11 @@ public class SecurityConfig {
                 .ignoringRequestMatchers("/api/health", "/api/test/auth/**")
             )
             // Security Headers
-            .headers(headers -> headers
+            .headers(headers -> {
                 // Prevent clickjacking
-                .frameOptions(frame -> frame.sameOrigin())
+                headers.frameOptions(frame -> frame.sameOrigin());
                 // Content Security Policy
-                .contentSecurityPolicy(csp -> csp
+                headers.contentSecurityPolicy(csp -> csp
                     .policyDirectives(
                         "default-src 'self'; " +
                         "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; " +
@@ -65,16 +65,21 @@ public class SecurityConfig {
                         "frame-src 'self' https://www.google.com https://maps.google.com https://*.supabase.co; " +
                         "frame-ancestors 'self'"
                     )
-                )
+                );
                 // Referrer Policy
-                .referrerPolicy(referrer -> referrer
+                headers.referrerPolicy(referrer -> referrer
                     .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
-                )
+                );
                 // Permissions Policy (restrict browser features)
-                .permissionsPolicy(permissions -> permissions
+                headers.permissionsPolicy(permissions -> permissions
                     .policy("geolocation=(self), camera=(), microphone=()")
-                )
-            )
+                );
+                // HSTS - force HTTPS
+                headers.httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000)
+                );
+            })
             // Authorization rules
             .authorizeHttpRequests(authorize -> authorize
                 // Public endpoints
@@ -113,6 +118,7 @@ public class SecurityConfig {
             )
             // Session management
             .sessionManagement(session -> session
+                .sessionFixation(fixation -> fixation.changeSessionId())
                 .maximumSessions(1)
                 .expiredUrl("/login?expired=true")
             );

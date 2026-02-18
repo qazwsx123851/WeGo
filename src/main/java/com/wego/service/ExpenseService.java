@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -153,9 +154,7 @@ public class ExpenseService {
 
         List<Expense> expenses = expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId);
 
-        return expenses.stream()
-                .map(this::buildExpenseResponse)
-                .collect(Collectors.toList());
+        return buildExpenseResponsesBatch(expenses, tripId);
     }
 
     /**
@@ -573,6 +572,58 @@ public class ExpenseService {
     }
 
     /**
+     * Builds ExpenseResponses in batch to avoid N+1 queries.
+     * Uses a single query for all splits and a single query for all users.
+     */
+    private List<ExpenseResponse> buildExpenseResponsesBatch(List<Expense> expenses, UUID tripId) {
+        if (expenses.isEmpty()) {
+            return List.of();
+        }
+
+        // 1 query: batch load all splits for the trip
+        List<ExpenseSplit> allSplits = expenseSplitRepository.findByTripId(tripId);
+        Map<UUID, List<ExpenseSplit>> splitsByExpenseId = allSplits.stream()
+                .collect(Collectors.groupingBy(ExpenseSplit::getExpenseId));
+
+        // Collect all user IDs (payers + split participants)
+        Set<UUID> allUserIds = new HashSet<>();
+        expenses.forEach(e -> allUserIds.add(e.getPaidBy()));
+        allSplits.forEach(s -> allUserIds.add(s.getUserId()));
+
+        // 1 query: batch load all users
+        Map<UUID, User> userMap = getUserMap(new ArrayList<>(allUserIds));
+
+        // Map in memory — no additional DB queries
+        return expenses.stream()
+                .map(expense -> {
+                    ExpenseResponse response = ExpenseResponse.fromEntity(expense);
+
+                    User payer = userMap.get(expense.getPaidBy());
+                    if (payer != null) {
+                        response.setPaidByName(payer.getNickname());
+                        response.setPaidByAvatarUrl(payer.getAvatarUrl());
+                    }
+
+                    List<ExpenseSplit> splits = splitsByExpenseId.getOrDefault(expense.getId(), List.of());
+                    List<ExpenseSplitResponse> splitResponses = splits.stream()
+                            .map(split -> {
+                                ExpenseSplitResponse splitResponse = ExpenseSplitResponse.fromEntity(split);
+                                User user = userMap.get(split.getUserId());
+                                if (user != null) {
+                                    splitResponse.setUserNickname(user.getNickname());
+                                    splitResponse.setUserAvatarUrl(user.getAvatarUrl());
+                                }
+                                return splitResponse;
+                            })
+                            .collect(Collectors.toList());
+
+                    response.setSplits(splitResponses);
+                    return response;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Gets a map of user IDs to User entities.
      */
     private Map<UUID, User> getUserMap(List<UUID> userIds) {
@@ -674,8 +725,6 @@ public class ExpenseService {
             throw new ForbiddenException("您沒有權限查看此行程");
         }
         List<Expense> expenses = expenseRepository.findByTripIdAndActivityIdOrderByCreatedAtDesc(tripId, activityId);
-        return expenses.stream()
-                .map(this::buildExpenseResponse)
-                .collect(Collectors.toList());
+        return buildExpenseResponsesBatch(expenses, tripId);
     }
 }

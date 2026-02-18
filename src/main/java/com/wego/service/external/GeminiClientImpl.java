@@ -9,7 +9,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -49,22 +48,12 @@ public class GeminiClientImpl implements GeminiClient {
     private final AtomicInteger consecutiveFailures = new AtomicInteger(0);
     private final AtomicLong circuitOpenedAt = new AtomicLong(0);
 
-    public GeminiClientImpl(GeminiProperties properties, RestTemplate restTemplate) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public GeminiClientImpl(GeminiProperties properties,
+                            @org.springframework.beans.factory.annotation.Qualifier("geminiRestTemplate") RestTemplate restTemplate) {
         this.properties = properties;
         this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
-    }
-
-    @org.springframework.beans.factory.annotation.Autowired
-    public GeminiClientImpl(GeminiProperties properties) {
-        this(properties, createRestTemplateWithTimeouts(properties));
-    }
-
-    private static RestTemplate createRestTemplateWithTimeouts(GeminiProperties properties) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.getConnectTimeoutMs());
-        factory.setReadTimeout(properties.getReadTimeoutMs());
-        return new RestTemplate(factory);
     }
 
     @Override

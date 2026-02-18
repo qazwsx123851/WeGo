@@ -712,7 +712,6 @@
                     const data = await response.json();
                     displaySearchResults(data.data || data);
                 } catch (error) {
-                    console.error('Place search error:', error);
                     displaySearchError('搜尋時發生錯誤，請稍後再試');
                 }
             }
@@ -965,12 +964,7 @@
                                 manualTransportInput.classList.add('border-red-500');
                                 setTimeout(() => manualTransportInput.classList.remove('border-red-500'), 3000);
                             }
-                            // Show toast if available
-                            if (typeof showToast === 'function') {
-                                showToast('選擇飛機或高鐵時，必須輸入預估交通時間', 'error');
-                            } else {
-                                alert('選擇飛機或高鐵時，必須輸入預估交通時間');
-                            }
+                            Toast.error('選擇飛機或高鐵時，必須輸入預估交通時間');
                             return false;
                         }
                     }

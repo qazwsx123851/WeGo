@@ -80,7 +80,8 @@ public class WebExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ModelAndView handleGenericException(Exception ex, HttpServletRequest request) {
         log.error("Web unexpected error occurred", ex);
-        return createErrorView(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", ex.getMessage(), request);
+        return createErrorView(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
+                "發生非預期錯誤，請稍後再試。", request);
     }
 
     /**

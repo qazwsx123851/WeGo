@@ -21,14 +21,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Real implementation of GoogleMapsClient that calls Google Maps APIs.
@@ -72,9 +72,16 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
     private static final String PLACE_DETAILS_URL =
             "https://places.googleapis.com/v1/places/";
 
+    private static final int CIRCUIT_BREAKER_THRESHOLD = 5;
+    private static final long CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000L; // 5 minutes
+
     private final GoogleMapsProperties properties;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+
+    // Circuit breaker state
+    private final AtomicInteger consecutiveFailures = new AtomicInteger(0);
+    private final AtomicLong circuitOpenedAt = new AtomicLong(0);
 
     /**
      * Creates a GoogleMapsClientImpl with the specified properties.
@@ -84,34 +91,17 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
      *   - post: Client is ready to make API calls with configured timeouts
      *
      * @param properties Google Maps configuration properties
-     * @param restTemplate RestTemplate for HTTP calls (should have timeouts configured)
+     * @param restTemplate RestTemplate for HTTP calls (shared, connection-pooled)
      */
-    public GoogleMapsClientImpl(GoogleMapsProperties properties, RestTemplate restTemplate) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public GoogleMapsClientImpl(GoogleMapsProperties properties,
+                                @org.springframework.beans.factory.annotation.Qualifier("externalApiRestTemplate") RestTemplate restTemplate) {
         if (properties == null) {
             throw new IllegalArgumentException("GoogleMapsProperties cannot be null");
         }
         this.properties = properties;
         this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
-    }
-
-    /**
-     * Default constructor for Spring injection.
-     * Configures RestTemplate with timeouts from properties.
-     */
-    @org.springframework.beans.factory.annotation.Autowired
-    public GoogleMapsClientImpl(GoogleMapsProperties properties) {
-        this(properties, createRestTemplateWithTimeouts(properties));
-    }
-
-    /**
-     * Creates a RestTemplate with configured timeouts.
-     */
-    private static RestTemplate createRestTemplateWithTimeouts(GoogleMapsProperties properties) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.getConnectTimeoutMs());
-        factory.setReadTimeout(properties.getReadTimeoutMs());
-        return new RestTemplate(factory);
     }
 
     /**
@@ -125,6 +115,7 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
     public DirectionResult getDirections(String origin, String destination, TransportMode mode) {
         validateNotEmpty(origin, "Origin");
         validateNotEmpty(destination, "Destination");
+        checkCircuitBreaker();
 
         log.debug("Getting directions from '{}' to '{}' via {}", origin, destination, mode);
 
@@ -153,6 +144,7 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
             double destLat, double destLng,
             TransportMode mode
     ) {
+        checkCircuitBreaker();
         log.debug("Getting directions from ({}, {}) to ({}, {}) via {}",
                 originLat, originLng, destLat, destLng, mode);
 
@@ -335,7 +327,7 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
             // Parse duration (format: "123s" for seconds)
             int durationSeconds = parseDurationString(durationStr);
 
-            return DirectionResult.builder()
+            DirectionResult result = DirectionResult.builder()
                     .originAddress(String.format("%.6f, %.6f", originLat, originLng))
                     .destinationAddress(String.format("%.6f, %.6f", destLat, destLng))
                     .distanceMeters(distanceMeters)
@@ -345,13 +337,18 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
                     .transportMode(mode)
                     .apiSource(DirectionResult.ApiSource.ROUTES_API)
                     .build();
+            recordSuccess();
+            return result;
 
         } catch (GoogleMapsException e) {
+            recordFailure();
             throw e;
         } catch (RestClientException e) {
+            recordFailure();
             log.error("[Routes API] HTTP error: {}", e.getMessage());
             throw GoogleMapsException.apiError("HTTP error: " + e.getMessage());
         } catch (Exception e) {
+            recordFailure();
             log.error("[Routes API] Error: {}", e.getMessage(), e);
             throw GoogleMapsException.apiError("Failed to get directions: " + e.getMessage());
         }
@@ -420,6 +417,7 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
         if (radiusMeters <= 0) {
             throw new IllegalArgumentException("Radius must be positive");
         }
+        checkCircuitBreaker();
 
         log.debug("Searching places for '{}' near ({}, {}) within {}m", query, lat, lng, radiusMeters);
 
@@ -478,14 +476,18 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
             }
 
             log.info("Found {} places for query '{}'", results.size(), query);
+            recordSuccess();
             return results;
 
         } catch (GoogleMapsException e) {
+            recordFailure();
             throw e;
         } catch (RestClientException e) {
+            recordFailure();
             log.error("HTTP error searching places: {}", e.getMessage());
             throw GoogleMapsException.apiError("HTTP error: " + e.getMessage());
         } catch (Exception e) {
+            recordFailure();
             log.error("Error searching places: {}", e.getMessage(), e);
             throw GoogleMapsException.apiError("Failed to search places: " + e.getMessage());
         }
@@ -500,6 +502,7 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
     @Override
     public PlaceDetails getPlaceDetails(String placeId) {
         validateNotEmpty(placeId, "Place ID");
+        checkCircuitBreaker();
 
         log.debug("Getting details for place: {}", placeId);
 
@@ -536,14 +539,18 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
             PlaceDetails details = parsePlaceDetailsNew(root);
 
             log.info("Retrieved details for place: {}", placeId);
+            recordSuccess();
             return details;
 
         } catch (GoogleMapsException e) {
+            recordFailure();
             throw e;
         } catch (RestClientException e) {
+            recordFailure();
             log.error("HTTP error getting place details: {}", e.getMessage());
             throw GoogleMapsException.apiError("HTTP error: " + e.getMessage());
         } catch (Exception e) {
+            recordFailure();
             log.error("Error getting place details: {}", e.getMessage(), e);
             throw GoogleMapsException.apiError("Failed to get place details: " + e.getMessage());
         }
@@ -609,7 +616,7 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
 
             log.info("Calculated route: {} ({}) via {}", distanceText, durationText, mode);
 
-            return DirectionResult.builder()
+            DirectionResult result = DirectionResult.builder()
                     .originAddress(originAddress)
                     .destinationAddress(destinationAddress)
                     .distanceMeters(distanceMeters)
@@ -619,13 +626,18 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
                     .transportMode(mode)
                     .apiSource(DirectionResult.ApiSource.DISTANCE_MATRIX)
                     .build();
+            recordSuccess();
+            return result;
 
         } catch (GoogleMapsException e) {
+            recordFailure();
             throw e;
         } catch (RestClientException e) {
+            recordFailure();
             log.error("HTTP error getting directions: {}", e.getMessage());
             throw GoogleMapsException.apiError("HTTP error: " + e.getMessage());
         } catch (Exception e) {
+            recordFailure();
             log.error("Error getting directions: {}", e.getMessage(), e);
             throw GoogleMapsException.apiError("Failed to get directions: " + e.getMessage());
         }
@@ -792,6 +804,37 @@ public class GoogleMapsClientImpl implements GoogleMapsClient {
     private void validateNotEmpty(String value, String name) {
         if (value == null || value.trim().isEmpty()) {
             throw new IllegalArgumentException(name + " cannot be null or empty");
+        }
+    }
+
+    /**
+     * Checks if the circuit breaker is open.
+     * Rejects requests if too many consecutive failures.
+     */
+    private void checkCircuitBreaker() {
+        long openedAt = circuitOpenedAt.get();
+        if (openedAt > 0) {
+            if (System.currentTimeMillis() - openedAt < CIRCUIT_BREAKER_COOLDOWN_MS) {
+                log.warn("Google Maps circuit breaker is open, rejecting request");
+                throw GoogleMapsException.apiError("Service temporarily unavailable (circuit breaker open)");
+            } else {
+                log.info("Google Maps circuit breaker cooldown passed, attempting request");
+            }
+        }
+    }
+
+    private void recordSuccess() {
+        consecutiveFailures.set(0);
+        circuitOpenedAt.set(0);
+    }
+
+    private void recordFailure() {
+        int failures = consecutiveFailures.incrementAndGet();
+        if (failures >= CIRCUIT_BREAKER_THRESHOLD) {
+            long now = System.currentTimeMillis();
+            if (circuitOpenedAt.compareAndSet(0, now)) {
+                log.warn("Google Maps circuit breaker opened after {} consecutive failures", failures);
+            }
         }
     }
 }

@@ -3,7 +3,6 @@ package com.wego.controller.api;
 import com.wego.dto.ApiResponse;
 import com.wego.dto.request.ChatRequest;
 import com.wego.dto.response.ChatResponse;
-import com.wego.exception.UnauthorizedException;
 import com.wego.security.CurrentUser;
 import com.wego.security.UserPrincipal;
 import com.wego.service.ChatService;
@@ -52,16 +51,10 @@ public class ChatApiController {
 
         log.debug("POST /api/trips/{}/chat - Chat request", tripId);
 
-        UUID userId = requireUserId(principal);
+        UUID userId = principal.getId();
         ChatResponse response = chatService.chat(tripId, userId, request.getMessage(), request.getTimezone(), request.isSearchGrounding());
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    private UUID requireUserId(UserPrincipal principal) {
-        if (principal == null) {
-            throw new UnauthorizedException("認證已過期，請重新登入");
-        }
-        return principal.getId();
-    }
 }

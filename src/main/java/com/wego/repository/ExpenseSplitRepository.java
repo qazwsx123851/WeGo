@@ -227,4 +227,26 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID
            "AND es.isSettled = false AND es.userId != e.paidBy")
     BigDecimal sumUnsettledAmountByUserIdAndTripId(@Param("userId") UUID userId,
                                                     @Param("tripId") UUID tripId);
+
+    /**
+     * Batch query: sums unsettled balances for a user across multiple trips.
+     * Returns [tripId, owedToUser, owedByUser] per trip.
+     *
+     * @contract
+     *   - pre: userId != null, tripIds not empty
+     *   - post: Returns list of Object[3] arrays: [UUID tripId, BigDecimal owedToUser, BigDecimal owedByUser]
+     *   - calledBy: GlobalExpenseService#getUnsettledTrips
+     *
+     * @param userId The user ID
+     * @param tripIds List of trip IDs
+     * @return Aggregated balance data per trip
+     */
+    @Query("SELECT e.tripId, " +
+           "COALESCE(SUM(CASE WHEN e.paidBy = :userId AND es.userId != :userId THEN es.amount ELSE 0 END), 0), " +
+           "COALESCE(SUM(CASE WHEN es.userId = :userId AND es.userId != e.paidBy THEN es.amount ELSE 0 END), 0) " +
+           "FROM ExpenseSplit es JOIN Expense e ON es.expenseId = e.id " +
+           "WHERE e.tripId IN :tripIds AND es.isSettled = false " +
+           "GROUP BY e.tripId")
+    List<Object[]> sumBalancesByUserAndTripIds(@Param("userId") UUID userId,
+                                               @Param("tripIds") List<UUID> tripIds);
 }

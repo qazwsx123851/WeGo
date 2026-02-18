@@ -4,6 +4,7 @@ import com.wego.dto.response.TripResponse;
 import com.wego.security.CurrentUser;
 import com.wego.security.UserPrincipal;
 import com.wego.service.TripService;
+import com.wego.service.TripViewHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -14,10 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -31,6 +29,7 @@ import java.util.stream.Collectors;
 public class HomeController {
 
     private final TripService tripService;
+    private final TripViewHelper tripViewHelper;
 
     /**
      * Landing page for unauthenticated users.
@@ -70,17 +69,11 @@ public class HomeController {
         List<TripResponse> allTrips = tripPage.getContent();
 
         // Calculate daysUntil map (trip ID -> days until departure)
-        LocalDate today = LocalDate.now();
-        Map<UUID, Long> daysUntilMap = allTrips.stream()
-                .filter(trip -> trip.getStartDate() != null && !trip.getStartDate().isBefore(today))
-                .collect(Collectors.toMap(
-                        TripResponse::getId,
-                        trip -> ChronoUnit.DAYS.between(today, trip.getStartDate())
-                ));
-        model.addAttribute("daysUntilMap", daysUntilMap);
+        model.addAttribute("daysUntilMap", tripViewHelper.calculateDaysUntilMap(allTrips));
         model.addAttribute("trips", allTrips);
 
         // Filter upcoming trips (today to next 30 days)
+        LocalDate today = LocalDate.now();
         List<TripResponse> upcomingTrips = allTrips.stream()
                 .filter(t -> t.getStartDate() != null
                         && !t.getStartDate().isBefore(today)

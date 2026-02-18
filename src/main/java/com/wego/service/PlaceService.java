@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 /**
  * Service for Place-related business logic.
  *
@@ -35,10 +37,10 @@ public class PlaceService {
      * @param latitude Latitude (nullable, defaults to 0.0)
      * @param longitude Longitude (nullable, defaults to 0.0)
      * @param type Activity type for category mapping
-     * @return Persisted Place entity
+     * @return UUID of the persisted Place entity
      */
     @Transactional
-    public Place findOrCreate(String googlePlaceId, String name, String address,
+    public UUID findOrCreate(String googlePlaceId, String name, String address,
                               Double latitude, Double longitude, String type) {
         Place place = null;
 
@@ -62,7 +64,7 @@ public class PlaceService {
             place = placeRepository.save(place);
         }
 
-        return place;
+        return place.getId();
     }
 
     /**

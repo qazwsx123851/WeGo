@@ -2,12 +2,8 @@ package com.wego.controller.web;
 
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.User;
-import com.wego.dto.response.TodoResponse;
-import com.wego.entity.TodoStatus;
 import com.wego.service.ActivityService;
-import com.wego.service.DocumentService;
-import com.wego.service.ExpenseService;
-import com.wego.service.TodoService;
+import com.wego.service.TripViewHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -25,12 +21,8 @@ import com.wego.dto.request.UpdateTripRequest;
 import com.wego.exception.ValidationException;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -50,9 +42,7 @@ import java.util.stream.Collectors;
 public class TripController extends BaseWebController {
 
     private final ActivityService activityService;
-    private final TodoService todoService;
-    private final ExpenseService expenseService;
-    private final DocumentService documentService;
+    private final TripViewHelper tripViewHelper;
 
     /**
      * List all trips for the current user.
@@ -222,9 +212,8 @@ public class TripController extends BaseWebController {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
-        // Find current member's role
+        // Permissions
         TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
-
         model.addAttribute("trip", trip);
         model.addAttribute("currentMember", currentMember);
         model.addAttribute("canEdit", canEdit(currentMember));
@@ -232,28 +221,20 @@ public class TripController extends BaseWebController {
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
 
-        // Calculate trip duration
-        if (trip.getStartDate() != null && trip.getEndDate() != null) {
-            long tripDays = ChronoUnit.DAYS.between(trip.getStartDate(), trip.getEndDate()) + 1;
-            model.addAttribute("tripDays", tripDays);
-            model.addAttribute("tripNights", tripDays - 1);
-        } else {
-            model.addAttribute("tripDays", 0L);
-            model.addAttribute("tripNights", 0L);
+        // Trip duration
+        TripViewHelper.TripDuration duration = tripViewHelper.calculateTripDuration(trip);
+        model.addAttribute("tripDays", duration.days());
+        model.addAttribute("tripNights", duration.nights());
+        if (duration.daysUntil() != null) {
+            model.addAttribute("daysUntil", duration.daysUntil());
         }
 
-        // Calculate days until trip
-        if (trip.getStartDate() != null && trip.getStartDate().isAfter(LocalDate.now())) {
-            long daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), trip.getStartDate());
-            model.addAttribute("daysUntil", daysUntil);
-        }
-
-        // Member data
+        // Members
         List<TripResponse.MemberSummary> members = trip.getMembers();
         model.addAttribute("members", members);
         model.addAttribute("memberCount", members != null ? members.size() : 0);
 
-        // Activity data
+        // Activities
         List<com.wego.dto.response.ActivityResponse> activities = List.of();
         try {
             activities = activityService.getActivitiesByTrip(id, user.getId());
@@ -263,135 +244,27 @@ public class TripController extends BaseWebController {
         model.addAttribute("activityCount", activities.size());
         model.addAttribute("upcomingActivities", activities.stream().limit(3).collect(Collectors.toList()));
 
-        // Expense and document statistics (via Service layer with permission checks)
-        long expenseCount = expenseService.getExpenseCount(id, user.getId());
-        long documentCount = documentService.getDocumentCount(id, user.getId());
-
-        // Calculate total expense in trip's base currency
+        // Expense & document summary
         String baseCurrency = trip.getBaseCurrency() != null ? trip.getBaseCurrency() : "TWD";
-        BigDecimal totalExpense = expenseService.getTotalExpense(id, baseCurrency, user.getId());
+        int memberCount = members != null ? members.size() : 0;
+        TripViewHelper.ExpenseSummary expense = tripViewHelper.getExpenseSummary(id, user.getId(), baseCurrency, memberCount);
+        model.addAttribute("expenseCount", expense.expenseCount());
+        model.addAttribute("documentCount", expense.documentCount());
+        model.addAttribute("totalExpense", expense.totalExpense());
+        model.addAttribute("averageExpense", expense.averageExpense());
 
-        // Calculate average expense per member
-        int memberCountForCalc = members != null && !members.isEmpty() ? members.size() : 1;
-        BigDecimal averageExpense = totalExpense.compareTo(BigDecimal.ZERO) > 0
-                ? totalExpense.divide(BigDecimal.valueOf(memberCountForCalc), 0, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        // Weather fallback coordinates
+        TripViewHelper.WeatherCoordinates weather = tripViewHelper.getWeatherFallbackCoordinates(activities, trip);
+        model.addAttribute("weatherFallbackLat", weather.latitude());
+        model.addAttribute("weatherFallbackLng", weather.longitude());
 
-        model.addAttribute("expenseCount", expenseCount);
-        model.addAttribute("documentCount", documentCount);
-        model.addAttribute("totalExpense", totalExpense);
-        model.addAttribute("averageExpense", averageExpense);
-
-        // Get weather fallback coordinates (used when user denies geolocation)
-        addWeatherCoordinatesToModel(activities, trip, model);
-
-        // Load todo data for preview section
-        addTodoDataToModel(id, user.getId(), model);
+        // Todo preview
+        TripViewHelper.TodoPreview todo = tripViewHelper.getTodoPreview(id, user.getId());
+        model.addAttribute("todoCount", todo.totalCount());
+        model.addAttribute("todoCompletedCount", todo.completedCount());
+        model.addAttribute("upcomingTodos", todo.upcomingTodos());
 
         return "trip/view";
-    }
-
-    /**
-     * Loads todo data for the trip preview section.
-     *
-     * @contract
-     *   - pre: tripId != null, userId != null, model != null
-     *   - post: Adds todoCount, todoCompletedCount, upcomingTodos to model
-     *   - calls: TodoService#getTodosByTrip, TodoService#getTodoStats
-     *   - calledBy: showTripDetail
-     */
-    private void addTodoDataToModel(UUID tripId, UUID userId, Model model) {
-        try {
-            // Get todo stats
-            Map<TodoStatus, Long> stats = todoService.getTodoStats(tripId, userId);
-            long totalTodos = stats.values().stream().mapToLong(Long::longValue).sum();
-            long completedTodos = stats.getOrDefault(TodoStatus.COMPLETED, 0L);
-
-            model.addAttribute("todoCount", totalTodos);
-            model.addAttribute("todoCompletedCount", completedTodos);
-
-            // Get upcoming todos (first 3 PENDING or IN_PROGRESS, sorted by due date)
-            List<TodoResponse> allTodos = todoService.getTodosByTrip(tripId, userId);
-            List<TodoResponse> upcomingTodos = allTodos.stream()
-                    .filter(t -> t.getStatus() == TodoStatus.PENDING || t.getStatus() == TodoStatus.IN_PROGRESS)
-                    .limit(3)
-                    .collect(Collectors.toList());
-
-            model.addAttribute("upcomingTodos", upcomingTodos);
-
-            log.debug("Todo data loaded: total={}, completed={}, upcoming={}",
-                    totalTodos, completedTodos, upcomingTodos.size());
-        } catch (Exception e) {
-            log.warn("Failed to load todo data for trip {}: {}", tripId, e.getMessage());
-            // Set defaults so the page doesn't break
-            model.addAttribute("todoCount", 0L);
-            model.addAttribute("todoCompletedCount", 0L);
-            model.addAttribute("upcomingTodos", List.of());
-        }
-    }
-
-    /**
-     * Extracts weather fallback coordinates for when user denies geolocation.
-     *
-     * Priority:
-     * 1. Today's first activity with coordinates
-     * 2. Any activity with coordinates (sorted by day)
-     * 3. Default: Taipei 101 (25.0339, 121.5645)
-     *
-     * @contract
-     *   - pre: activities != null, model != null, trip != null
-     *   - post: Always adds weatherFallbackLat and weatherFallbackLng to model
-     */
-    private void addWeatherCoordinatesToModel(
-            List<com.wego.dto.response.ActivityResponse> activities,
-            com.wego.dto.response.TripResponse trip,
-            Model model) {
-
-        // Default: Taipei 101
-        final double defaultLat = 25.0339;
-        final double defaultLng = 121.5645;
-
-        // Calculate today's day number within the trip
-        LocalDate today = LocalDate.now();
-        LocalDate tripStart = trip.getStartDate();
-        int todayDayNumber = (int) java.time.temporal.ChronoUnit.DAYS.between(tripStart, today) + 1;
-
-        // Priority 1: Find today's first activity with coordinates
-        var todayActivity = activities.stream()
-                .filter(a -> a.getDay() == todayDayNumber)
-                .filter(a -> a.getPlace() != null)
-                .filter(a -> a.getPlace().getLatitude() != 0 || a.getPlace().getLongitude() != 0)
-                .min((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()));
-
-        if (todayActivity.isPresent()) {
-            var place = todayActivity.get().getPlace();
-            model.addAttribute("weatherFallbackLat", place.getLatitude());
-            model.addAttribute("weatherFallbackLng", place.getLongitude());
-            log.debug("Weather fallback: today's activity at ({}, {})", place.getLatitude(), place.getLongitude());
-            return;
-        }
-
-        // Priority 2: Find any activity with coordinates (sorted by day, then sortOrder)
-        var anyActivity = activities.stream()
-                .filter(a -> a.getPlace() != null)
-                .filter(a -> a.getPlace().getLatitude() != 0 || a.getPlace().getLongitude() != 0)
-                .min((a, b) -> {
-                    int dayCompare = Integer.compare(a.getDay(), b.getDay());
-                    return dayCompare != 0 ? dayCompare : Integer.compare(a.getSortOrder(), b.getSortOrder());
-                });
-
-        if (anyActivity.isPresent()) {
-            var place = anyActivity.get().getPlace();
-            model.addAttribute("weatherFallbackLat", place.getLatitude());
-            model.addAttribute("weatherFallbackLng", place.getLongitude());
-            log.debug("Weather fallback: first activity at ({}, {})", place.getLatitude(), place.getLongitude());
-            return;
-        }
-
-        // Priority 3: Default to Taipei 101
-        model.addAttribute("weatherFallbackLat", defaultLat);
-        model.addAttribute("weatherFallbackLng", defaultLng);
-        log.debug("Weather fallback: default Taipei 101 ({}, {})", defaultLat, defaultLng);
     }
 
     /**

@@ -2,6 +2,7 @@ package com.wego.controller.api;
 
 import com.wego.dto.response.WeatherForecast;
 import com.wego.dto.response.WeatherResponse;
+import com.wego.service.RateLimitService;
 import com.wego.service.WeatherService;
 import com.wego.service.external.WeatherException;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +20,8 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -40,6 +43,14 @@ class WeatherApiControllerTest {
 
     @MockBean
     private WeatherService weatherService;
+
+    @MockBean
+    private RateLimitService rateLimitService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        when(rateLimitService.isAllowed(any(), anyInt())).thenReturn(true);
+    }
 
     private static final double TEST_LAT = 35.6812;
     private static final double TEST_LNG = 139.7671;

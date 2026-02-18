@@ -1,223 +1,319 @@
-# Performance Review Report
+# WeGo 效能審查報告
 
-**Project:** WeGo
-**Date:** 2026-02-12
-**Reviewer:** perf-reviewer (Claude Opus 4.6)
-
----
-
-## Executive Summary
-
-The WeGo codebase demonstrates **good foundational performance awareness** with several well-implemented patterns: flat entity design avoiding JPA lazy-loading pitfalls, batch place lookups in `ActivityService` to prevent N+1 queries, Caffeine caching for statistics, two-tier caching for exchange rates, circuit breaker on external API calls, Bucket4j rate limiting, and `open-in-view: false`.
-
-However, there are **significant performance issues** in high-traffic paths: the `getUserTrips` method triggers N+1 queries for member summaries, external API clients each create their own `RestTemplate` instead of sharing a properly-configured bean, and the in-memory `CacheService`/`RateLimitService` lack eviction strategies that could lead to memory leaks under heavy use.
-
-**近期已修復項目：** 資料庫索引已透過 `@Table(indexes=...)` 註解加入所有 Entity、靜態資源 Cache-Control 已設定、Thymeleaf cache 已在生產環境啟用。
-
-**Summary Statistics:**
-- Critical: 1
-- Warning: 6
-- Suggestion: 6
-- Total: 13
+> 審查日期：2026-02-18
+> 審查員：perf-reviewer (Claude Opus 4.6)
+> 審查範圍：Entity 關聯映射、資料庫索引、分頁處理、N+1 查詢、快取策略、外部 API 呼叫、非同步處理、前端靜態資源
+> 基準：對照 2026-02-14 初審報告更新
 
 ---
 
-## 1. Database & Query Performance
+## 摘要
 
-### 1.1 N+1 Query in `TripService.getUserTrips`
+| 分類 | 🔴 Critical | 🟡 Warning | 🔵 Suggestion | 小計 |
+|------|:-----------:|:----------:|:-------------:|:----:|
+| Entity 關聯映射 | 0 | 0 | 1 | 1 |
+| 資料庫索引 | 0 | 1 | 1 | 2 |
+| 分頁處理 | 0 | 2 | 1 | 3 |
+| N+1 查詢 | 0 | 2 | 0 | 2 |
+| 快取策略 | 0 | 0 | 2 | 2 |
+| 外部 API 呼叫 | 0 | 1 | 1 | 2 |
+| 非同步處理 | 0 | 1 | 1 | 2 |
+| 前端靜態資源 | 0 | 1 | 1 | 2 |
+| **合計** | **0** | **8** | **8** | **16** |
 
-- **Severity:** RED Critical
-- **File:** `/Users/mark/WeGo/src/main/java/com/wego/service/TripService.java:185-195`
-- **Description:** `getUserTrips()` calls `getMemberSummaries(trip.getId())` inside a `.map()` on every trip in the paginated result. Each call to `getMemberSummaries` triggers 2 queries: one for `findByTripId` (TripMember) and one for `findAllById` (User). For a page of 20 trips, this produces **40+ additional queries**.
-- **Recommendation:** Create a custom repository method that batch-fetches all `TripMember` rows for the trip IDs in the page, and batch-fetches all referenced `User` entities in a single query. Then assemble member summaries in-memory.
-
-**狀態：✅ 已修復** — 已改用 batch loading 修復。
-
-### 1.2 N+1 Query in `SettlementService.calculateSettlement`
-
-- **Severity:** YELLOW Warning
-- **File:** `/Users/mark/WeGo/src/main/java/com/wego/service/SettlementService.java:111-181`
-- **Description:** `calculateSettlement` loads all expenses and splits in 2 queries, which is efficient. However, each `convertToBaseCurrency` call may trigger an individual API call to `ExchangeRateService.getRate` per unique currency pair. With N different currencies, this produces N external API calls (mitigated by in-memory caching but not batched).
-- **Recommendation:** Pre-fetch all needed exchange rates in one batch before iterating expenses.
-
-### 1.3 Database Indexes
-
-- **Severity:** 已修復
-- **File:** All entity classes
-- **Description:** 所有 Entity 已加上 `@Table(indexes=@Index(...))` 註解，涵蓋以下高頻查詢欄位：
-  - `activities.trip_id` + `day` + `sort_order`
-  - `expenses.trip_id` + `created_at`
-  - `expense_splits.expense_id`
-  - `expense_splits.user_id` + `is_settled`
-  - `todos.trip_id` + `status` + `due_date`
-  - `documents.trip_id` + `created_at`
-  - `trip_members.trip_id` + `user_id`
-  - `invite_links.token`
-
-### 1.4 Unbounded List Queries
-
-- **Severity:** YELLOW Warning
-- **File:** Multiple repositories
-- **Description:** Several repository methods return `List<>` without pagination: `ActivityRepository.findByTripIdOrderByDayAscSortOrderAsc`, `ExpenseRepository.findByTripIdOrderByCreatedAtDesc`, `ExpenseSplitRepository.findByTripId`, `TodoRepository.findByTripIdOrderedByDueDateAndStatus`, `DocumentRepository.findByTripIdOrderByCreatedAtDesc`.
-- **Recommendation:** For display-facing methods, add `Pageable` support. The paginated variants exist for some (Expense, Todo) but the service layer often calls the unbounded version. For internal calculations (settlement), unbounded is acceptable since trip data is naturally bounded by member limits.
-
-### 1.5 `deleteByTripId` Cascade in `TripService.deleteTrip`
-
-- **Severity:** YELLOW Warning
-- **File:** `/Users/mark/WeGo/src/main/java/com/wego/service/TripService.java:272-322`
-- **Description:** Trip deletion executes 9 sequential database operations: deleting expense splits, expenses, fetching+deleting documents (with storage calls), activities, todos, invite links, members, cover image, and the trip itself. The document deletion also iterates each document individually for storage cleanup.
-- **Recommendation:** Use `@Modifying` bulk delete queries (already done for `ExpenseSplitRepository.deleteByTripId`). Consider making the storage cleanup asynchronous since it involves external HTTP calls. The current approach could hold a transaction open for an extended period.
+**自上次審查（2026-02-14）以來的變化：**
+- 🔴 Critical: 3 → 0（全部已修復）
+- 已修復：HTTP 壓縮已啟用（`application-prod.yml:9-16`）、ExpenseService N+1 已用批次查詢修復（`buildExpenseResponsesBatch` 方法）、TripMember 已新增 `idx_trip_member_user_id` 索引
+- StatisticsService `@Cacheable` 代理問題已透過 `StatisticsCacheDelegate` 模式正確修復
 
 ---
 
-## 2. Caching
+## 1. Entity 關聯映射
 
-### 2.1 No Caching on `TripService.getTrip`
+### 設計選擇：扁平 UUID 引用（非 JPA 關聯）
 
-- **Severity:** YELLOW Warning
-- **File:** `/Users/mark/WeGo/src/main/java/com/wego/service/TripService.java:157-170`
-- **Description:** `getTrip` is called on every trip detail page view but has no caching. It queries the trip, counts members, checks permissions, and fetches member summaries -- all requiring 3+ queries per request.
-- **Recommendation:** Add `@Cacheable` for trip data with eviction on update/delete. The permission check should remain outside the cache (as done correctly in `StatisticsService`).
+所有 Entity 均使用扁平 UUID 欄位（如 `UUID tripId`）而非 JPA `@ManyToOne` / `@OneToMany` 關聯。
 
-### 2.2 No Caching on `PermissionChecker`
+**優點：**
+- 完全避免 EAGER fetch 造成的意外全量載入
+- 無 Hibernate Proxy 序列化問題
+- 無 LazyInitializationException 風險
+- Entity 輕量且可預測
 
-- **Severity:** YELLOW Warning
-- **File:** `/Users/mark/WeGo/src/main/java/com/wego/domain/permission/PermissionChecker.java` (referenced throughout)
-- **Description:** `PermissionChecker.canView/canEdit/canDelete` are called on almost every request. Each call queries `TripMemberRepository.findByTripIdAndUserId`. For a single page load showing trip details with activities, expenses, and documents, the same permission check may be called 4+ times with the same parameters.
-- **Recommendation:** Add a short-lived (30s) cache for `TripMember` lookup by tripId+userId, or use request-scoped caching with `@RequestScope`.
+**代價：**
+- 需要手動批次載入相關資料（已在多處正確實作）
+- 無法使用 `@EntityGraph` 或 `JOIN FETCH` 語法
 
-### 2.3 CacheService Memory Leak Risk
-
-- **Severity:** YELLOW Warning
-- **File:** `/Users/mark/WeGo/src/main/java/com/wego/service/CacheService.java:22`
-- **Description:** The custom `CacheService` uses a `ConcurrentHashMap` with no maximum size limit. Expired entries are only cleaned on `get()` or `size()` calls, not proactively. Under heavy use with many unique cache keys (e.g., weather for many locations), this map will grow unbounded until expired entries are accessed.
-- **Recommendation:** Replace with the existing Caffeine cache infrastructure (already used for statistics). Caffeine handles eviction, max size, and async cleanup automatically. Alternatively, add a scheduled cleanup task.
-
-**狀態：✅ 已修復** — `CacheService.java` 已刪除。所有快取統一使用 Spring Cache + Caffeine，CacheConfig.java 新增快取定義：weather (6h TTL, max 200)、places (5min, max 500)、directions (10min, max 200)、exchange-rate-all (1h, max 50)、exchange-rate-all-fallback (24h, max 50)。
-
-### 2.4 Dual Caching Systems
-
-- **Severity:** BLUE Suggestion
-- **File:** `CacheService.java`, `CacheConfig.java`, `ExchangeRateService.java`
-- **Description:** The project has three separate caching systems: (1) Spring Cache with Caffeine via `CacheConfig` for statistics, (2) custom `CacheService` with ConcurrentHashMap for weather, (3) manual ConcurrentHashMap caching in `ExchangeRateService`. This increases maintenance complexity and inconsistency.
-- **Recommendation:** Consolidate on Spring Cache + Caffeine for all caching needs. Define additional cache names in `CacheConfig` for weather (6h TTL) and exchange rates (1h TTL, 24h fallback).
-
-**狀態：✅ 已修復** — 三套快取系統已統一為 Spring Cache + Caffeine。WeatherService、PlaceApiController、DirectionApiController 改用 CacheManager。ExchangeRateService 改用 CacheManager 的 primary + fallback 兩層快取。CacheService.java 已刪除。
+| # | 嚴重度 | 問題 | 檔案 | 說明 |
+|---|--------|------|------|------|
+| 1 | 🔵 | 扁平 UUID 設計可接受但需注意手動批次載入 | 全部 Entity | 目前設計已避免 JPA 常見的 EAGER/LAZY 陷阱，是合理的架構選擇 |
 
 ---
 
-## 3. External API Calls
+## 2. 資料庫索引
 
-### 3.1 No `@Async` Usage for External API Calls
+### 已存在的索引（良好）
 
-- **Severity:** BLUE Suggestion
-- **File:** Project-wide (grep for `@Async` returned no results)
-- **Description:** All external API calls (Google Maps, OpenWeatherMap, ExchangeRate, Supabase Storage) are synchronous and block the request thread. The `batchRecalculateWithRateLimit` method in `TransportCalculationService` even includes `Thread.sleep(100)` between API calls, blocking the thread pool.
-- **Recommendation:** For non-critical external calls (storage cleanup on trip delete, transport recalculation), use `@Async` with a dedicated thread pool. Add `@EnableAsync` configuration. The transport recalculation endpoint should return immediately and process in background.
+| Entity | 索引 |
+|--------|------|
+| Trip | `idx_trip_owner_id (owner_id)` |
+| Activity | `idx_activity_trip_id`, `idx_activity_trip_day_sort (trip_id, day, sort_order)`, `idx_activity_place_id` |
+| Expense | `idx_expense_trip_id`, `idx_expense_paid_by`, `idx_expense_activity_id`, `idx_expense_created_by`, `idx_expense_trip_created` |
+| ExpenseSplit | `idx_split_expense_id`, `idx_split_user_id`, `idx_split_user_settled` |
+| Document | `idx_documents_trip_id`, `idx_documents_uploaded_by`, `idx_documents_trip_created`, `idx_documents_related_activity_id` |
+| Todo | `idx_todo_trip_id`, `idx_todo_assignee_id`, `idx_todo_created_by`, `idx_todo_trip_status_due` |
+| Place | `idx_place_google_place_id` |
+| InviteLink | `idx_invite_link_trip_id`, `idx_invite_link_created_by`, `idx_invite_link_token` |
+| TripMember | `uk_trip_member (trip_id, user_id)` UNIQUE, `idx_trip_member_user_id (user_id)` |
 
-### 3.2 Each External Client Creates Its Own `RestTemplate`
+### 上次審查已修復
 
-- **Severity:** BLUE Suggestion
-- **File:** `GoogleMapsClientImpl.java:110-115`, `OpenWeatherMapClient.java:81-86`, `ExchangeRateApiClient.java:95-100`, `SupabaseStorageClient.java:50`
-- **Description:** Each external client creates its own `RestTemplate` with `SimpleClientHttpRequestFactory`. This means no connection pooling is shared between clients, and each creates new TCP connections per request. `SupabaseStorageClient` creates a bare `new RestTemplate()` with no timeouts configured.
-- **Recommendation:** Define a shared `RestTemplate` bean (or use `RestTemplateBuilder`) with connection pooling (Apache HttpClient or OkHttp), default timeouts, and proper connection management. Per-client timeout overrides can be applied at the request level.
+- **TripMember `user_id` 單欄索引已新增**（`TripMember.java:47`）- `findByUserId` 在 GlobalExpenseService、GlobalDocumentService、ProfileController 中使用，現已有索引支援。
+- **TripMember `(trip_id, user_id)` 唯一約束** - PostgreSQL 自動為 unique constraint 建立索引，PermissionChecker 的 `findByTripIdAndUserId` 可有效利用。
 
-### 3.3 Google Maps API Has No Response Caching
+### 剩餘問題
 
-- **Severity:** BLUE Suggestion
-- **File:** `/Users/mark/WeGo/src/main/java/com/wego/service/TransportCalculationService.java:186-241`
-- **Description:** `calculateTransportWithWarnings` calls Google Maps API for every transport calculation. The same origin-destination pair may be queried multiple times (e.g., after reordering and then reverting). Google Maps API calls cost money per request.
-- **Recommendation:** Cache direction results by `originLat:originLng:destLat:destLng:mode` key with a 24h TTL. This is especially valuable since coordinates don't change for existing places.
-
-### 3.4 Circuit Breaker Only on ExchangeRate
-
-- **Severity:** BLUE Suggestion
-- **File:** `ExchangeRateApiClient.java:249-284`
-- **Description:** The circuit breaker pattern is only implemented for `ExchangeRateApiClient`. `GoogleMapsClientImpl` and `OpenWeatherMapClient` have no circuit breaker, so repeated failures will keep attempting API calls.
-- **Recommendation:** Add circuit breaker logic to `GoogleMapsClientImpl` and `OpenWeatherMapClient`, or use a library like Resilience4j which provides circuit breakers, retries, and rate limiters as cross-cutting concerns.
+| # | 嚴重度 | 問題 | 檔案 | 說明 |
+|---|--------|------|------|------|
+| 2 | 🟡 | **User 表缺少 `(provider, provider_id)` 複合索引** | `src/main/java/com/wego/entity/User.java:42-56` | `UserRepository.findByProviderAndProviderId` 是 OAuth 登入的核心查詢，每次登入都會呼叫。目前僅有 `email` 的 unique index，`provider + provider_id` 組合查詢需 full table scan。用戶量增長後會成為瓶頸。 |
+| 3 | 🔵 | ExpenseSplit 缺少 `(expense_id, user_id)` 複合索引 | `src/main/java/com/wego/entity/ExpenseSplit.java:35-39` | `findUnsettledByTripIdAndUsers` 等查詢使用 JOIN + WHERE 條件，目前有 `expense_id` 和 `user_id` 的單欄索引，複合索引可進一步優化。但由於資料量通常有限，影響較低。 |
 
 ---
 
-## 4. JPA & Hibernate Configuration
+## 3. 分頁處理
 
-### 4.1 `hibernate.ddl-auto: update` in Production Config
+### 正確使用分頁的查詢
 
-- **Severity:** YELLOW Warning
-- **File:** `/Users/mark/WeGo/src/main/resources/application.yml:28`
-- **Description:** `spring.jpa.hibernate.ddl-auto: update` is set in the main `application.yml` with no profile override. This means Hibernate will attempt schema modifications on every production startup, which can cause issues with concurrent deployments and is generally dangerous for production data.
-- **Recommendation:** Set to `validate` or `none` for production. Use Flyway or Liquibase for migration management. Keep `update` only in dev/test profiles.
+- `TripRepository.findTripsByMemberId(userId, Pageable)` - 使用者行程列表
+- `TripRepository.findByOwnerId(ownerId, Pageable)` - Owner 行程列表
+- `ExpenseRepository.findByTripId(tripId, Pageable)` - 支出分頁
+- `TodoRepository.findByTripId(tripId, Pageable)` - 待辦分頁
+- `DocumentRepository.findByFilters(tripIds, search, mimeTypes, Pageable)` - 全域文件
 
-### 4.2 SQL Logging Enabled by Default
+### 問題
 
-- **Severity:** BLUE Suggestion
-- **File:** `/Users/mark/WeGo/src/main/resources/application.yml:92-93`
-- **Description:** `org.hibernate.SQL: DEBUG` and `BasicBinder: TRACE` are enabled in the main config. This generates significant log volume in production and can impact I/O performance.
-- **Recommendation:** Move these to a `application-dev.yml` profile. In production, only enable on-demand for debugging.
-
----
-
-## 5. Frontend & Static Assets
-
-### 5.1 Cache-Control Headers for Static Resources
-
-- **Severity:** 已修復
-- **File:** `/Users/mark/WeGo/src/main/java/com/wego/config/WebConfig.java:40-50`
-- **Description:** 靜態資源處理器已加入 `setCachePeriod` 設定，為 `/css/**`、`/js/**`、`/images/**` 等靜態資源提供適當的瀏覽器快取控制。此修復可顯著減少伺服器負載並改善頁面載入速度。
-
-### 5.2 Thymeleaf Cache
-
-- **Severity:** 已修復
-- **File:** `/Users/mark/WeGo/src/main/resources/application.yml:40`
-- **Description:** Thymeleaf cache 已在生產環境啟用。原先 `spring.thymeleaf.cache: false` 的設定會導致每次模板渲染都重新從磁碟解析 HTML，現已修正為生產環境啟用快取。
+| # | 嚴重度 | 問題 | 檔案 | 說明 |
+|---|--------|------|------|------|
+| 4 | 🟡 | **`getExpensesByTrip` 載入行程所有支出** | `src/main/java/com/wego/service/ExpenseService.java:155` | `findByTripIdOrderByCreatedAtDesc(tripId)` 載入行程所有支出到記憶體。N+1 問題已修復（見 `buildExpenseResponsesBatch`），但大量支出仍會一次性載入。單一行程支出通常 <100，但極端場景仍有風險。 |
+| 5 | 🟡 | **`getDocumentsByTrip` 不帶分頁** | `src/main/java/com/wego/service/DocumentService.java:217` | `findByTripIdOrderByCreatedAtDesc(tripId)` 載入行程所有文件，無上限。 |
+| 6 | 🔵 | `findByTripIdOrderedByDueDateAndStatus` 不帶分頁 | `src/main/java/com/wego/repository/TodoRepository.java:51` | 行程的待辦清單全量載入，但待辦數量通常有限，影響較低。 |
 
 ---
 
-## 6. Connection Pool & Session
+## 4. N+1 查詢問題
 
-### 6.1 HikariCP Pool Size
+### 已修復的 N+1（良好實踐）
 
-- **Severity:** BLUE Suggestion
-- **File:** `/Users/mark/WeGo/src/main/resources/application.yml:19-23`
-- **Description:** HikariCP is configured with `maximum-pool-size: 10`, `minimum-idle: 2`. This is reasonable for a small deployment. However, with the N+1 query issues identified above, a single request can consume a connection for an extended period (especially `getUserTrips` with 40+ queries).
-- **Recommendation:** After fixing N+1 issues, the pool size is appropriate. If concurrent users grow beyond ~50, consider increasing to 15-20. Monitor with HikariCP metrics.
+1. **ExpenseService.buildExpenseResponsesBatch**（`ExpenseService.java:578-624`）- 使用 `expenseSplitRepository.findByTripId` 批次載入所有 splits，再批次載入所有 users。單一行程的支出列表從 3N+1 次查詢降為 3 次。
+2. **TripService.getUserTrips**（`TripService.java:186-226`）- 使用 `findByTripIdIn` 批次載入成員，再使用 `findAllById` 批次載入 users。
+3. **ActivityService.mapActivitiesToResponses**（`ActivityService.java:573-585`）- 使用 `buildPlaceLookup` 批次載入 places。
+4. **DocumentService.buildDocumentResponses**（`DocumentService.java:506-577`）- 批次載入 uploaders、activities、places，避免 N+1。
+5. **ChatService.fetchPlaceMap**（`ChatService.java:262-273`）- 批次載入 places。
+6. **DocumentRepository.countByTripIds** - 專用批次計數查詢。
+7. **StatisticsCacheDelegate** - 將 `@Cacheable` 方法提取到獨立 Bean，正確解決 Spring AOP 代理繞過問題。
 
----
+### 剩餘問題
 
-## Positive Findings
-
-The following patterns are well-implemented and should be maintained:
-
-1. **Flat entity design (no `@OneToMany`/`@ManyToOne`)** -- eliminates lazy-loading N+1 at the JPA level and gives full control over query patterns.
-2. **`open-in-view: false`** -- prevents accidental lazy loading in view layer.
-3. **Batch place lookup in `ActivityService.buildPlaceLookup`** -- correctly uses `findAllById` to prevent N+1 when mapping activities to responses.
-4. **`@Transactional(readOnly = true)`** on read methods -- enables Hibernate flush-mode optimizations.
-5. **Caffeine cache with `recordStats()`** -- enables monitoring cache hit rates.
-6. **Statistics caching with proper eviction** -- `StatisticsService` caches computed results and evicts on data changes.
-7. **Exchange rate two-tier caching** -- primary + fallback cache for resilience.
-8. **Circuit breaker on ExchangeRate API** -- prevents cascading failures.
-9. **Bucket4j rate limiting with Caffeine-backed IP tracking** -- properly bounded with max size and TTL.
-10. **`@Modifying` bulk delete for `ExpenseSplitRepository.deleteByTripId`** -- avoids loading entities just to delete them.
-11. **Pagination support in repositories** -- `Pageable` variants exist for trip and expense queries.
-12. **`Document.countByTripIds` batch query** -- explicitly designed to avoid N+1 for global document overview.
+| # | 嚴重度 | 問題 | 檔案 | 說明 |
+|---|--------|------|------|------|
+| 7 | 🟡 | **ExpenseService.buildExpenseResponse（單筆）仍有 N+1** | `src/main/java/com/wego/service/ExpenseService.java:541-572` | 單筆 expense 的 `buildExpenseResponse` 仍然執行 3 次獨立查詢（`userRepository.findById` + `expenseSplitRepository.findByExpenseId` + `getUserMap`）。被 `getExpense`、`createExpense`、`updateExpense` 呼叫。單筆操作影響有限，但如果被迴圈呼叫會退化為 N+1。 |
+| 8 | 🟡 | **GlobalExpenseService.getUnsettledTrips 潛在 N+1** | `src/main/java/com/wego/service/GlobalExpenseService.java:110-123` | 對每個未結算行程呼叫 `calculateUserBalanceInTrip`（行 112），每次呼叫執行 2 次 DB 查詢。若有 M 個未結算行程，共 2M+2 次查詢。通常 M < 10，實際影響中等。可考慮用自定義 JPQL 一次性計算所有行程餘額。 |
 
 ---
 
-## 已修復項目
+## 5. 快取策略
 
-| 原嚴重度 | 項目 | 狀態 |
-|----------|------|------|
-| RED Critical | 資料庫索引缺失（所有 Entity 缺少 `@Table(indexes)` 註解） | 已修復 -- 所有 Entity 已加上索引註解 |
-| YELLOW Warning | 靜態資源無 Cache-Control headers | 已修復 -- 已加入 `setCachePeriod` |
-| BLUE Suggestion | Thymeleaf cache 在生產環境未啟用 | 已修復 -- 已啟用生產環境快取 |
+### 現有快取配置（CacheConfig.java）
+
+| 快取名稱 | TTL | 最大條目 | 用途 |
+|----------|-----|---------|------|
+| `statistics-category` | 5 min | 500 | 分類統計 |
+| `statistics-trend` | 5 min | 500 | 趨勢統計 |
+| `statistics-members` | 5 min | 500 | 成員統計 |
+| `exchange-rate` | 1 hour | 200 | 匯率主快取 |
+| `exchange-rate-fallback` | 24 hours | 200 | 匯率降級快取 |
+| `exchange-rate-all` | 1 hour | 50 | 全部匯率 |
+| `exchange-rate-all-fallback` | 24 hours | 50 | 全部匯率降級 |
+| `weather` | 6 hours | 200 | 天氣預報 |
+| `places` | 5 min | 500 | 地點搜尋 |
+| `directions` | 10 min | 200 | 路線規劃 |
+| `permission-check` | 5 sec | 500 | 權限檢查去重 |
+
+### 已獨立管理的快取
+
+| 快取 | 實作 | TTL | 用途 |
+|------|------|-----|------|
+| `signedUrlCache` | DocumentService 內建 Caffeine | signedUrlExpiry - 600s | Signed URL CDN 快取 |
+| `RateLimitService` | 獨立 Caffeine sliding window | 2 min | AI Chat rate limiting |
+
+### 已修復
+
+- **StatisticsService `@Cacheable` 代理問題** - 已正確提取到 `StatisticsCacheDelegate` Bean，避免同類別內部呼叫繞過代理。
+
+### 剩餘建議
+
+| # | 嚴重度 | 問題 | 檔案 | 說明 |
+|---|--------|------|------|------|
+| 9 | 🔵 | 可考慮行程詳情頁面 short-lived cache | `src/main/java/com/wego/service/TripService.java:145-158` | `getTrip` 每次呼叫執行多次 DB 查詢（findById + countByTripId + getRole + getMemberSummaries）。行程資訊變動頻率低，可加 short-lived cache（30 秒）。PermissionChecker 已有 5 秒快取，但 Trip 本身和成員列表未快取。 |
+| 10 | 🔵 | SettlementService.calculateSettlement 無快取 | `src/main/java/com/wego/service/SettlementService.java:111-182` | 結算計算涉及載入所有 expenses + splits + currency conversion，計算密集。結果可快取 30-60 秒，因結算資料變動頻率低。 |
 
 ---
 
-## Priority Action Items
+## 6. 外部 API 呼叫
 
-| Priority | Issue | Impact |
-|----------|-------|--------|
-| 1 | ~~Fix N+1 in `getUserTrips` (1.1)~~ ✅ 已修復 | Dashboard/trip list is highest-traffic page |
-| 2 | Cache PermissionChecker lookups (2.2) | Reduces 4+ redundant queries per page load |
-| 3 | ~~Consolidate caching systems (2.4)~~ ✅ 已修復 | Reduces memory leak risk and maintenance burden |
-| 4 | Add `@Async` for background operations (3.1) | Prevents thread blocking on external calls |
-| 5 | Fix `ddl-auto: update` for production (4.1) | Prevents schema corruption risk |
+### 現有配置
+
+| API | Connect Timeout | Read Timeout | 快取 | Circuit Breaker |
+|-----|-----------------|-------------|------|-----------------|
+| Google Maps Routes API | 5s | 10s | directions: 10min | 無 |
+| Google Maps Places API | 5s | 10s | places: 5min | 無 |
+| OpenWeatherMap | 透過共用 RestTemplate | 同上 | weather: 6h | 無 |
+| ExchangeRate API | 5s | 10s | 1h + 24h fallback | 5 failures / 5min |
+| Gemini AI | 5s | 30s | 無 | 3 failures / 5min |
+| Supabase Storage | 透過共用 RestTemplate | 同上 | Signed URL CDN | 無 |
+
+### 問題
+
+| # | 嚴重度 | 問題 | 檔案 | 說明 |
+|---|--------|------|------|------|
+| 11 | 🟡 | **外部 API Client 各自建立獨立 RestTemplate，無連線池** | `src/main/java/com/wego/service/external/GeminiClientImpl.java:63-67`, `src/main/java/com/wego/service/external/ExchangeRateApiClient.java:97-101` | 使用 `SimpleClientHttpRequestFactory`（底層 `HttpURLConnection`），每次請求建新 TCP 連線，無連線復用。GeminiClientImpl、ExchangeRateApiClient 均各自建立 RestTemplate。建議使用 `HttpComponentsClientHttpRequestFactory`（Apache HttpClient 5）配合連線池，共享 connection pool。 |
+| 12 | 🔵 | Google Maps API 缺少 Circuit Breaker | `src/main/java/com/wego/service/external/GoogleMapsClientImpl.java` | ExchangeRate 和 Gemini 都有 circuit breaker，但 Google Maps 沒有。API key 失效或配額耗盡時仍會嘗試呼叫。影響中等（通常由使用者主動觸發而非自動批次呼叫）。 |
+
+---
+
+## 7. 非同步處理
+
+| # | 嚴重度 | 問題 | 檔案 | 說明 |
+|---|--------|------|------|------|
+| 13 | 🟡 | **批次重算交通時間完全同步阻塞** | `src/main/java/com/wego/service/TransportCalculationService.java:403-568` | `batchRecalculateWithRateLimit` 逐一同步呼叫 Google Maps API（每次間隔 100ms）。50 個景點需至少等待 5 秒 + API 回應時間。專案未配置 `@EnableAsync`，無非同步基礎設施。建議對批次重算加入 `@Async` 或返回 polling-based 進度更新。 |
+| 14 | 🔵 | `TripService.deleteTrip` 同步刪除 Storage 檔案 | `src/main/java/com/wego/service/TripService.java:318-326` | 刪除行程時逐一同步刪除 Supabase Storage 檔案。若有大量文件，使用者需等待所有刪除完成。可考慮非同步刪除 Storage 檔案（DB 記錄已刪除即可回應）。 |
+
+---
+
+## 8. 前端靜態資源
+
+### 已修復
+
+- **HTTP 壓縮已啟用**（`application-prod.yml:8-16`）- 正確設定 `server.compression.enabled: true`，支援 text/html, text/css, application/javascript, application/json, image/svg+xml，最小回應大小 1024 bytes。預估靜態資源傳輸量減少 70-80%。
+
+### 剩餘問題
+
+| # | 嚴重度 | 問題 | 檔案 | 說明 |
+|---|--------|------|------|------|
+| 15 | 🟡 | **靜態資源 Cache-Control 僅 1 天** | `src/main/java/com/wego/config/WebConfig.java:44` | 靜態 CSS/JS 使用 `maxAge(1, TimeUnit.DAYS)`。每天瀏覽器都需重新驗證所有靜態資源。建議：使用 Spring `ResourceUrlProvider` 或 Webpack 內容雜湊版本號（如 `output.css?v=abc123`）搭配長期快取（30-365 天）。或至少在 prod 中延長至 7 天。 |
+| 16 | 🔵 | CSS 可能有未使用的樣式 | `src/main/resources/static/css/` | `output.css`（Tailwind 產出）和 `styles.css` 共存。建議確認 Tailwind purge/content 設定是否正確，移除未使用的樣式可減少 CSS 體積。 |
+
+---
+
+## 9. 正面發現（效能最佳實踐）
+
+1. **`open-in-view: false`**（`application.yml:36`）- 正確關閉 OSIV，避免 View 層觸發延遲載入
+2. **HikariCP 連線池配置**（`application.yml:19-23`）- pool-size 10, minimum-idle 2, 合理配置
+3. **`@Transactional(readOnly = true)`** - 讀取操作正確標記為唯讀，允許 DB 層級優化
+4. **TripService.getUserTrips 批次載入** - 使用 `findByTripIdIn` 避免 N+1，再批次載入 users
+5. **ActivityService 批次載入 Places** - `buildPlaceLookup` 單次查詢載入所有 Place
+6. **ExpenseService.buildExpenseResponsesBatch** - 使用 `findByTripId` 批次載入 splits，再批次載入 users（3 次查詢）
+7. **DocumentService.buildDocumentResponses** - 批次載入 uploaders、activities、places
+8. **DocumentRepository.countByTripIds** - 專用批次計數查詢避免 N+1
+9. **PermissionChecker 5 秒 Caffeine 快取** - 有效去重同一請求內的多次權限檢查
+10. **ExchangeRateService 雙層快取** - Primary（1h）+ Fallback（24h）策略，API 故障時有降級方案
+11. **Gemini + ExchangeRate Circuit Breaker** - 外部 API 熔斷保護，避免級聯失敗
+12. **StatisticsCacheDelegate 模式** - 正確解決 Spring AOP self-invocation 繞過快取問題
+13. **DocumentService signedUrlCache** - Signed URL CDN 快取，減少 Supabase API 呼叫
+14. **JPA `ddl-auto: none`**（production: `validate`）- 不自動變更 schema
+15. **UUID 主鍵 + 應用層生成** - 避免序列瓶頸
+16. **Thymeleaf cache: true（prod）** - 生產環境啟用模板快取
+17. **HTTP 壓縮（prod）** - gzip 壓縮已啟用
+18. **ChatService prompt 5000 char 截斷 + 2KB byte limit** - 防止 OOM 和超大請求
+
+---
+
+## 10. 改善建議優先順序
+
+### 第一優先（高影響、低成本）
+
+1. **User 表加 `(provider, provider_id)` 複合索引**（問題 #2）
+
+```java
+@Table(name = "users", indexes = {
+    @Index(name = "idx_user_provider_provider_id", columnList = "provider, provider_id")
+})
+```
+
+影響：每次 OAuth 登入都會查詢此欄位組合，建立索引後從 full table scan 降為 index lookup。
+
+2. **GlobalExpenseService.getUnsettledTrips 批次計算餘額**（問題 #8）
+
+```java
+// 用自定義 JPQL 一次計算所有行程的 owed / owedTo
+@Query("SELECT e.tripId, " +
+       "SUM(CASE WHEN e.paidBy = :userId AND es.userId != :userId AND es.isSettled = false THEN es.amount ELSE 0 END), " +
+       "SUM(CASE WHEN es.userId = :userId AND es.userId != e.paidBy AND es.isSettled = false THEN es.amount ELSE 0 END) " +
+       "FROM Expense e JOIN ExpenseSplit es ON es.expenseId = e.id " +
+       "WHERE e.tripId IN :tripIds " +
+       "GROUP BY e.tripId")
+```
+
+影響：M 個未結算行程從 2M+2 次查詢降為 1-2 次。
+
+### 第二優先（中等影響）
+
+3. **共享 RestTemplate + 連線池**（問題 #11）
+
+```java
+@Configuration
+public class RestTemplateConfig {
+    @Bean
+    public RestTemplate restTemplate() {
+        var factory = new HttpComponentsClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(10000);
+        // Apache HttpClient 5 自帶連線池
+        return new RestTemplate(factory);
+    }
+}
+```
+
+4. **靜態資源版本號 + 長期快取**（問題 #15）- 使用 Spring `ResourceUrlProvider` 或手動版本號搭配 7+ 天快取
+
+5. **@Async 配置 + 批次重算非同步化**（問題 #13）- 加入 `@EnableAsync` 和自訂執行緒池，對 `batchRecalculateWithRateLimit` 返回 `CompletableFuture`
+
+### 第三優先（低影響 / 未來優化）
+
+6. SettlementService 計算結果快取（問題 #10）
+7. TripService.getTrip short-lived cache（問題 #9）
+8. CSS 清理與 Tailwind purge 驗證（問題 #16）
+9. Expense / Document 列表加分頁上限（問題 #4, #5）
+
+---
+
+## 效能評分
+
+| 維度 | 分數 | 說明 |
+|------|:----:|------|
+| Entity 設計 | 9/10 | 扁平 UUID 設計乾淨，避免 JPA 關聯陷阱 |
+| 資料庫索引 | 8/10 | 索引覆蓋良好，TripMember 已補充，User 表需加索引 |
+| N+1 查詢 | 8/10 | 主要 N+1 已修復（Expense 批次、Trip 批次、Document 批次），僅餘單筆和 Global 小問題 |
+| 快取策略 | 9/10 | 多層快取設計優秀，StatisticsDelegate 正確解決代理問題，signed URL 快取到位 |
+| 外部 API | 7/10 | Timeout + Circuit Breaker 到位，連線池仍需改善 |
+| 非同步處理 | 5/10 | 完全同步設計，批次操作有阻塞風險 |
+| 前端資源 | 7/10 | gzip 壓縮已啟用，Cache-Control 策略可改善 |
+| 連線池/並行 | 8/10 | HikariCP 配置合理，HTTP 連線未池化 |
+
+### **綜合效能評分：7.8 / 10**
+
+**自上次審查提升：7.0 → 7.8（+0.8）**
+
+主要提升項：
+- HTTP 壓縮已啟用（+0.4）
+- ExpenseService N+1 已修復（+0.3）
+- TripMember 索引已補充（+0.1）
+
+主要扣分項：
+- 無 @Async / 執行緒池（-1.0）
+- 外部 API 無連線池（-0.5）
+- 靜態資源 Cache-Control 僅 1 天（-0.3）
+- GlobalExpenseService N+1 未修（-0.2）
+- User 表缺少 OAuth 查詢索引（-0.2）
+
+**下一步建議：配置連線池 + @Async 即可提升至 8.5+**

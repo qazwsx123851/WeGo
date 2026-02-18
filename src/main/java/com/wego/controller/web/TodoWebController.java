@@ -2,7 +2,6 @@ package com.wego.controller.web;
 
 import com.wego.dto.response.TodoResponse;
 import com.wego.dto.response.TripResponse;
-import com.wego.entity.Role;
 import com.wego.entity.TodoStatus;
 import com.wego.entity.User;
 import com.wego.service.TodoService;
@@ -78,14 +77,8 @@ public class TodoWebController extends BaseWebController {
         long inProgressTodos = stats.getOrDefault(TodoStatus.IN_PROGRESS, 0L);
 
         // Find current member's role
-        TripResponse.MemberSummary currentMember = trip.getMembers().stream()
-                .filter(m -> m.getUserId().equals(user.getId()))
-                .findFirst()
-                .orElse(null);
-
-        boolean canEdit = currentMember != null &&
-                (currentMember.getRole() == Role.OWNER ||
-                 currentMember.getRole() == Role.EDITOR);
+        TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());
+        boolean canEdit = canEdit(currentMember);
 
         // Add data to model
         model.addAttribute("trip", trip);

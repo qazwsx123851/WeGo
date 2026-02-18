@@ -843,13 +843,23 @@
                     cssSpinner.classList.remove('hidden');
                 }
             } catch (e) {
-                console.warn('Lottie animation failed to load:', e);
                 lottieContainer.classList.add('hidden');
                 cssSpinner.classList.remove('hidden');
             }
 
+            // Hide modal and stop animation helper
+            function hideLoading() {
+                recalculateModal.classList.add('hidden');
+                if (loadingAnimation) {
+                    loadingAnimation.stop();
+                }
+            }
+
             // Recalculate button click handler
             recalculateBtn.addEventListener('click', async function() {
+                if (recalculateBtn.disabled) return;
+                recalculateBtn.disabled = true;
+
                 const tripId = this.dataset.tripId;
 
                 // Show loading modal
@@ -860,39 +870,50 @@
                     loadingAnimation.play();
                 }
 
-                // Get CSRF token
-                const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
-                const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
-
                 try {
-                    // Create form and submit
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = '/trips/' + tripId + '/recalculate-transport';
+                    var response = await WeGo.fetchWithTimeout(
+                        '/trips/' + tripId + '/recalculate-transport',
+                        {
+                            method: 'POST',
+                            headers: {
+                                [WeGo.getCsrfHeader()]: WeGo.getCsrfToken(),
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json'
+                            },
+                            credentials: 'same-origin'
+                        },
+                        60000
+                    );
 
-                    // Add CSRF token
-                    if (csrfToken && csrfHeader) {
-                        const csrfInput = document.createElement('input');
-                        csrfInput.type = 'hidden';
-                        csrfInput.name = '_csrf';
-                        csrfInput.value = csrfToken;
-                        form.appendChild(csrfInput);
+                    var data;
+                    try {
+                        data = await response.json();
+                    } catch (_) {
+                        hideLoading();
+                        recalculateBtn.disabled = false;
+                        Toast.error('伺服器回應格式錯誤，請稍後再試');
+                        return;
                     }
 
-                    document.body.appendChild(form);
-                    form.submit();
+                    hideLoading();
 
-                } catch (error) {
-                    console.error('Recalculation failed:', error);
-                    recalculateModal.classList.add('hidden');
-                    if (loadingAnimation) {
-                        loadingAnimation.stop();
-                    }
-                    // Show error toast if available
-                    if (typeof showToast === 'function') {
-                        showToast('重新計算失敗，請稍後再試', 'error');
+                    if (response.ok && data.success) {
+                        Toast.success(data.message);
+                        setTimeout(function() { window.location.reload(); }, 500);
                     } else {
-                        alert('重新計算失敗，請稍後再試');
+                        recalculateBtn.disabled = false;
+                        Toast.error(data.message || '重新計算失敗，請稍後再試');
+                    }
+                } catch (error) {
+                    hideLoading();
+                    recalculateBtn.disabled = false;
+                    var msg = error.message === 'Request timed out'
+                        ? '重新計算逾時，請稍後再試'
+                        : '重新計算失敗，請稍後再試';
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error(msg);
+                    } else {
+                        alert(msg);
                     }
                 }
             });

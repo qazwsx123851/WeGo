@@ -6,7 +6,6 @@ import com.wego.config.ExchangeRateProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -70,9 +69,11 @@ public class ExchangeRateApiClient implements ExchangeRateClient {
      *   - post: Client is ready to make API calls with configured timeouts
      *
      * @param properties ExchangeRate configuration properties
-     * @param restTemplate RestTemplate for HTTP calls
+     * @param restTemplate RestTemplate for HTTP calls (shared, connection-pooled)
      */
-    public ExchangeRateApiClient(ExchangeRateProperties properties, RestTemplate restTemplate) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public ExchangeRateApiClient(ExchangeRateProperties properties,
+                                 @org.springframework.beans.factory.annotation.Qualifier("externalApiRestTemplate") RestTemplate restTemplate) {
         if (properties == null) {
             throw new IllegalArgumentException("ExchangeRateProperties cannot be null");
         }
@@ -80,25 +81,6 @@ public class ExchangeRateApiClient implements ExchangeRateClient {
         this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
         log.info("ExchangeRateApiClient initialized (API key configured: {})", properties.hasApiKey());
-    }
-
-    /**
-     * Default constructor for Spring injection.
-     * Configures RestTemplate with timeouts from properties.
-     */
-    @org.springframework.beans.factory.annotation.Autowired
-    public ExchangeRateApiClient(ExchangeRateProperties properties) {
-        this(properties, createRestTemplateWithTimeouts(properties));
-    }
-
-    /**
-     * Creates a RestTemplate with configured timeouts.
-     */
-    private static RestTemplate createRestTemplateWithTimeouts(ExchangeRateProperties properties) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.getConnectTimeoutMs());
-        factory.setReadTimeout(properties.getReadTimeoutMs());
-        return new RestTemplate(factory);
     }
 
     /**

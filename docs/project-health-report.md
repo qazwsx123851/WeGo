@@ -1,195 +1,239 @@
 # WeGo 專案健康度報告
 
-**日期:** 2026-02-13
+**日期:** 2026-02-18（第五次審查 — Batch 1-4 改善後）
 **審查範圍:** 架構、安全、前端、效能、測試
-**審查團隊:** 5 位自動化審查員 (Claude Opus 4.6)
 **分支:** main
 
 ---
 
 ## 總覽評分表
 
-| 面向 | 分數 (1-10) | 說明 |
-|------|:-----------:|------|
-| 架構設計 | **8.5** | 分層清晰，Auth 統一為 `@CurrentUser UserPrincipal` (零 DB 查詢)，業務邏輯提取至 ViewHelper，PermissionChecker 含請求級快取，TripConstants 共用常數 |
-| 安全性 | **8.5** | 基礎扎實 (OAuth2、CSRF、參數化查詢、無 XSS)，max-request-size 已降至 30MB；生產環境錯誤訊息曝露仍為 Critical |
-| 前端品質 | **8.0** | 模組化 JS 良好，共用 `common.js` (escapeHtml/CSRF/fetchWithTimeout/preventDoubleSubmit)，**27/27 模板統一 head fragment**，表單防重複提交 |
-| 效能 | **8.5** | 資料庫索引、Cache-Control、統一快取系統、N+1 修復（Trip/Document 批次查詢）、Signed URL 快取、PermissionChecker 快取 (5s TTL)、Web Auth 零 DB 查詢、分離 RestTemplate timeout |
-| 測試覆蓋 | **9.0** | 1060 單元測試 (79 個測試檔案) + 11 個 E2E spec 全數通過，12/12 Web Controller 皆有 WebMvcTest，REST API 100% 覆蓋，ViewHelper 單元測試 |
-| **整體** | **8.7** | 功能完整的 MVP，Auth 統一、業務邏輯分層、前端整合、例外處理收緊、模板全統一、Web Controller 測試全覆蓋、檔案預覽效能優化 |
+| 面向 | 分數 (1-10) | 較上次 | 說明 |
+|------|:-----------:|:------:|------|
+| 架構設計 | **9.2** | ↑ 0.3 | DocumentService DTO 分離完成、requireUserId 消除、TodoWebController DRY 修復、業務例外日誌等級修正 |
+| 安全性 | **9.2** | ↑ 0.1 | WebExceptionHandler 隱藏內部錯誤訊息；既有 HSTS/Session Fixation/速率限制 |
+| 前端品質 | **7.8** | ↑ 0.3 | console.error/warn 全數清除、alert() 改 Toast；行內腳本仍為主要待改善項 |
+| 效能 | **8.5** | ↑ 0.7 | User 複合索引、GlobalExpense N+1 批次修復、Apache HttpClient 5 連線池、Google Maps Circuit Breaker |
+| 測試覆蓋 | **9.0** | ↑ 0.3 | 1100 測試全數通過（+31 新增）、ExchangeRateApiClient + SupabaseStorageClient 整合測試補齊 |
+| **整體** | **8.7** | ↑ 0.3 | 第二輪 Batch 1-4 全部完成，架構/效能/測試三面向同步提升 |
+
+> **評分說明**：本次改善涵蓋 4 個 Batch，從 Roadmap 立即項目到測試補強全部完成。效能面提升最大（+0.7），新增連線池、N+1 修復和 Circuit Breaker。架構面 Entity 洩漏和 DRY 問題全數解決。測試從 1069 增至 1100，外部 Client 整合測試覆蓋補齊。
 
 ---
 
 ## Critical 問題優先處理清單
 
-以下問題應**立即修復**，依影響程度排序：
-
-| # | 嚴重度 | 面向 | 問題 | 檔案 | 影響 |
-|---|--------|------|------|------|------|
-| 1 | 🔴 | 安全 | `server.error.include-message: always` 洩漏內部細節 | `application.yml:83-84` | 生產環境曝露類別名、Schema 資訊 | ✅ 已修復 |
-| 2 | 🔴 | 效能 | `getUserTrips` N+1 查詢 | `TripService.java:185-195` | 每頁 20 筆行程 = 40+ 額外查詢 | ✅ 已修復 — batch loading |
-| 3 | 🔴 | 架構 | TripController 1664 行，God Controller | `TripController.java` | 可維護性極差，違反 SRP | ✅ 已修復 — 拆分至 535 行，新增 DocumentWebController、MemberWebController |
-| 4 | 🔴 | 架構 | 業務邏輯洩漏到 Controller 層 | `TripController.java` 多處 | 無法測試、無法復用 | ✅ 部分修復 — Place find-or-create 已提取至 PlaceService，BaseWebController helpers 消除重複 |
-| 5 | 🔴 | 架構 | Place find-or-create 邏輯重複 77 行 | `TripController.java:1081-1158, 1304-1380` | DRY 違反 | ✅ 已修復 — 提取至 PlaceService |
-| 6 | 🔴 | 前端 | `members.html` 引用 `inviteLink`/`inviteLinkExpiry` 但 Controller 未提供 | `trip/members.html` + `TripController` | 邀請連結功能完全損壞 | ✅ 已修復 — Controller 已提供 |
+**🔴 Critical: 0 項** — 所有 Critical 問題已修復。
 
 ---
 
-## 近期已修復項目
+## 本次改善項目（Batch 1-4）
 
-| 項目 | 面向 | 原嚴重度 | 狀態 |
-|------|------|----------|------|
-| AI 聊天安全強化（prompt injection、circuit breaker、Unicode 驗證、OOM 修復） | 安全 | 🔴 Critical | ✅ 已修復 |
-| Entity 加上 `@Table(indexes=...)` 註解 | 效能 | 🔴 Critical | 已修復 |
-| 靜態資源加上 Cache-Control (`setCachePeriod`) | 效能 | 🟡 Warning | 已修復 |
-| Thymeleaf cache 生產環境啟用 | 效能 | 🔵 Suggestion | 已修復 |
-| `max-request-size` 從 100MB 降至 30MB | 安全 | 🟡 Warning | 已修復 |
-| ObjectURL 記憶體洩漏修復 (`revokeObjectURL`) | 前端 | 🟡 High | 已修復 |
-| console.log/warn/error 語句清除 | 前端 | 🟠 Medium | 已修復 |
-| 提取 `BaseWebController` 基礎類別 | 架構 | 🟡 Warning | ✅ 已修復 |
-| Repository 旁路修復 (InviteController, ProfileController, ExpenseWebController) | 架構 | 🔴 Critical | ✅ 已修復 |
-| TripController 拆分 (1664→535 行) | 架構 | 🔴 Critical | ✅ 已修復 |
-| Place find-or-create 提取至 PlaceService | 架構 | 🔴 Critical | ✅ 已修復 |
-| BaseWebController 全面繼承 (9 個 Web Controller) | 架構 | 🟡 Warning | ✅ 已修復 |
-| trip-fetch-and-null-check 重複模板提取 | 架構 | 🟡 Warning | ✅ 已修復 |
-| 統一快取系統至 Spring Cache + Caffeine | 效能 | 🟡 Warning | ✅ 已修復 |
-| CacheService 記憶體洩漏風險消除 | 效能 | 🟡 Warning | ✅ 已修復 |
-| TodoApiController WebMvcTest (20 tests) | 測試 | 🟡 Warning | ✅ 已修復 |
-| ExchangeRateApiController WebMvcTest (16 tests) | 測試 | 🟡 Warning | ✅ 已修復 |
-| TripController WebMvcTest (16 tests) | 測試 | 🟡 Warning | ✅ 已修復 |
-| N+1 查詢修復 (getUserTrips batch loading) | 效能 | 🔴 Critical | ✅ 已修復 |
-| inviteLink/inviteLinkExpiry Controller 提供 | 前端 | 🔴 Critical | ✅ 已修復 |
-| `@CurrentUser UserPrincipal` 全面遷移 (11 個 Controller) | 架構 | 🟡 Warning | ✅ 已修復 |
-| ActivityViewHelper / ExpenseViewHelper 業務邏輯提取 | 架構 | 🟡 Warning | ✅ 已修復 |
-| PermissionChecker 請求級 Caffeine 快取 (5s TTL) | 效能 | 🟡 Warning | ✅ 已修復 |
-| TripConstants 共用常數 (`MAX_MEMBERS_PER_TRIP`) | 架構 | 🔵 Suggestion | ✅ 已修復 |
-| HomeController DTO mutation 修復 (不可變 Map) | 架構 | 🟡 Warning | ✅ 已修復 |
-| `common.js` 共用工具 (escapeHtml/CSRF/fetchWithTimeout) | 前端 | 🟡 High | ✅ 已修復 |
-| 模板 `var` → `const/let` (95+5 處) | 前端 | 🟠 Medium | ✅ 已修復 |
-| Web Controller 測試全覆蓋 (12/12, +54 tests) | 測試 | 🟡 Warning | ✅ 已修復 |
-| 例外處理收緊 (Activity/Expense Controller) | 架構 | 🟡 Warning | ✅ 已修復 (24→19 個 broad catch) |
-| 27/27 模板統一 `fragments/head` | 前端 | 🟡 High | ✅ 已修復 (含 error 頁面 fallback) |
-| ViewHelper 單元測試 (32 tests) | 測試 | 🟠 Medium | ✅ 已修復 |
-| 表單防重複提交 (`WeGo.preventDoubleSubmit`) | 前端 | 🟠 Medium | ✅ 已修復 (4 個表單) |
-| Document Signed URL 快取 (Caffeine, 動態 TTL) | 效能 | 🟡 Warning | ✅ 已修復 |
-| Document N+1 批次查詢 (`buildDocumentResponses`) | 效能 | 🟡 Warning | ✅ 已修復 (~23→~4 queries) |
-| SupabaseStorageClient 雙 RestTemplate (API/File timeout 分離) | 效能 | 🔵 Suggestion | ✅ 已修復 |
+### Batch 1 — 立即修復
+| 項目 | 面向 | 檔案 |
+|------|------|------|
+| ✅ User 表加 `(provider, provider_id)` 複合索引 | 效能 | `User.java` |
+| ✅ TodoWebController 改用 BaseWebController 方法 | 架構 | `TodoWebController.java` |
+| ✅ WebExceptionHandler 隱藏內部錯誤訊息 | 安全 | `WebExceptionHandler.java` |
+| ✅ 前端 console 語句 + alert() 清理 | 前端 | 5 個 HTML 模板 |
+
+### Batch 2 — 架構收尾
+| 項目 | 面向 | 檔案 |
+|------|------|------|
+| ✅ DocumentService.getDocumentForPreview() 改回傳 DTO | 架構 | `DocumentService.java`, `DocumentPreviewInfo.java`, `DocumentApiController.java` |
+| ✅ 消除 requireUserId() 重複 | 架構 | `ActivityApiController.java`, `ChatApiController.java` |
+| ✅ 業務例外日誌等級調整 | 架構 | `ActivityWebController.java` |
+
+### Batch 3 — 效能進階
+| 項目 | 面向 | 檔案 |
+|------|------|------|
+| ✅ GlobalExpenseService N+1 批次修復（2N+2 → 3 次查詢） | 效能 | `ExpenseSplitRepository.java`, `GlobalExpenseService.java` |
+| ✅ 共享 RestTemplate + Apache HttpClient 5 連線池 | 效能 | `HttpClientConfig.java`（新增）, 4 個 Client |
+| ✅ Google Maps Circuit Breaker | 效能 | `GoogleMapsClientImpl.java` |
+
+### Batch 4 — 測試補強
+| 項目 | 面向 | 檔案 |
+|------|------|------|
+| ✅ ExchangeRateApiClient 單元測試（13 tests） | 測試 | `ExchangeRateApiClientTest.java`（新增） |
+| ✅ SupabaseStorageClient 單元測試（18 tests） | 測試 | `SupabaseStorageClientTest.java`（新增） |
 
 ---
 
-## 各面向詳細發現統計
+## 各面向詳細發現
 
-### 架構 (18 issues, 大部分已修復)
-
-| 嚴重度 | 數量 | 主要問題 |
-|--------|:----:|----------|
-| 🔴 Critical | 0 | (全部已修復) |
-| 🟡 Warning | 1 | broad exception catching (19 個 `catch (Exception e)`，已從 24 個收緊) |
-| 🔵 Suggestion | 1 | 命名不一致 |
-
-### 安全 (12 issues)
+### 架構 — 9.2/10
 
 | 嚴重度 | 數量 | 主要問題 |
 |--------|:----:|----------|
-| 🔴 Critical | 1 | 生產環境錯誤訊息曝露 |
-| 🟡 Warning | 6 | `ddl-auto: update`、SQL 日誌 DEBUG、CSP `unsafe-inline`、Google Maps Key 前端曝露、Weather API 無認證 |
-| 🔵 Suggestion | 5 | CORS 確認、`img-src` 收窄、TestAuth Profile 保護測試 |
+| 🔴 Critical | 0 | — |
+| 🟡 Warning | 0 | **全部已修復** |
+| 🔵 Suggestion | 6 | BaseWebController field injection、TripService 12 依賴、GlobalExceptionHandler 缺 ValidationException handler、Controller magic number、ExchangeRateApiController 內嵌 DTO、inline styles in templates |
 
-**通過項目:** SQL Injection、XSS、CSRF、Session 管理、Secrets 管理、CORS、Invite Token、File Upload（max-request-size 已修復）
-
-### 前端 (21 issues, 含 2 已修復)
+### 安全 — 9.2/10
 
 | 嚴重度 | 數量 | 主要問題 |
 |--------|:----:|----------|
-| 🔴 Critical | 0 | (已修復) |
-| 🟡 High | 0 | (已修復：27/27 模板皆使用 head fragment) |
-| 🟠 Medium | 4 | 20+ innerHTML、Modal focus trap 不完整 |
-| 🔵 Low | 5 | 版權年份寫死、可能未用的 CSS、缺 skip-to-content、部分按鈕缺 aria-label |
+| 🔴 Critical | 0 | — |
+| 🟡 Warning | 4 | Chat AI innerHTML（有 escapeHtml）、CSP script-src unsafe-inline、CSP style-src unsafe-inline、Spring Boot 3.2.2 版本偏舊 |
+| 🔵 Suggestion | 4 | TestAuth prod 隔離測試、Method-Level Security、Session timeout、DOMPurify |
 
-### 效能 (13 issues, 含 3 已修復)
+### 前端 — 7.8/10
 
 | 嚴重度 | 數量 | 主要問題 |
 |--------|:----:|----------|
-| 🔴 Critical | 0 | (已修復) |
-| 🟡 Warning | 4 | Settlement N+1、無界列表查詢、Trip 刪除 9 次 DB 操作、`getTrip` 無快取 |
-| 🔵 Suggestion | 6 | 統一快取系統、共享 RestTemplate、Maps API 快取、Circuit Breaker 擴展、生產環境設定分離、全同步外部 API |
+| 🔴 Critical | 0 | — |
+| HIGH | 3 | 6 模板含 150-300 行行內 JS、50+ inline onclick handler、部分行內腳本缺 fetchWithTimeout |
+| MEDIUM | 4 | 行內腳本 AJAX 缺防重複提交、SpEL null-safety 少數可改善、Modal focus trap 不完整、fetchWithTimeout 部分覆蓋 |
+| LOW | 4 | 版權年份硬編碼、行內 var 5 處、!important 1 處、缺 skip-to-content |
 
-**正面發現:** 扁平 Entity 設計、`open-in-view: false`、批次 Place 查詢、Caffeine 統計快取、匯率兩層快取、Bucket4j 限流
+### 效能 — 8.5/10
 
-### 測試 (4 warnings + 5 suggestions)
+| 嚴重度 | 數量 | 主要問題 |
+|--------|:----:|----------|
+| 🔴 Critical | 0 | — |
+| 🟡 Warning | 4 | getExpensesByTrip 不帶分頁、getDocumentsByTrip 不帶分頁、單筆 buildExpenseResponse 仍 3 次查詢、批次重算同步阻塞 |
+| 🔵 Suggestion | 5 | 行程詳情 short-lived cache、SettlementService 結算快取、ExpenseSplit 複合索引、CSS 未使用樣式、Todo 不帶分頁 |
 
-| 項目 | 數據 |
+### 測試 — 9.0/10
+
+| 指標 | 數值 |
 |------|------|
-| 單元測試總數 | 1060 (79 個測試檔案) |
-| E2E 測試總數 | 11 個 spec |
-| 通過率 | 100% |
-| 新增測試檔 | ActivityWebControllerTest (16)、ExpenseWebControllerTest (14)、ProfileControllerTest (6)、InviteControllerTest (7)、TodoWebControllerTest (3)、SettlementWebControllerTest (4)、GlobalExpenseControllerTest (2)、GlobalDocumentControllerTest (2)、TripControllerTest (16)、TodoApiControllerTest (20)、ExchangeRateApiControllerTest (16) |
-| 已覆蓋 Service | 12/12 核心 Service |
-| REST API 覆蓋 | 全部 REST API Controller 皆有 WebMvcTest |
-| Web Controller 覆蓋 | **12/12** — 全部 Web Controller 皆有 WebMvcTest |
-| 整合測試 | 無 `@SpringBootTest` |
+| 總測試數 | **1100**（從 1069 增至 1100） |
+| 通過率 | 100%（0 失敗、0 跳過） |
+| 測試檔案數 | 89 |
+| 執行時間 | ~21 秒 |
+| API Controller 覆蓋 | 14/14 (100%) |
+| Web Controller 覆蓋 | 13/13 (100%) |
+| Service 覆蓋 | 21/21 (100%) |
+| 外部 Client 覆蓋 | 6/6 (100%) |
+| E2E Spec | 11 個 |
 
 ---
 
 ## 改善 Roadmap
 
-### 立即 (Sprint 0 - 生產部署前)
+### 📋 短期（1-2 Sprint）
 
-| # | 任務 | 面向 | 預期效果 | 狀態 |
+| # | 任務 | 面向 | 預期效果 | 工時 |
 |---|------|------|----------|------|
-| 1 | `application.yml` 設定 `include-message: never`, `include-binding-errors: never` | 安全 | 阻止內部資訊洩漏 | ✅ 已完成 |
-| 2 | 建立 `application-prod.yml`: `ddl-auto: validate`, SQL 日誌 `WARN`, `thymeleaf.cache: true` | 安全+效能 | 生產環境安全設定 | ✅ 已完成 |
-| 3 | 修復 `showMembersPage()` 提供 `inviteLink` / `inviteLinkExpiry` 給模板 | 前端 | 邀請連結功能恢復 | ✅ 已完成 |
-| 4 | 所有 Entity 加上 `@Table(indexes=...)` 註解 | 效能 | 列表查詢效能大幅提升 | 已完成 |
+| 1 | 升級 Spring Boot 至最新 3.2.x patch 或 3.3.x | 安全 | 安全修復 | 半天-1天 |
+| 2 | CI 啟用 JaCoCo 覆蓋率門檻 80% | 測試 | 防止覆蓋率退化 | 2 小時 |
 
-### 短期 (1-2 Sprint)
+### 🔧 中期（3-4 Sprint）
 
-| # | 任務 | 面向 | 預期效果 | 狀態 |
+| # | 任務 | 面向 | 預期效果 | 工時 |
 |---|------|------|----------|------|
-| 5 | 修復 `getUserTrips` N+1：批次查詢 TripMember + User | 效能 | Dashboard 查詢數從 40+ 降至 3 | ✅ 已完成 |
-| 6 | 靜態資源加 `Cache-Control` | 效能 | 頁面載入速度顯著提升 | 已完成 |
-| 7 | `PermissionChecker` 加 Request-scoped 快取 | 效能 | 每次請求減少 3+ 重複查詢 | ✅ 已完成 (Caffeine 5s TTL) |
-| 8 | 提取 `BaseWebController`：`getCurrentUser()` + `findCurrentMember()` + `canEdit()` | 架構 | 消除 8+ Controller 重複程式碼 | ✅ 已完成 |
-| 9 | 提取共享 JS 工具：`escapeHtml`、CSRF、`fetchWithTimeout` | 前端 | 消除 4x 重複、AJAX 不再無限等待 | ✅ 已完成 (common.js) |
-| 10 | 所有模板改用 `fragments/head` Fragment | 前端 | 統一 meta tag、減少維護負擔 | ✅ 已完成 (27/27 模板，含 error 頁面 fallback) |
-| 11 | 修復 `CoverImagePreview` ObjectURL 記憶體洩漏 | 前端 | `URL.revokeObjectURL()` | 已完成 |
+| 3 | CSP 從 `unsafe-inline` 遷移至 nonce-based | 安全 | XSS 防護等級大幅提升 | 2-3 天 |
+| 4 | 行內腳本抽取為外部 JS 模組（6 模板） | 前端 | 維護性提升、CSP 相容、消除 onclick | 3-5 天 |
+| 5 | @EnableAsync + 自訂執行緒池 + 批次重算非同步化 | 效能 | 釋放請求執行緒，避免阻塞 | 1 天 |
+| 6 | 靜態資源版本號 + 長期快取（30-365 天） | 效能 | 減少瀏覽器重驗證 | 半天 |
+| 7 | 成員管理 + 費用結算 E2E 測試 | 測試 | 關鍵流程端到端驗證 | 1-2 天 |
+| 8 | Modal focus trap 完善 + skip-to-content | 前端 | 無障礙合規 | 1 天 |
 
-### 中期 (3-4 Sprint)
+### 🏗️ 長期（5+ Sprint）
 
-| # | 任務 | 面向 | 預期效果 | 狀態 |
-|---|------|------|----------|------|
-| 12 | 拆分 TripController 為 4-5 個 focused Controller | 架構 | SRP 合規、可維護性大幅提升 | ✅ 已完成 |
-| 13 | 業務邏輯從 Controller 移至 Service 層 | 架構 | 邏輯可測試、可復用 | ✅ 已完成 (ActivityViewHelper + ExpenseViewHelper) |
-| 14 | Place find-or-create 提取至 `PlaceService` | 架構 | 消除 77 行重複 | ✅ 已完成 |
-| 15 | 統一快取系統至 Spring Cache + Caffeine | 效能 | 消除記憶體洩漏風險、統一管理 | ✅ 已完成 |
-| 16 | CSP 從 `unsafe-inline` 遷移至 nonce-based | 安全 | XSS 防護等級提升 | 待處理 |
-| 17 | 補寫 TodoApiController + ExchangeRateApiController WebMvcTest | 測試 | REST API 100% Controller 測試覆蓋 | ✅ 已完成 |
-| 18 | 外部 API 呼叫加 `@Async` + 專用執行緒池 | 效能 | 釋放請求執行緒、避免阻塞 | 待處理 |
-| 19 | 引入 Flyway 或 Liquibase 管理 Schema 遷移 | 安全+效能 | 取代 `ddl-auto: update` | 待處理 |
+| # | 任務 | 面向 | 預期效果 |
+|---|------|------|----------|
+| 9 | 引入 Flyway 管理 Schema 遷移 | 安全+架構 | 取代 ddl-auto |
+| 10 | 引入 Resilience4j 全外部 API Circuit Breaker | 效能 | 統一熔斷框架 |
+| 11 | @SpringBootTest 整合測試 | 測試 | 驗證完整 Spring Wiring |
+| 12 | Mutation Testing (PIT) | 測試 | 驗證測試有效性 |
+| 13 | 前端無障礙強化（WCAG 2.1 AA） | 前端 | 合規與包容性 |
 
-### 長期 (5+ Sprint)
+---
 
-| # | 任務 | 面向 | 預期效果 | 狀態 |
-|---|------|------|----------|------|
-| 20 | 所有 Web Controller 遷移至 `@CurrentUser UserPrincipal` | 架構 | 統一認證模式、消除每次請求的 email 查詢 | ✅ 已完成 (11 個 Controller) |
-| 21 | 補寫 Web Controller 測試 (30+ 端點) | 測試 | Thymeleaf 渲染正確性驗證 | ✅ 已完成 (12/12 Controller, 70 tests) |
-| 22 | 加入 `@SpringBootTest` 整合測試 | 測試 | 驗證完整 Spring Wiring | 待處理 |
-| 23 | 引入 Resilience4j：全外部 API 加 Circuit Breaker | 效能 | 防止級聯失敗 | 待處理 |
-| 24 | 前端 inline script `var` → `const/let` | 前端 | 95 個 `var` → `const`、5 個 → `let` | ✅ 已完成 |
-| 25 | Google Maps API Key 限制 HTTP Referrer + 僅 Embed API | 安全 | 降低 Key 被濫用風險 | 待處理 |
+## 歷史趨勢
+
+| 日期 | 架構 | 安全 | 前端 | 效能 | 測試 | 整體 |
+|------|:----:|:----:|:----:|:----:|:----:|:----:|
+| 2026-02-06 | 5.5 | 7.0 | 6.0 | 6.5 | 5.0 | **7.0** |
+| 2026-02-13 | 8.5 | 8.5 | 8.0 | 8.5 | 9.0 | **8.7** |
+| 2026-02-14 | 8.6 | 8.9 | 7.5 | 7.0 | 8.5 | **8.1** |
+| 2026-02-18 (審查) | 8.9 | 9.1 | 7.5 | 7.8 | 8.7 | **8.4** |
+| **2026-02-18 (改善後)** | **9.2** | **9.2** | **7.8** | **8.5** | **9.0** | **8.7** |
+
+> **2026-02-18 改善後**：第二輪 Batch 1-4 全部完成（8.4 → 8.7）。效能提升最大（+0.7），歸功於連線池、N+1 批次修復和 Circuit Breaker。架構面 Warning 歸零（+0.3）。測試突破 1100 門檻，外部 Client 覆蓋 100%。前端 console/alert 清理完成（+0.3）。
+
+---
+
+## 近期已修復項目（累計）
+
+<details>
+<summary>展開查看所有已修復項目（56 項）</summary>
+
+| 項目 | 面向 | 原嚴重度 | 狀態 |
+|------|------|----------|------|
+| AI 聊天安全強化（prompt injection、circuit breaker、Unicode 驗證、OOM 修復） | 安全 | 🔴 Critical | ✅ |
+| `server.error.include-message: always` 洩漏內部細節 | 安全 | 🔴 Critical | ✅ |
+| `getUserTrips` N+1 查詢 | 效能 | 🔴 Critical | ✅ |
+| TripController 1664→535 行拆分 | 架構 | 🔴 Critical | ✅ |
+| 業務邏輯洩漏到 Controller 層 | 架構 | 🔴 Critical | ✅ 部分 |
+| Place find-or-create 77 行重複 | 架構 | 🔴 Critical | ✅ |
+| `members.html` inviteLink 功能損壞 | 前端 | 🔴 Critical | ✅ |
+| Repository 旁路修復 | 架構 | 🔴 Critical | ✅ |
+| Entity 加上 `@Table(indexes=...)` | 效能 | 🔴 Critical | ✅ |
+| ExpenseService N+1 查詢（3N+1 → 3） | 效能 | 🔴 Critical | ✅ |
+| TripMember 補 user_id 索引 | 效能 | 🔴 Critical | ✅ |
+| HTTP 壓縮啟用 | 效能 | 🔴 Critical | ✅ |
+| `@CurrentUser UserPrincipal` 全面遷移 | 架構 | 🟡 Warning | ✅ |
+| ActivityViewHelper / ExpenseViewHelper 提取 | 架構 | 🟡 Warning | ✅ |
+| BaseWebController 全面繼承 | 架構 | 🟡 Warning | ✅ |
+| 統一快取系統至 Spring Cache + Caffeine | 效能 | 🟡 Warning | ✅ |
+| CacheService 記憶體洩漏風險消除 | 效能 | 🟡 Warning | ✅ |
+| PermissionChecker Caffeine 快取 5s TTL | 效能 | 🟡 Warning | ✅ |
+| 靜態資源 Cache-Control | 效能 | 🟡 Warning | ✅ |
+| Document N+1 批次查詢 | 效能 | 🟡 Warning | ✅ |
+| Document Signed URL 快取 | 效能 | 🟡 Warning | ✅ |
+| max-request-size 100→30MB | 安全 | 🟡 Warning | ✅ |
+| production profile 安全設定 | 安全 | 🟡 Warning | ✅ |
+| ObjectURL 記憶體洩漏 | 前端 | 🟡 High | ✅ |
+| `common.js` 共用工具 | 前端 | 🟡 High | ✅ |
+| 27/27 模板統一 head fragment | 前端 | 🟡 High | ✅ |
+| 例外處理收緊 24→19 broad catch | 架構 | 🟡 Warning | ✅ |
+| Web Controller 測試 12/12 | 測試 | 🟡 Warning | ✅ |
+| ViewHelper 單元測試 32 tests | 測試 | 🟠 Medium | ✅ |
+| TodoApiController WebMvcTest | 測試 | 🟡 Warning | ✅ |
+| ExchangeRateApiController WebMvcTest | 測試 | 🟡 Warning | ✅ |
+| TripController WebMvcTest | 測試 | 🟡 Warning | ✅ |
+| SupabaseStorageClient 雙 RestTemplate | 效能 | 🔵 Suggestion | ✅ |
+| 表單防重複提交 | 前端 | 🟠 Medium | ✅ |
+| console.log 語句清除 | 前端 | 🟠 Medium | ✅ |
+| `var` → `const/let` 轉換 | 前端 | 🟠 Medium | ✅ |
+| HSTS header 設定 | 安全 | 🟡 Warning | ✅ |
+| Session Fixation 明確設定 | 安全 | 🔵 Suggestion | ✅ |
+| 天氣 API IP-based 速率限制 | 安全 | 🟡 Warning | ✅ |
+| GeoUtils 統一 Haversine 計算 | 架構 | 🟡 Warning | ✅ |
+| FileValidationUtils 統一 Magic Bytes | 架構 | 🟡 Warning | ✅ |
+| TripConstants.UNKNOWN_USER_NAME 統一 | 架構 | 🟡 Warning | ✅ |
+| TripViewHelper 提取 + HomeController 委派 | 架構 | 🟡 Warning | ✅ |
+| PlaceService.findOrCreate() 改回傳 UUID | 架構 | 🟡 Warning | ✅ |
+| **User 表 (provider, provider_id) 複合索引** | 效能 | 🟡 Warning | ✅ 新增 |
+| **TodoWebController 改用 BaseWebController 方法** | 架構 | 🟡 Warning | ✅ 新增 |
+| **WebExceptionHandler 隱藏內部錯誤訊息** | 安全 | 🔵 Suggestion | ✅ 新增 |
+| **前端 console 語句 + alert() 清理** | 前端 | 🟠 Medium | ✅ 新增 |
+| **DocumentService.getDocumentForPreview() 改回傳 DTO** | 架構 | 🟡 Warning | ✅ 新增 |
+| **requireUserId() 重複消除** | 架構 | 🟡 Warning | ✅ 新增 |
+| **業務例外日誌等級調整** | 架構 | 🔵 Suggestion | ✅ 新增 |
+| **GlobalExpenseService N+1 批次修復** | 效能 | 🟡 Warning | ✅ 新增 |
+| **共享 RestTemplate + Apache HttpClient 5 連線池** | 效能 | 🟡 Warning | ✅ 新增 |
+| **Google Maps Circuit Breaker** | 效能 | 🔵 Suggestion | ✅ 新增 |
+| **ExchangeRateApiClient 單元測試** | 測試 | 🟡 Warning | ✅ 新增 |
+| **SupabaseStorageClient 單元測試** | 測試 | 🟡 Warning | ✅ 新增 |
+
+</details>
 
 ---
 
 ## 詳細報告索引
 
-| 報告 | 路徑 | Issues |
-|------|------|--------|
-| 架構審查 | `docs/review-architecture.md` | 3 Critical, 8 Warning, 4 Suggestion |
-| 安全審查 | `docs/review-security.md` | 1 Critical, 6 Warning, 5 Suggestion |
-| 前端審查 | `docs/review-frontend.md` | 1 Critical, 6 High, 7 Medium, 5 Low |
-| 效能審查 | `docs/review-performance.md` | 1 Critical, 6 Warning, 6 Suggestion |
-| 測試審查 | `docs/review-testing.md` | 0 Critical, 4 Warning, 5 Suggestion |
+| 報告 | 路徑 |
+|------|------|
+| 架構審查 | `docs/review-architecture.md` |
+| 安全審查 | `docs/review-security.md` |
+| 前端審查 | `docs/review-frontend.md` |
+| 效能審查 | `docs/review-performance.md` |
+| 測試審查 | `docs/review-testing.md` |
 
 ---
 
-*本報告由 5 位 Claude Opus 4.6 自動化審查員並行產出，由 Team Lead 彙整。*
+*本報告基於第四次審查結果 + 第二輪 Batch 1-4 改善成果更新。*

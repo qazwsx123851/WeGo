@@ -1,6 +1,8 @@
 package com.wego.service;
 
 import com.wego.config.SupabaseProperties;
+import com.wego.domain.TripConstants;
+import com.wego.domain.file.FileValidationUtils;
 import com.wego.domain.permission.PermissionChecker;
 import com.wego.dto.request.CreateTripRequest;
 import com.wego.dto.request.UpdateTripRequest;
@@ -31,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -63,19 +64,6 @@ public class TripService {
             "image/jpeg",
             "image/png",
             "image/webp"
-    );
-    private static final Map<String, byte[][]> IMAGE_MAGIC_BYTES = Map.of(
-            "image/jpeg", new byte[][] {
-                    {(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE0},
-                    {(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE1},
-                    {(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE8}
-            },
-            "image/png", new byte[][] {
-                    {(byte)0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
-            },
-            "image/webp", new byte[][] {
-                    {0x52, 0x49, 0x46, 0x46} // RIFF header (first 4 bytes)
-            }
     );
 
     private final TripRepository tripRepository;
@@ -215,7 +203,7 @@ public class TripService {
                         User user = userMap.get(member.getUserId());
                         return TripResponse.MemberSummary.builder()
                                 .userId(member.getUserId())
-                                .nickname(user != null ? user.getNickname() : UNKNOWN_USER_NAME)
+                                .nickname(user != null ? user.getNickname() : TripConstants.UNKNOWN_USER_NAME)
                                 .avatarUrl(user != null ? user.getAvatarUrl() : null)
                                 .role(member.getRole())
                                 .build();
@@ -526,7 +514,6 @@ public class TripService {
         }
     }
 
-    private static final String UNKNOWN_USER_NAME = "Unknown";
 
     private List<TripResponse.MemberSummary> getMemberSummaries(UUID tripId) {
         List<TripMember> members = tripMemberRepository.findByTripId(tripId);
@@ -542,7 +529,7 @@ public class TripService {
                     User user = userMap.get(member.getUserId());
                     return TripResponse.MemberSummary.builder()
                             .userId(member.getUserId())
-                            .nickname(user != null ? user.getNickname() : UNKNOWN_USER_NAME)
+                            .nickname(user != null ? user.getNickname() : TripConstants.UNKNOWN_USER_NAME)
                             .avatarUrl(user != null ? user.getAvatarUrl() : null)
                             .role(member.getRole())
                             .build();
@@ -659,53 +646,13 @@ public class TripService {
                     "不支援的圖片格式。支援格式：JPEG, PNG, WebP");
         }
 
-        if (!validateImageMagicBytes(file, contentType)) {
+        if (!FileValidationUtils.matchesMagicBytes(file, contentType)) {
             log.warn("Image content does not match declared MIME type: {}", contentType);
             throw new ValidationException("INVALID_FILE_CONTENT",
                     "圖片內容與宣告的格式不符");
         }
     }
 
-    private boolean validateImageMagicBytes(MultipartFile file, String declaredType) {
-        byte[][] expectedSignatures = IMAGE_MAGIC_BYTES.get(declaredType);
-        if (expectedSignatures == null) {
-            return true; // No validation defined
-        }
-
-        try (InputStream is = file.getInputStream()) {
-            byte[] header = new byte[12]; // WebP needs 12 bytes for full validation
-            int bytesRead = is.read(header);
-
-            if (bytesRead < 4) {
-                return false;
-            }
-
-            for (byte[] signature : expectedSignatures) {
-                if (bytesRead >= signature.length) {
-                    boolean matches = true;
-                    for (int i = 0; i < signature.length; i++) {
-                        if (header[i] != signature[i]) {
-                            matches = false;
-                            break;
-                        }
-                    }
-                    if (matches) {
-                        // Additional WebP validation: check WEBP signature at offset 8
-                        if ("image/webp".equals(declaredType)) {
-                            return bytesRead >= 12 &&
-                                    header[8] == 'W' && header[9] == 'E' &&
-                                    header[10] == 'B' && header[11] == 'P';
-                        }
-                        return true;
-                    }
-                }
-            }
-            return false;
-        } catch (IOException e) {
-            log.error("Failed to read file for magic bytes validation", e);
-            return false;
-        }
-    }
 
     private String extractStoragePath(String url) {
         // Extract path after /public/bucket/

@@ -4,7 +4,6 @@ import com.wego.dto.request.CreateActivityRequest;
 import com.wego.dto.request.UpdateActivityRequest;
 import com.wego.dto.response.ActivityResponse;
 import com.wego.dto.response.TripResponse;
-import com.wego.entity.Place;
 import com.wego.entity.TransportMode;
 import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
@@ -21,6 +20,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -267,7 +270,7 @@ public class ActivityWebController extends BaseWebController {
             }
 
             // Find or create Place via PlaceService
-            Place place = placeService.findOrCreate(placeId, placeName, address, latitude, longitude, type);
+            UUID placeUuid = placeService.findOrCreate(placeId, placeName, address, latitude, longitude, type);
 
             // Calculate day from activityDate
             LocalDate selectedDate = LocalDate.parse(activityDate);
@@ -288,7 +291,7 @@ public class ActivityWebController extends BaseWebController {
 
             // Build request
             CreateActivityRequest request = CreateActivityRequest.builder()
-                    .placeId(place.getId())
+                    .placeId(placeUuid)
                     .day(day)
                     .startTime(parsedStartTime)
                     .durationMinutes(durationMinutes)
@@ -304,15 +307,15 @@ public class ActivityWebController extends BaseWebController {
             return "redirect:/trips/" + tripId + "/activities";
 
         } catch (ResourceNotFoundException e) {
-            log.error("Failed to create activity: {}", e.getMessage(), e);
+            log.warn("Failed to create activity: {}", e.getMessage());
             model.addAttribute("error", "新增景點失敗：" + e.getMessage());
             return "redirect:/trips/" + tripId + "/activities/new?error=create_failed";
         } catch (ForbiddenException e) {
-            log.error("Failed to create activity: {}", e.getMessage(), e);
+            log.warn("Failed to create activity: {}", e.getMessage());
             model.addAttribute("error", "新增景點失敗：" + e.getMessage());
             return "redirect:/trips/" + tripId + "/activities/new?error=create_failed";
         } catch (IllegalArgumentException e) {
-            log.error("Failed to create activity: {}", e.getMessage(), e);
+            log.warn("Failed to create activity: {}", e.getMessage());
             model.addAttribute("error", "新增景點失敗：" + e.getMessage());
             return "redirect:/trips/" + tripId + "/activities/new?error=create_failed";
         } catch (Exception e) {
@@ -435,7 +438,7 @@ public class ActivityWebController extends BaseWebController {
             }
 
             // Find or create Place via PlaceService
-            Place place = placeService.findOrCreate(placeId, placeName, address, latitude, longitude, type);
+            UUID placeUuid = placeService.findOrCreate(placeId, placeName, address, latitude, longitude, type);
 
             // Calculate day from activityDate
             LocalDate selectedDate = LocalDate.parse(activityDate);
@@ -456,7 +459,7 @@ public class ActivityWebController extends BaseWebController {
 
             // Build update request
             UpdateActivityRequest request = UpdateActivityRequest.builder()
-                    .placeId(place.getId())
+                    .placeId(placeUuid)
                     .day(day)
                     .startTime(parsedStartTime)
                     .durationMinutes(durationMinutes)
@@ -473,15 +476,15 @@ public class ActivityWebController extends BaseWebController {
             return "redirect:/trips/" + tripId + "/activities";
 
         } catch (ResourceNotFoundException e) {
-            log.error("Failed to update activity: {}", e.getMessage(), e);
+            log.warn("Failed to update activity: {}", e.getMessage());
             redirectAttributes.addFlashAttribute("error", "更新景點失敗：" + e.getMessage());
             return "redirect:/trips/" + tripId + "/activities/" + activityId + "/edit?error=update_failed";
         } catch (ForbiddenException e) {
-            log.error("Failed to update activity: {}", e.getMessage(), e);
+            log.warn("Failed to update activity: {}", e.getMessage());
             redirectAttributes.addFlashAttribute("error", "更新景點失敗：" + e.getMessage());
             return "redirect:/trips/" + tripId + "/activities/" + activityId + "/edit?error=update_failed";
         } catch (IllegalArgumentException e) {
-            log.error("Failed to update activity: {}", e.getMessage(), e);
+            log.warn("Failed to update activity: {}", e.getMessage());
             redirectAttributes.addFlashAttribute("error", "更新景點失敗：" + e.getMessage());
             return "redirect:/trips/" + tripId + "/activities/" + activityId + "/edit?error=update_failed";
         } catch (Exception e) {
@@ -516,10 +519,10 @@ public class ActivityWebController extends BaseWebController {
             activityService.deleteActivity(activityId, user.getId());
             redirectAttributes.addFlashAttribute("success", "景點已刪除");
         } catch (ResourceNotFoundException e) {
-            log.error("Failed to delete activity: {}", e.getMessage(), e);
+            log.warn("Failed to delete activity: {}", e.getMessage());
             redirectAttributes.addFlashAttribute("error", "刪除失敗：" + e.getMessage());
         } catch (ForbiddenException e) {
-            log.error("Failed to delete activity: {}", e.getMessage(), e);
+            log.warn("Failed to delete activity: {}", e.getMessage());
             redirectAttributes.addFlashAttribute("error", "刪除失敗：" + e.getMessage());
         } catch (Exception e) {
             log.error("Failed to delete activity: {}", e.getMessage(), e);
@@ -618,11 +621,17 @@ public class ActivityWebController extends BaseWebController {
      *   - calledBy: Web browser POST request
      */
     @PostMapping("/recalculate-transport")
-    public String recalculateTransport(@PathVariable UUID tripId,
+    public Object recalculateTransport(@PathVariable UUID tripId,
                                         @CurrentUser UserPrincipal principal,
-                                        RedirectAttributes redirectAttributes) {
+                                        RedirectAttributes redirectAttributes,
+                                        HttpServletRequest request) {
+        boolean isAjax = "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
         User user = getCurrentUser(principal);
         if (user == null) {
+            if (isAjax) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("success", false, "message", "請先登入", "errorCode", "UNAUTHORIZED"));
+            }
             return "redirect:/login";
         }
 
@@ -632,23 +641,50 @@ public class ActivityWebController extends BaseWebController {
 
             // Build success message
             String message = result.getSuccessMessage();
-            redirectAttributes.addFlashAttribute("success", message);
 
             log.info("Transport recalculation completed for trip {}: total={}, api={}, fallback={}",
                     tripId, result.getTotalActivities(), result.getApiSuccessCount(), result.getFallbackCount());
 
+            if (isAjax) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", message,
+                        "data", Map.of(
+                                "totalActivities", result.getTotalActivities(),
+                                "apiSuccessCount", result.getApiSuccessCount(),
+                                "fallbackCount", result.getFallbackCount(),
+                                "skippedCount", result.getSkippedCount(),
+                                "manualCount", result.getManualCount(),
+                                "rateLimitReached", result.isRateLimitReached()
+                        )
+                ));
+            }
+
+            redirectAttributes.addFlashAttribute("success", message);
             return "redirect:/trips/" + tripId + "/activities";
 
         } catch (ForbiddenException e) {
             log.warn("User {} not authorized to recalculate transport for trip {}", user.getId(), tripId);
+            if (isAjax) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "您沒有權限重新計算此行程的交通時間", "errorCode", "FORBIDDEN"));
+            }
             redirectAttributes.addFlashAttribute("error", "您沒有權限重新計算此行程的交通時間");
             return "redirect:/trips/" + tripId + "/activities";
         } catch (ResourceNotFoundException e) {
-            log.error("Failed to recalculate transport for trip {}: {}", tripId, e.getMessage(), e);
+            log.warn("Failed to recalculate transport for trip {}: {}", tripId, e.getMessage());
+            if (isAjax) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "message", "找不到相關行程資料", "errorCode", "NOT_FOUND"));
+            }
             redirectAttributes.addFlashAttribute("error", "重新計算交通時間失敗：" + e.getMessage());
             return "redirect:/trips/" + tripId + "/activities";
         } catch (Exception e) {
             log.error("Failed to recalculate transport for trip {}: {}", tripId, e.getMessage(), e);
+            if (isAjax) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("success", false, "message", "重新計算交通時間時發生錯誤，請稍後再試", "errorCode", "SERVER_ERROR"));
+            }
             redirectAttributes.addFlashAttribute("error", "重新計算交通時間失敗：" + e.getMessage());
             return "redirect:/trips/" + tripId + "/activities";
         }

@@ -7,7 +7,6 @@ import com.wego.dto.response.WeatherForecast;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -55,34 +54,17 @@ public class OpenWeatherMapClient implements WeatherClient {
      *   - post: Client is ready to make API calls with configured timeouts
      *
      * @param properties OpenWeatherMap configuration properties
-     * @param restTemplate RestTemplate for HTTP calls
+     * @param restTemplate RestTemplate for HTTP calls (shared, connection-pooled)
      */
-    public OpenWeatherMapClient(OpenWeatherMapProperties properties, RestTemplate restTemplate) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public OpenWeatherMapClient(OpenWeatherMapProperties properties,
+                                @org.springframework.beans.factory.annotation.Qualifier("externalApiRestTemplate") RestTemplate restTemplate) {
         if (properties == null) {
             throw new IllegalArgumentException("OpenWeatherMapProperties cannot be null");
         }
         this.properties = properties;
         this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
-    }
-
-    /**
-     * Default constructor for Spring injection.
-     * Configures RestTemplate with timeouts from properties.
-     */
-    @org.springframework.beans.factory.annotation.Autowired
-    public OpenWeatherMapClient(OpenWeatherMapProperties properties) {
-        this(properties, createRestTemplateWithTimeouts(properties));
-    }
-
-    /**
-     * Creates a RestTemplate with configured timeouts.
-     */
-    private static RestTemplate createRestTemplateWithTimeouts(OpenWeatherMapProperties properties) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.getConnectTimeoutMs());
-        factory.setReadTimeout(properties.getReadTimeoutMs());
-        return new RestTemplate(factory);
     }
 
     /**

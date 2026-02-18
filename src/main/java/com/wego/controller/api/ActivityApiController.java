@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.wego.exception.UnauthorizedException;
 
 import java.util.List;
 import java.util.UUID;
@@ -71,7 +70,7 @@ public class ActivityApiController {
 
         log.debug("POST /api/trips/{}/activities - Creating activity", tripId);
 
-        UUID userId = requireUserId(principal);
+        UUID userId = principal.getId();
         ActivityResponse response = activityService.createActivity(tripId, request, userId);
 
         return ResponseEntity
@@ -101,7 +100,7 @@ public class ActivityApiController {
 
         log.debug("GET /api/trips/{}/activities - day={}", tripId, day);
 
-        UUID userId = requireUserId(principal);
+        UUID userId = principal.getId();
         List<ActivityResponse> responses;
 
         if (day != null) {
@@ -135,7 +134,7 @@ public class ActivityApiController {
 
         log.debug("PUT /api/activities/{} - Updating activity", activityId);
 
-        UUID userId = requireUserId(principal);
+        UUID userId = principal.getId();
         ActivityResponse response = activityService.updateActivity(activityId, request, userId);
 
         return ResponseEntity.ok(ApiResponse.success(response, "Activity updated successfully"));
@@ -160,7 +159,7 @@ public class ActivityApiController {
 
         log.debug("DELETE /api/activities/{} - Deleting activity", activityId);
 
-        UUID userId = requireUserId(principal);
+        UUID userId = principal.getId();
         activityService.deleteActivity(activityId, userId);
 
         return ResponseEntity.noContent().build();
@@ -189,7 +188,7 @@ public class ActivityApiController {
         log.debug("PUT /api/trips/{}/activities/reorder - Reordering activities for day {}",
                 tripId, request.getDay());
 
-        UUID userId = requireUserId(principal);
+        UUID userId = principal.getId();
         List<ActivityResponse> responses = activityService.reorderActivities(tripId, request, userId);
 
         return ResponseEntity.ok(ApiResponse.success(responses, "Activities reordered successfully"));
@@ -220,7 +219,7 @@ public class ActivityApiController {
 
         log.debug("GET /api/trips/{}/activities/optimize?day={} - Getting route optimization", tripId, day);
 
-        UUID userId = requireUserId(principal);
+        UUID userId = principal.getId();
         RouteOptimizationResponse response = activityService.getOptimizedRoute(tripId, day, userId);
 
         String message = response.isOptimizationApplied()
@@ -258,25 +257,11 @@ public class ActivityApiController {
         log.debug("POST /api/trips/{}/activities/apply-optimization - Applying route optimization for day {}",
                 tripId, request.getDay());
 
-        UUID userId = requireUserId(principal);
+        UUID userId = principal.getId();
         List<ActivityResponse> responses = activityService.applyOptimizedRoute(
                 tripId, request.getDay(), request.getOptimizedOrder(), userId);
 
         return ResponseEntity.ok(ApiResponse.success(responses, "Route optimization applied successfully"));
     }
 
-    /**
-     * Extracts user ID from the principal or throws UnauthorizedException if not authenticated.
-     *
-     * @contract
-     *   - pre: principal != null
-     *   - post: returns valid user UUID
-     *   - throws: UnauthorizedException if principal is null
-     */
-    private UUID requireUserId(UserPrincipal principal) {
-        if (principal == null) {
-            throw new UnauthorizedException("認證已過期，請重新登入");
-        }
-        return principal.getId();
-    }
 }

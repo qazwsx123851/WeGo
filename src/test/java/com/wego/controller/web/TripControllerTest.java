@@ -12,6 +12,7 @@ import com.wego.service.DocumentService;
 import com.wego.service.ExpenseService;
 import com.wego.service.TodoService;
 import com.wego.service.TripService;
+import com.wego.service.TripViewHelper;
 import com.wego.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -56,6 +58,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   - Tests authentication and permission checks
  */
 @WebMvcTest(TripController.class)
+@Import(TripViewHelper.class)
 @ActiveProfiles("test")
 class TripControllerTest {
 

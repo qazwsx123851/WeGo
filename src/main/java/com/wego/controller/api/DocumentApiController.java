@@ -3,6 +3,7 @@ package com.wego.controller.api;
 import com.wego.config.SupabaseProperties;
 import com.wego.dto.ApiResponse;
 import com.wego.dto.request.CreateDocumentRequest;
+import com.wego.dto.response.DocumentPreviewInfo;
 import com.wego.dto.response.DocumentResponse;
 import com.wego.entity.Document;
 import com.wego.security.CurrentUser;
@@ -180,9 +181,9 @@ public class DocumentApiController {
         UUID userId = principal.getId();
         log.debug("GET /api/trips/{}/documents/{}/preview by user {}", tripId, documentId, userId);
 
-        Document document = documentService.getDocumentForPreview(tripId, documentId, userId);
+        DocumentPreviewInfo previewInfo = documentService.getDocumentForPreview(tripId, documentId, userId);
 
-        String storagePath = document.getTripId() + "/" + document.getFileName();
+        String storagePath = previewInfo.tripId() + "/" + previewInfo.fileName();
         byte[] content = storageClient.downloadFile(
                 supabaseProperties.getStorageBucket(), storagePath);
 
@@ -192,14 +193,14 @@ public class DocumentApiController {
         }
 
         // RFC 5987 Content-Disposition with UTF-8 filename support
-        String originalFileName = document.getOriginalFileName();
+        String originalFileName = previewInfo.originalFileName();
         String encodedFileName = URLEncoder.encode(
                 originalFileName, StandardCharsets.UTF_8).replace("+", "%20");
         String disposition = "inline; filename=\"" + encodedFileName
                 + "\"; filename*=UTF-8''" + encodedFileName;
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, document.getMimeType())
+                .header(HttpHeaders.CONTENT_TYPE, previewInfo.mimeType())
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
                 .header("X-Content-Type-Options", "nosniff")
                 .header("X-Frame-Options", "SAMEORIGIN")

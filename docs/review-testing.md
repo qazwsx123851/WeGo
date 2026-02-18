@@ -1,277 +1,223 @@
-# Testing Review Report
+# WeGo 測試審查報告
 
-**Date:** 2026-02-12
-**Reviewer:** test-reviewer (automated)
-**Branch:** main
-
----
-
-## 1. API Endpoint Inventory
-
-### REST API Controllers (`/api/...`)
-
-| Controller | Method | Endpoint | Tested? |
-|-----------|--------|----------|---------|
-| **HealthController** | GET | `/api/health` | Yes |
-| **AuthApiController** | GET | `/api/auth/me` | Yes |
-| | POST | `/api/auth/logout` | Yes |
-| **TripApiController** | POST | `/api/trips` | Yes |
-| | GET | `/api/trips` | Yes |
-| | GET | `/api/trips/{tripId}` | Yes |
-| | PUT | `/api/trips/{tripId}` | Yes |
-| | DELETE | `/api/trips/{tripId}` | Yes |
-| | GET | `/api/trips/{tripId}/members` | Yes |
-| | DELETE | `/api/trips/{tripId}/members/me` | Yes |
-| | DELETE | `/api/trips/{tripId}/members/{userId}` | Yes |
-| | PUT | `/api/trips/{tripId}/members/{userId}/role` | Yes |
-| | POST | `/api/trips/{tripId}/invites` | Yes |
-| | GET | `/api/trips/{tripId}/invites` | Yes |
-| | POST | `/api/invites/{token}/accept` | Yes |
-| **ActivityApiController** | POST | `/api/trips/{tripId}/activities` | Yes |
-| | GET | `/api/trips/{tripId}/activities` | Yes |
-| | PUT | `/api/activities/{activityId}` | Yes |
-| | DELETE | `/api/activities/{activityId}` | Yes |
-| | PUT | `/api/trips/{tripId}/activities/reorder` | Yes |
-| | GET | `/api/trips/{tripId}/activities/optimize` | Yes |
-| | POST | `/api/trips/{tripId}/activities/apply-optimization` | Yes |
-| **ExpenseApiController** | POST | `/api/trips/{tripId}/expenses` | Yes |
-| | GET | `/api/trips/{tripId}/expenses` | Yes |
-| | PUT | `/api/expenses/{expenseId}` | Yes |
-| | DELETE | `/api/expenses/{expenseId}` | Yes |
-| | GET | `/api/trips/{tripId}/settlement` | Yes |
-| | PUT | `/api/expense-splits/{splitId}/settle` | Yes |
-| | PUT | `/api/expense-splits/{splitId}/unsettle` | Yes |
-| | PUT | `/api/trips/{tripId}/settlement/settle` | Yes |
-| | PUT | `/api/trips/{tripId}/settlement/unsettle` | Yes |
-| **TodoApiController** | POST | `/api/trips/{tripId}/todos` | Yes |
-| | GET | `/api/trips/{tripId}/todos` | Yes |
-| | GET | `/api/trips/{tripId}/todos/{todoId}` | Yes |
-| | PUT | `/api/trips/{tripId}/todos/{todoId}` | Yes |
-| | DELETE | `/api/trips/{tripId}/todos/{todoId}` | Yes |
-| | GET | `/api/trips/{tripId}/todos/stats` | Yes |
-| **DocumentApiController** | POST | `/api/trips/{tripId}/documents` | Yes |
-| | GET | `/api/trips/{tripId}/documents` | Yes |
-| | GET | `/api/trips/{tripId}/documents/{id}` | Yes |
-| | GET | `/api/trips/{tripId}/documents/{id}/download` | Yes |
-| | GET | `/api/trips/{tripId}/documents/{id}/preview` | Yes |
-| | DELETE | `/api/trips/{tripId}/documents/{id}` | Yes |
-| | GET | `/api/trips/{tripId}/documents/storage` | Yes |
-| | GET | `/api/trips/{tripId}/activities/{activityId}/documents` | Yes |
-| **PlaceApiController** | GET | `/api/places/search` | Yes |
-| | GET | `/api/places/{placeId}` | Yes |
-| **DirectionApiController** | GET | `/api/directions` | Yes |
-| **WeatherApiController** | GET | `/api/weather` | Yes |
-| | GET | `/api/weather/forecast` | Yes |
-| **StatisticsApiController** | GET | `/api/trips/{tripId}/statistics/category` | Yes |
-| | GET | `/api/trips/{tripId}/statistics/trend` | Yes |
-| | GET | `/api/trips/{tripId}/statistics/members` | Yes |
-| **ExchangeRateApiController** | GET | `/api/exchange-rates` | Yes |
-| | GET | `/api/exchange-rates/latest` | Yes |
-| | GET | `/api/exchange-rates/convert` | Yes |
-| | GET | `/api/exchange-rates/currencies` | Yes |
-
-### Web Controllers (Thymeleaf views)
-
-| Controller | Method | Endpoint | Tested? |
-|-----------|--------|----------|---------|
-| **HomeController** | GET | `/` | Yes |
-| | GET | `/dashboard` | Yes |
-| **TripController** | GET | `/trips` | Yes |
-| | GET | `/trips/create` | Yes |
-| | POST | `/trips/create` | Yes |
-| | GET | `/trips/{id}` | Yes |
-| | GET | `/trips/{id}/activities` | No |
-| | GET | `/trips/{id}/activities/{activityId}` | No |
-| | GET | `/trips/{id}/members` | No |
-| | GET | `/trips/{id}/expenses` | No |
-| | GET | `/trips/{id}/documents` | No |
-| | GET | `/trips/{id}/documents/new` | No |
-| | GET | `/trips/{id}/activities/{activityId}/duplicate` | No |
-| | GET | `/trips/{id}/activities/new` | No |
-| | POST | `/trips/{id}/activities` | No |
-| | GET | `/trips/{id}/activities/{activityId}/edit` | No |
-| | POST | `/trips/{id}/activities/{activityId}` | No |
-| | POST | `/trips/{id}/activities/{activityId}/delete` | No |
-| | POST | `/trips/{id}/recalculate-transport` | No |
-| | GET | `/trips/{id}/edit` | Yes |
-| | POST | `/trips/{id}/edit` | Yes |
-| **ProfileController** | GET | `/profile` | No |
-| | GET | `/profile/edit` | No |
-| | POST | `/profile/edit` | No |
-| **InviteController** | GET | `/invite/{token}` | No |
-| | POST | `/invite/{token}/accept` | No |
-| **ExpenseWebController** | GET | `/trips/{id}/expenses/create` | No |
-| | POST | `/trips/{id}/expenses` | No |
-| | GET | `/trips/{id}/expenses/{expenseId}` | No |
-| | GET | `/trips/{id}/expenses/{expenseId}/edit` | No |
-| | POST | `/trips/{id}/expenses/{expenseId}` | No |
-| | GET | `/trips/{id}/expenses/statistics` | No |
-| **TodoWebController** | GET | `/trips/{id}/todos` | No |
-| **SettlementWebController** | GET | `/trips/{id}/settlement` | No |
-| **GlobalExpenseController** | GET | `/expenses` | No |
-| **GlobalDocumentController** | GET | `/documents` | No |
-
-### Test-Only Controller
-
-| Controller | Method | Endpoint | Notes |
-|-----------|--------|----------|-------|
-| **TestAuthController** | POST | `/api/test/auth/login` | E2E auth bypass |
-| | POST | `/api/test/auth/logout` | E2E auth bypass |
-| | GET | `/api/test/auth/health` | E2E health check |
+> 審查日期：2026-02-18（第二次更新）
+> 審查範圍：單元測試、整合測試、E2E 測試
 
 ---
 
-## 2. Test Results Summary
+## 一、測試執行結果摘要
 
-### Before Changes
-- **Tests run:** 788
-- **Failures:** 0
-- **Errors:** 0
-- **Skipped:** 0
+| 指標 | 數值 |
+|------|------|
+| 總測試數 | **1069** |
+| 通過 | 1069 |
+| 失敗 | 0 |
+| 跳過 | 0 |
+| 測試檔案數 | **87** |
+| 執行時間 | ~27 秒 |
 
-### After Changes
-- **Tests run:** ~914
-- **Failures:** 0
-- **Errors:** 0
-- **Skipped:** 0
-- **New tests added:** ~128 (76 original + 52 new)
-
----
-
-## 3. New Tests Written
-
-### `ActivityServiceTest.java` (30 tests)
-Core business logic for activity CRUD with permission checks:
-- `getActivity`: 4 tests (success, not found, forbidden, null place)
-- `createActivity`: 5 tests (success, forbidden, place not found, manual transport, first activity sort order)
-- `getActivitiesByTrip`: 2 tests (success, forbidden)
-- `getActivitiesByDay`: 1 test (filtered by day)
-- `updateActivity`: 5 tests (success, forbidden, not found, new place, manual transport)
-- `deleteActivity`: 3 tests (success, forbidden, not found)
-- `reorderActivities`: 3 tests (success, mismatch, forbidden)
-- `getOptimizedRoute`: 3 tests (empty, with activities, forbidden)
-- `applyOptimizedRoute`: 3 tests (success, mismatch, unknown activity)
-- `recalculateAllTransport`: 3 tests (empty, delegate, forbidden)
-
-### `ActivityApiControllerTest.java` (17 tests)
-REST endpoint tests with MockMvc:
-- `POST /api/trips/{tripId}/activities`: 4 tests (201, 400 null placeId, 400 null day, 403 unauthenticated, 403 forbidden)
-- `GET /api/trips/{tripId}/activities`: 3 tests (200 all, 200 filtered by day, 403 unauthenticated)
-- `PUT /api/activities/{activityId}`: 2 tests (200, 404)
-- `DELETE /api/activities/{activityId}`: 3 tests (204, 404, 403 no CSRF)
-- `PUT /api/trips/{tripId}/activities/reorder`: 1 test (200)
-- `GET /api/trips/{tripId}/activities/optimize`: 1 test (200)
-- `POST /api/trips/{tripId}/activities/apply-optimization`: 1 test (200)
-
-### `TransportCalculationServiceTest.java` (27 tests)
-Transport calculation logic, warnings, and batch processing:
-- `calculateTransportFromPrevious`: 5 tests (null, null placeId, NOT_CALCULATED, first of day, with previous + Google API, API failure fallback)
-- `determineWarning`: 6 tests (NONE, UNREALISTIC_WALKING, UNREALISTIC_BICYCLING, VERY_LONG_DISTANCE, ESTIMATED_DISTANCE, precedence)
-- `setManualTransportDuration`: 2 tests (set fields, null activity)
-- `batchCalculateTransport`: 4 tests (null, single, multiple, NOT_CALCULATED skip)
-- `calculateTransportWithWarnings`: 4 tests (FLIGHT, HIGH_SPEED_RAIL, WALKING + Google API, API error fallback)
-- `batchRecalculateWithRateLimit`: 4 tests (null, empty, first of day skip, manual preserve)
-
-### `TodoApiControllerTest.java` (20 tests)
-REST endpoint tests with MockMvc:
-- `POST /api/trips/{tripId}/todos`: 4 tests (201, 400 blank title, 403 unauthenticated, 403 forbidden)
-- `GET /api/trips/{tripId}/todos`: 3 tests (200 list, 200 empty, 403 unauthenticated)
-- `GET /api/trips/{tripId}/todos/{todoId}`: 2 tests (200, 404)
-- `PUT /api/trips/{tripId}/todos/{todoId}`: 3 tests (200, 404, 403 forbidden)
-- `DELETE /api/trips/{tripId}/todos/{todoId}`: 4 tests (200, 404, 403 forbidden, 403 unauthenticated)
-- `GET /api/trips/{tripId}/todos/stats`: 2 tests (200, 403 unauthenticated)
-
-### `ExchangeRateApiControllerTest.java` (16 tests)
-REST endpoint tests with MockMvc:
-- `GET /api/exchange-rates`: 7 tests (200, 200 lowercase normalize, 400 missing from, 400 missing to, 400 invalid currency, 429 rate limited, 502 API unavailable, 403 unauthenticated)
-- `GET /api/exchange-rates/latest`: 4 tests (200, 400 missing base, 400 invalid base, 403 unauthenticated)
-- `GET /api/exchange-rates/convert`: 3 tests (200, 400 missing amount, 403 unauthenticated)
-- `GET /api/exchange-rates/currencies`: 3 tests (200, 429 rate limited, 403 unauthenticated)
-
-### `TripControllerTest.java` (16 tests)
-First Web Controller test -- MockMvc with oidcLogin():
-- `GET /trips`: 3 tests (200 with trips, 200 empty, 302 unauthenticated)
-- `GET /trips/{id}`: 4 tests (200 with attributes, 302 not found, 200 viewer canEdit=false, 200 future trip daysUntil)
-- `GET /trips/create`: 1 test (200 create form)
-- `POST /trips/create`: 2 tests (302 redirect on success, 200 form with dateError)
-- `GET /trips/{id}/edit`: 3 tests (200 owner, 302 viewer redirect, 302 not found)
-- `POST /trips/{id}/edit`: 3 tests (302 redirect on success, 200 form with dateError, 302 viewer redirect)
+本次補寫測試後從 1022 提升至 1069（新增 47 個測試）。
+歷次累計：984 → 1021 → 1022 → 1069。
 
 ---
 
-## 4. Coverage Gaps Analysis
+## 二、完整端點清單與測試覆蓋狀態
 
-### Covered Services (with tests)
+### API Controllers (14 個)
 
-| Service | Test File | Status |
-|---------|-----------|--------|
-| UserService | UserServiceTest | Existing |
-| TripService | TripServiceTest | Existing |
-| ExpenseService | ExpenseServiceTest | Existing |
-| TodoService | TodoServiceTest | Existing |
-| DocumentService | DocumentServiceTest | Existing |
-| InviteLinkService | InviteLinkServiceTest | Existing |
-| WeatherService | WeatherServiceTest | Existing |
-| ExchangeRateService | ExchangeRateServiceTest | Existing |
-| SettlementService | SettlementServiceTest | Existing |
-| StatisticsService | StatisticsServiceTest | Existing |
-| **ActivityService** | **ActivityServiceTest** | **NEW** |
-| **TransportCalculationService** | **TransportCalculationServiceTest** | **NEW** |
+| Controller | 端點數 | 測試檔案 | 狀態 |
+|------------|:------:|----------|:----:|
+| HealthController | 1 | HealthControllerTest | ✅ |
+| AuthApiController | 2 | AuthApiControllerTest | ✅ |
+| TripApiController | 12 | TripApiControllerTest | ✅ |
+| ActivityApiController | 7 | ActivityApiControllerTest | ✅ |
+| ExpenseApiController | 9 | ExpenseApiControllerTest | ✅ |
+| DocumentApiController | 8 | DocumentApiControllerTest | ✅ |
+| TodoApiController | 6 | TodoApiControllerTest | ✅ |
+| WeatherApiController | 2 | WeatherApiControllerTest | ✅ |
+| ExchangeRateApiController | 4 | ExchangeRateApiControllerTest | ✅ |
+| StatisticsApiController | 3 | StatisticsApiControllerTest | ✅ |
+| PlaceApiController | 2 | PlaceApiControllerTest | ✅ |
+| DirectionApiController | 1 | DirectionApiControllerTest | ✅ |
+| ChatApiController | 1 | ChatApiControllerTest | ✅ |
+| TestAuthController | 3 | (測試專用 Controller) | -- |
 
-### Remaining Gaps
+**API Controller 覆蓋率：14/14 = 100%**
 
-| Component | Priority | Notes |
-|-----------|----------|-------|
-| GlobalExpenseService | Low | Aggregation service for cross-trip expenses |
-| GlobalDocumentService | Low | Aggregation service for cross-trip documents |
-| RateLimitService | Low | Infrastructure concern |
-| Most Web Controllers | Medium | 24+ web endpoints without controller tests (TripController 已有 16 tests) |
+### Web Controllers (12 個 + 1 Base + 1 Error)
 
----
+| Controller | 端點數 | 測試檔案 | 狀態 |
+|------------|:------:|----------|:----:|
+| HomeController | 2 | HomeControllerTest | ✅ |
+| TripController | 6 | TripControllerTest | ✅ |
+| ActivityWebController | 9 | ActivityWebControllerTest | ✅ |
+| ExpenseWebController | 7 | ExpenseWebControllerTest | ✅ |
+| DocumentWebController | 2 | DocumentWebControllerTest | ✅ |
+| MemberWebController | 1 | MemberWebControllerTest | ✅ |
+| TodoWebController | 1 | TodoWebControllerTest | ✅ |
+| SettlementWebController | 1 | SettlementWebControllerTest | ✅ |
+| InviteController | 2 | InviteControllerTest | ✅ |
+| ProfileController | 3 | ProfileControllerTest | ✅ |
+| GlobalExpenseController | 1 | GlobalExpenseControllerTest | ✅ |
+| GlobalDocumentController | 1 | GlobalDocumentControllerTest | ✅ |
+| ErrorController | 1 | **ErrorControllerTest** | ✅ 新增 |
 
-## 5. Issues Found
-
-### Critical
-
-(none)
-
-### Warnings
-
-| # | Issue | Severity | File | Details |
-|---|-------|----------|------|---------|
-| 1 | ~~TodoApiController lacks controller tests~~ | ✅ Fixed | `TodoApiControllerTest.java` | 20 tests added |
-| 2 | ~~ExchangeRateApiController lacks controller tests~~ | ✅ Fixed | `ExchangeRateApiControllerTest.java` | 16 tests added |
-| 3 | ~~No web controller tests~~ | Partially Fixed | `TripControllerTest.java` | TripController 已有 16 tests，其餘 Web Controller 仍待補齊 |
-| 4 | No integration tests for DB layer | Warning | All repositories | Only JPA repository tests exist, no @SpringBootTest integration tests verifying full stack |
-
-### Suggestions
-
-| # | Suggestion | Details |
-|---|------------|---------|
-| 1 | ~~Add TodoApiController WebMvcTest~~ | ✅ Done -- 20 tests |
-| 2 | ~~Add ExchangeRateApiController WebMvcTest~~ | ✅ Done -- 16 tests |
-| 3 | ~~Add TripController WebMvcTest~~ | ✅ Done -- 16 tests (first Web Controller test) |
-| 4 | Consider adding @SpringBootTest integration tests | Would catch Spring wiring issues not caught by unit tests |
-| 5 | Run JaCoCo coverage report | `./mvnw jacoco:report` to get exact line/branch coverage numbers |
+**Web Controller 覆蓋率：13/13 = 100%**（含 ErrorController）
 
 ---
 
-## 6. E2E Tests
+## 三、Service 層測試覆蓋狀態
 
-- **E2E 測試數量:** ~118 tests
-- **框架:** Playwright (TypeScript)
-- **設定:** `e2e/playwright.config.ts`
-- **Profile:** `application-e2e.yml` (H2 in-memory, fixed port 8080)
-- **Auth:** `TestAuthController` bypass with `@Profile({"test", "e2e"})`
+| Service | 測試檔案 | 狀態 |
+|---------|----------|:----:|
+| TripService | TripServiceTest | ✅ |
+| ActivityService | ActivityServiceTest | ✅ |
+| ExpenseService | ExpenseServiceTest | ✅ |
+| DocumentService | DocumentServiceTest | ✅ |
+| TodoService | TodoServiceTest | ✅ |
+| UserService | UserServiceTest | ✅ |
+| InviteLinkService | InviteLinkServiceTest | ✅ |
+| WeatherService | WeatherServiceTest | ✅ |
+| ExchangeRateService | ExchangeRateServiceTest | ✅ |
+| StatisticsService | StatisticsServiceTest | ✅ |
+| StatisticsCacheDelegate | **StatisticsCacheDelegateTest** | ✅ 新增 |
+| SettlementService | SettlementServiceTest | ✅ |
+| ChatService | ChatServiceTest | ✅ |
+| RateLimitService | RateLimitServiceTest | ✅ |
+| TransportCalculationService | TransportCalculationServiceTest | ✅ |
+| ActivityViewHelper | ActivityViewHelperTest | ✅ |
+| ExpenseViewHelper | ExpenseViewHelperTest | ✅ |
+| TripViewHelper | **TripViewHelperTest** | ✅ 新增 |
+| PlaceService | PlaceServiceTest | ✅ |
+| GlobalExpenseService | GlobalExpenseServiceTest | ✅ |
+| GlobalDocumentService | GlobalDocumentServiceTest | ✅ |
+
+**Service 覆蓋率：21/21 = 100%**
+
+### External Clients
+
+| Client | 測試檔案 | 狀態 |
+|--------|----------|:----:|
+| GoogleMapsClientImpl | GoogleMapsClientImplTest | ✅ |
+| MockGoogleMapsClient | MockGoogleMapsClientTest | ✅ |
+| OpenWeatherMapClient | OpenWeatherMapClientTest | ✅ |
+| MockWeatherClient | MockWeatherClientTest | ✅ |
+| MockExchangeRateClient | MockExchangeRateClientTest | ✅ |
+| GeminiClientImpl | GeminiClientImplTest | ✅ |
+| MockGeminiClient | MockGeminiClientTest | ✅ |
+| ExchangeRateApiClient | -- | 🔵 整合測試（需外部 API） |
+| SupabaseStorageClient | -- | 🔵 整合測試（需 Supabase） |
+| MockStorageClient | -- | 🔵 低優先（Mock 實作） |
 
 ---
 
-## 7. Summary
+## 四、其他測試覆蓋
 
-- **~914 單元測試 + ~118 E2E 測試，全數通過**
-- **6 new test files** covering ActivityService, ActivityApiController, TransportCalculationService, TodoApiController, ExchangeRateApiController, TripController
-- **Key gap filled**: Activity CRUD + transport calculation was the largest untested business logic area
-- **TodoApiController 和 ExchangeRateApiController 已補齊 WebMvcTest，REST API Controller 100% 覆蓋**
-- **首批 Web Controller 測試 (TripControllerTest) 建立測試模式**
-- **Remaining priority gaps**: 其餘 Web Controller 測試、@SpringBootTest 整合測試
-- **Overall test health**: Good - all core services have unit tests, all REST API controllers have WebMvcTest coverage, first web controller test established
+| 模組 | 測試檔案 | 狀態 |
+|------|----------|:----:|
+| Domain: DebtSimplifier | DebtSimplifierTest | ✅ |
+| Domain: RouteOptimizer | RouteOptimizerTest | ✅ |
+| Domain: ExpenseAggregator | ExpenseAggregatorTest | ✅ |
+| Domain: PermissionChecker | PermissionCheckerTest | ✅ |
+| Security: UserPrincipal | UserPrincipalTest | ✅ |
+| Security: CustomOAuth2UserService | CustomOAuth2UserServiceTest | ✅ |
+| Config: RateLimitConfig | RateLimitConfigTest | ✅ |
+| DTO: UserResponse | UserResponseTest | ✅ |
+| DTO: ApiResponse | ApiResponseTest | ✅ |
+| Exception: GlobalExceptionHandler | GlobalExceptionHandlerTest | ✅ |
+| Exception: Exceptions | ExceptionsTest | ✅ |
+| Entity 測試 | Activity, Document, Expense, ExpenseSplit, InviteLink, Place, Role, Trip, TripMember | ✅ |
+| Repository 測試 | User, Trip, TripMember, InviteLink | ✅ |
+| Util: CurrencyConverter | CurrencyConverterTest | ✅ |
+
+---
+
+## 五、E2E 測試覆蓋
+
+| Spec 檔案 | 覆蓋功能 |
+|-----------|----------|
+| `auth.spec.ts` | 登入/登出流程 |
+| `trip.spec.ts` | 行程 CRUD |
+| `activity.spec.ts` | 景點 CRUD |
+| `expense.spec.ts` | 費用 CRUD |
+| `document.spec.ts` | 文件上傳/列表 |
+| `todo.spec.ts` | 待辦事項 CRUD |
+| `chat.spec.ts` | AI 聊天功能 |
+| `profile.spec.ts` | 個人資料編輯 |
+| `health.spec.ts` | 健康檢查 |
+| `dark-mode.spec.ts` | 深色模式切換 |
+| `user-journey.spec.ts` | 完整使用者旅程 |
+
+**E2E 覆蓋：11 個 spec 檔案，涵蓋所有核心功能**
+
+---
+
+## 六、問題清單
+
+### 🔴 Critical
+
+無。
+
+### 🟡 Warning
+
+| # | 問題 | 檔案路徑 | 影響 | 建議 |
+|---|------|----------|------|------|
+| W1 | ExchangeRateApiClient 無單元測試 | `src/main/java/com/wego/service/external/ExchangeRateApiClient.java` | 外部 API 呼叫邏輯及 circuit breaker 未驗證 | 用 MockRestServiceServer 或 WireMock 測試 |
+| W2 | SupabaseStorageClient 無單元測試 | `src/main/java/com/wego/service/external/SupabaseStorageClient.java` | 儲存上傳/下載/簽名 URL 邏輯未驗證 | 用 MockRestServiceServer 測試 |
+
+### 🔵 Suggestion
+
+| # | 建議 | 說明 |
+|---|------|------|
+| S1 | 增加 JaCoCo 覆蓋率門檻 | 建議在 CI pipeline 中設定 80% 行覆蓋率門檻 |
+| S2 | MockStorageClient 補寫測試 | `src/main/java/com/wego/service/external/MockStorageClient.java` - 驗證 Mock 實作行為 |
+| S3 | 考慮增加邊界條件測試 | 如：行程成員上限 (10人) 的邊界測試、費用金額為 0 或負數 |
+| S4 | E2E 缺少成員管理流程 | 邀請連結產生、角色變更、移除成員的端到端測試 |
+| S5 | E2E 缺少費用結算流程 | 債務簡化、結清標記的完整流程測試 |
+
+---
+
+## 七、歷次補寫的測試清單
+
+### 第二次審查新增（2026-02-18）
+
+| # | 測試檔案 | 測試數量 | 覆蓋內容 |
+|---|----------|:-------:|----------|
+| 1 | `src/test/java/com/wego/service/StatisticsCacheDelegateTest.java` | 14 | 分類統計、趨勢統計、成員統計、幣別轉換（外幣/同幣/null 幣別）、轉換失敗 graceful fallback、trip not found 例外 |
+| 2 | `src/test/java/com/wego/service/TripViewHelperTest.java` | 20 | 出發倒數天數計算（未來/過去/今天/null）、行程天數與夜數、待辦預覽（限制3筆/例外處理）、天氣座標 fallback（今日活動/任意活動/預設/null place/零座標）、費用摘要計算（含零成員 divisor） |
+| 3 | `src/test/java/com/wego/controller/web/ErrorControllerTest.java` | 13 | 8 種 HTTP 狀態碼對應訊息（400/401/403/404/405/500/502/503）、null 狀態碼預設 500、未知狀態碼 generic 處理、exception/message/empty message 細節顯示 |
+| **合計** | | **47** | |
+
+### 第一次審查新增（2026-02-14）
+
+| # | 測試檔案 | 測試數量 | 覆蓋內容 |
+|---|----------|:-------:|----------|
+| 1 | `src/test/java/com/wego/controller/web/MemberWebControllerTest.java` | 6 | 成員列表頁面、邀請連結顯示、權限驗證 |
+| 2 | `src/test/java/com/wego/controller/web/DocumentWebControllerTest.java` | 7 | 文件列表頁面、上傳表單、認證保護 |
+| 3 | `src/test/java/com/wego/service/PlaceServiceTest.java` | 11 | findOrCreate 邏輯、mapTypeToCategory 映射 |
+| 4 | `src/test/java/com/wego/service/GlobalExpenseServiceTest.java` | 6 | 跨行程費用總覽、未結清行程排序 |
+| 5 | `src/test/java/com/wego/service/GlobalDocumentServiceTest.java` | 7 | 跨行程文件總覽、行程篩選、存取控制 |
+| **合計** | | **37** | |
+
+---
+
+## 八、測試品質評分
+
+| 維度 | 評分 | 說明 |
+|------|:----:|------|
+| 覆蓋率完整度 | 9.5/10 | 所有 Controller (27/27) 和 Service (21/21) 100% 有測試；僅 2 個外部 Client 缺整合測試 |
+| 測試設計品質 | 8.5/10 | 命名清晰、使用 @DisplayName、Mock 模式統一、@ActiveProfiles("test")、Parameterized 測試 |
+| 邊界條件 | 8/10 | null 安全、currency conversion fallback、zero divisor 等邊界已覆蓋 |
+| E2E 覆蓋 | 8/10 | 11 個 spec 覆蓋核心流程，缺成員管理和結算 E2E |
+| 測試可維護性 | 9/10 | BaseWebController 抽共用邏輯、@WebMvcTest 隔離、測試模式統一 |
+| 執行速度 | 9/10 | 1069 測試 27 秒完成，無 I/O 阻塞、無 sleep |
+
+### 總體評分：**8.7 / 10**（上次 8.5）
+
+### 改善建議優先順序
+
+1. **短期**：為 ExchangeRateApiClient 和 SupabaseStorageClient 補寫整合測試（WireMock/MockRestServiceServer）
+2. **短期**：在 CI 中啟用 JaCoCo 覆蓋率門檻 (80%)
+3. **中期**：補寫成員管理 E2E 測試（邀請/角色/移除）
+4. **中期**：增加費用結算 E2E 測試
+5. **長期**：建立 mutation testing (PIT) 驗證測試有效性

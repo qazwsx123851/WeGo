@@ -263,7 +263,7 @@
 
                 // Validate file size (max 5MB)
                 if (file.size > 5 * 1024 * 1024) {
-                    alert('檔案大小不得超過 5MB');
+                    Toast.error('檔案大小不得超過 5MB');
                     fileInput.value = '';
                     return;
                 }

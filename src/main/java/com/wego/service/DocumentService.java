@@ -1,8 +1,10 @@
 package com.wego.service;
 
 import com.wego.config.SupabaseProperties;
+import com.wego.domain.file.FileValidationUtils;
 import com.wego.domain.permission.PermissionChecker;
 import com.wego.dto.request.CreateDocumentRequest;
+import com.wego.dto.response.DocumentPreviewInfo;
 import com.wego.dto.response.DocumentResponse;
 import com.wego.entity.Document;
 import com.wego.entity.User;
@@ -25,9 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,15 +65,6 @@ public class DocumentService {
      * Magic bytes for file type validation.
      * Used to verify actual file content, not just Content-Type header.
      */
-    private static final Map<String, byte[][]> MAGIC_BYTES = Map.of(
-            "application/pdf", new byte[][] { {0x25, 0x50, 0x44, 0x46} }, // %PDF
-            "image/jpeg", new byte[][] {
-                {(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE0},
-                {(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE1},
-                {(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE8}
-            },
-            "image/png", new byte[][] { {(byte)0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A} }
-    );
 
     private final ActivityRepository activityRepository;
     private final DocumentRepository documentRepository;
@@ -426,7 +417,7 @@ public class DocumentService {
      * @throws ForbiddenException if user has no view permission
      */
     @Transactional(readOnly = true)
-    public Document getDocumentForPreview(UUID tripId, UUID documentId, UUID userId) {
+    public DocumentPreviewInfo getDocumentForPreview(UUID tripId, UUID documentId, UUID userId) {
         log.debug("Getting document content for preview: {} from trip {} by user {}", documentId, tripId, userId);
 
         Document document = findDocumentById(documentId);
@@ -439,7 +430,12 @@ public class DocumentService {
             throw new ForbiddenException("您沒有權限查看此檔案");
         }
 
-        return document;
+        return new DocumentPreviewInfo(
+                document.getTripId(),
+                document.getFileName(),
+                document.getOriginalFileName(),
+                document.getMimeType()
+        );
     }
 
     // Private helper methods
@@ -470,7 +466,7 @@ public class DocumentService {
 
         // CRITICAL: Validate actual file content using magic bytes
         // This prevents MIME type spoofing attacks
-        if (!validateFileMagicBytes(file, contentType)) {
+        if (!FileValidationUtils.matchesMagicBytes(file, contentType)) {
             log.warn("File content does not match declared MIME type: {}", contentType);
             throw new ValidationException("INVALID_FILE_CONTENT",
                     "檔案內容與宣告的格式不符");
@@ -492,52 +488,6 @@ public class DocumentService {
      * @param declaredType The declared MIME type
      * @return true if file content matches declared type
      */
-    private boolean validateFileMagicBytes(MultipartFile file, String declaredType) {
-        // Skip validation for HEIC (complex format, allow if declared)
-        if ("image/heic".equals(declaredType)) {
-            return true;
-        }
-
-        byte[][] expectedSignatures = MAGIC_BYTES.get(declaredType);
-        if (expectedSignatures == null) {
-            // No magic bytes defined for this type, skip validation
-            return true;
-        }
-
-        try (InputStream is = file.getInputStream()) {
-            // Read enough bytes to check longest signature
-            int maxLength = Arrays.stream(expectedSignatures)
-                    .mapToInt(sig -> sig.length)
-                    .max()
-                    .orElse(8);
-            byte[] fileHeader = new byte[maxLength];
-            int bytesRead = is.read(fileHeader);
-
-            if (bytesRead < 4) {
-                return false; // File too small to validate
-            }
-
-            // Check if file starts with any expected signature
-            for (byte[] signature : expectedSignatures) {
-                if (bytesRead >= signature.length) {
-                    boolean matches = true;
-                    for (int i = 0; i < signature.length; i++) {
-                        if (fileHeader[i] != signature[i]) {
-                            matches = false;
-                            break;
-                        }
-                    }
-                    if (matches) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        } catch (IOException e) {
-            log.error("Failed to read file for magic bytes validation", e);
-            return false;
-        }
-    }
 
     private String getFileExtension(String fileName) {
         if (fileName == null || !fileName.contains(".")) {

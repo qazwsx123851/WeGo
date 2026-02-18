@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -41,7 +42,10 @@ import java.util.UUID;
        uniqueConstraints = @UniqueConstraint(
            name = "uk_trip_member",
            columnNames = {"trip_id", "user_id"}
-       ))
+       ),
+       indexes = {
+           @Index(name = "idx_trip_member_user_id", columnList = "user_id")
+       })
 @Getter
 @Setter
 @NoArgsConstructor

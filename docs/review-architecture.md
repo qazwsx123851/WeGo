@@ -1,349 +1,297 @@
-# Architecture Review Report
+# 架構審查報告
 
-**Project:** WeGo - Travel Planning Platform
-**Date:** 2026-02-12
-**Reviewer:** arch-reviewer (automated)
-**Scope:** Controller/Service/Repository layering, DI, Entity/DTO separation, exception handling, SOLID/DRY, naming conventions
-
----
-
-## Executive Summary
-
-The WeGo project demonstrates a well-structured Spring Boot application with clear layering (Controller -> Service -> Repository), centralized permission checking (`PermissionChecker`), and unified exception handling for both API and Web controllers. The codebase follows consistent naming conventions and makes good use of DTOs to avoid entity leakage.
-
-Key concerns:
-- **TripController.java 已從 1664 行縮減至 535 行** -- 已拆分出 DocumentWebController、MemberWebController，showExpenses 移至 ExpenseWebController
-- **Web controllers 的 Repository 旁路已修復** -- InviteController、ProfileController、ExpenseWebController 已改用 Service 層
-- **`getCurrentUser()` 重複問題已完全修復** -- 全部 9 個 Web Controller 已繼承 `BaseWebController`
-- **Duplicated permission-checking boilerplate** (find member, check role) in web controllers instead of delegating to services
-- **Inconsistent auth patterns** between web controllers (OAuth2User + email lookup) and API controllers (UserPrincipal + @CurrentUser)
+> 審查日期：2026-02-18（第二次審查）
+> 前次審查：2026-02-14
+> 審查範圍：Controller / Service / Repository 分層、依賴注入、Entity/DTO 分離、例外處理、SOLID/DRY、命名規範
 
 ---
 
-## Detailed Findings
+## 問題摘要
 
-### 1. Layering Violations
+| 嚴重程度 | 數量 | 與前次比較 |
+|----------|------|-----------|
+| :red_circle: Critical | 0 | 持平 |
+| :yellow_circle: Warning | 3 | -5（8→3）|
+| :blue_circle: Suggestion | 8 | -1（9→8）|
 
-#### 1.1 Controller directly accesses Repository (bypasses Service layer)
-
-**Severity:** :red_circle: Critical
-
-| File | Line | Repository Used | Should Use |
-|------|------|-----------------|------------|
-| `TripController.java` | 75 | `PlaceRepository` injected | `PlaceService` or `ActivityService` |
-| `TripController.java` | 1085-1100 | `placeRepository.findByGooglePlaceId()`, `placeRepository.save()` | Service method |
-| `TripController.java` | 1306-1328 | Same pattern in `updateActivity` | Service method |
-| `ExpenseWebController.java` | 61 | `TripMemberRepository` injected | `TripService.getTripMembers()` |
-| `InviteController.java` | 48-52 | `InviteLinkRepository`, `TripRepository`, `TripMemberRepository` injected | `InviteLinkService`, `TripService` |
-| `ProfileController.java` | 37-39 | `TripMemberRepository`, `DocumentRepository`, `ExpenseRepository` | `ProfileService` or aggregate in `UserService` |
-
-**Description:** Web controllers directly inject and call repositories, violating the Controller -> Service -> Repository layering principle. The `TripController` creates and saves `Place` entities directly, which is business logic that belongs in the service layer.
-
-**Recommendation:** Extract Place creation/lookup into `ActivityService` or a new `PlaceService`. Extract profile statistics into `UserService.getProfileStats()`. Remove direct repository dependencies from controllers.
-
-**狀態：✅ 已修復** — InviteController 改用 InviteLinkService、ProfileController 改用 UserService.getUserStats()、ExpenseWebController 改用 TripService 方法。TripController 的 PlaceRepository 注入已移至 PlaceService。
+**前次審查修復追蹤**：8 項 Warning 中有 5 項已修復（W-01, W-02, W-05, W-06, W-08），1 項已修復（W-03）。
 
 ---
 
-#### 1.2 Business logic in Controller layer
+## 前次問題修復狀態
 
-**Severity:** :red_circle: Critical
-
-| File | Lines | Description |
-|------|-------|-------------|
-| `TripController.java` | 270-278 | Trip duration calculation (`ChronoUnit.DAYS.between`) |
-| `TripController.java` | 280-284 | Days-until-trip calculation |
-| `TripController.java` | 306-313 | Average expense per member calculation |
-| `TripController.java` | 436-474 | Weather coordinate extraction with priority logic |
-| `TripController.java` | 523-548 | Activity grouping by date + sorting |
-| `TripController.java` | 752-764 | Expense grouping by date with TreeMap |
-| `TripController.java` | 770-773 | Per-person expense average calculation |
-| `TripController.java` | 1108-1158 | Activity form parsing: date calculation, transport validation, manual minutes validation |
-| `ExpenseWebController.java` | 550-625 | `buildSplits()` - expense split creation logic |
-| `SettlementWebController.java` | 100-107 | Per-person average calculation |
-| `HomeController.java` | 72-76 | `daysUntil` calculation with entity mutation (`trip.setDaysUntil`) |
-
-**Description:** Controllers contain significant business logic including date calculations, data grouping, financial calculations, and validation. This logic should reside in the service layer for reusability and testability.
-
-**Recommendation:** Move grouping/calculation logic into service methods. For example, `TripService.getTripDetailData(tripId, userId)` could return a rich DTO with pre-computed `tripDays`, `tripNights`, `daysUntil`, `averageExpense`, etc.
+| 編號 | 問題 | 狀態 |
+|------|------|------|
+| W-01 | TripController 包含視圖呈現邏輯 | :white_check_mark: 已修復 — `TripViewHelper` 已建立並使用 |
+| W-02 | HomeController 在 Controller 計算 daysUntil | :white_check_mark: 已修復 — 使用 `TripViewHelper.calculateDaysUntilMap()` |
+| W-03 | PlaceService.findOrCreate() 回傳 Place Entity | :white_check_mark: 已修復 — 現回傳 `UUID` |
+| W-04 | DocumentService.getDocumentForPreview() 回傳 Entity | :warning: 未修復 — 仍回傳 `Document` Entity |
+| W-05 | EARTH_RADIUS_METERS 重複定義 4 次 | :white_check_mark: 已修復 — 統一至 `GeoUtils` |
+| W-06 | Magic Bytes 驗證邏輯重複 | :white_check_mark: 已修復 — 統一至 `FileValidationUtils` |
+| W-07 | requireUserId() 在多個 API Controller 重複 | :warning: 未修復 — 仍在 2 個 Controller 重複 |
+| W-08 | UNKNOWN_USER_NAME 重複定義 | :white_check_mark: 已修復 — 統一至 `TripConstants` |
+| S-01 | BaseWebController 使用 @Autowired | :warning: 未修復 — 仍使用 field injection |
+| S-02 | TripService 依賴過多 (12個) | :warning: 未修復 — 仍為 12 個依賴 |
 
 ---
 
-### 2. DRY Violations
+## 1. 分層架構檢查
 
-#### 2.1 Duplicated `getCurrentUser()` method
+### 整體評價
 
-**Severity:** :yellow_circle: Warning（✅ 已完全修復）
+分層架構設計良好，Controller / Service / Repository 職責分明：
+- **Controller 層**：Web Controller 繼承 `BaseWebController` 提供共用方法，API Controller 各自獨立，統一回傳 `ApiResponse`
+- **Service 層**：業務邏輯集中於 Service，包含權限檢查、資料驗證、交易管理
+- **Domain 層**：`PermissionChecker`、`DebtSimplifier`、`RouteOptimizer`、`GeoUtils`、`FileValidationUtils` 正確封裝核心邏輯
+- **Repository 層**：使用 Spring Data JPA，查詢方法命名清晰
+- **ViewHelper 層**：`TripViewHelper`、`ActivityViewHelper`、`ExpenseViewHelper` 將視圖邏輯從 Controller 提取，職責清晰
 
-**狀態：✅ 已完全修復** — 全部 9 個 Web Controller 已繼承 `BaseWebController`，共用 `getCurrentUser()`、`loadTrip()`、`findCurrentMember()`、`canEdit()`、`isOwner()` 方法。
+### 改善項目
 
-原先有 **8 個 web controllers** 各自包含相同或近似的 `getCurrentUser()` 方法：
+#### :yellow_circle: W-01（新）：TodoWebController 重複 BaseWebController 的權限邏輯
 
-| File | Lines |
-|------|-------|
-| `TripController.java` | 1657-1663 |
-| `ExpenseWebController.java` | 661-667 |
-| `InviteController.java` | 175-181 |
-| `ProfileController.java` | 160-174 |
-| `SettlementWebController.java` | 128-134 |
-| `TodoWebController.java` | 123-134 |
-| `GlobalExpenseController.java` | 80-94 |
-| `GlobalDocumentController.java` | 112-126 |
+**檔案**：`src/main/java/com/wego/controller/web/TodoWebController.java:81-88`
 
-**Recommendation:** 將所有 Web Controller 遷移至繼承 `BaseWebController`，或進一步採用 `@CurrentUser` 註解解析器直接從 Principal 解析 `User`。
+```java
+// TodoWebController 自行實作 findCurrentMember + canEdit
+TripResponse.MemberSummary currentMember = trip.getMembers().stream()
+        .filter(m -> m.getUserId().equals(user.getId()))
+        .findFirst()
+        .orElse(null);
 
----
+boolean canEdit = currentMember != null &&
+        (currentMember.getRole() == Role.OWNER ||
+         currentMember.getRole() == Role.EDITOR);
+```
 
-#### 2.2 Duplicated permission check boilerplate
+`BaseWebController` 已提供 `findCurrentMember()` (line 75) 和 `canEdit()` (line 91) 方法，`TodoWebController` 繼承了 `BaseWebController` 卻未使用這些方法，而是自行重複實作。
 
-**Severity:** :yellow_circle: Warning
-
-在 `TripController` 的多個方法中，查找當前成員並檢查角色權限的邏輯重複出現。該模式透過 stream 過濾成員列表、比對使用者 ID、判斷是否為 OWNER 或 EDITOR 角色。
-
-Found in: `showTripDetail` (line 253), `showActivities` (line 509), `showActivityDetail` (line 610), `showMembersPage` (line 678), `showActivityCreateForm` (line 1001), `showActivityEditForm` (line 1206), `duplicateActivity` (line 916), `createActivity` (line 1070), `updateActivity` (line 1293), `showEditForm` (line 1499), `updateTrip` (line 1557).
-
-Also in `TodoWebController.java` (line 92) and `ExpenseWebController.java` (lines 101, 634-653 as helper methods).
-
-**Recommendation:** `ExpenseWebController` already has extracted `findCurrentMember()` and `canEdit()` helpers. Promote these to the base class or a shared utility. Even better, have the service layer return a view-model that includes the user's permission level.
+**建議**：改用 `findCurrentMember(trip, user.getId())` 和 `canEdit(currentMember)`。
 
 ---
 
-#### 2.3 Duplicated trip-fetch-and-null-check pattern
+## 2. 依賴注入
 
-**Severity:** :yellow_circle: Warning
+### 整體評價
 
-Nearly every web controller method repeats a pattern of：呼叫 `tripService.getTrip(id, user.getId())`，以 try-catch 捕捉例外後 redirect 至 dashboard，接著再進行 null 檢查。此模式出現在 **15+ 方法** across `TripController`, `ExpenseWebController`, `TodoWebController`, `SettlementWebController`.
+依賴注入設計良好：
+- 所有 Service 和 Controller 均使用 `@RequiredArgsConstructor`（除 `BaseWebController` 和 `SettlementService`）
+- `SettlementService` 使用手動建構子以支援 `@Nullable` 可選依賴，這是正確做法
+- 外部 API Client 使用介面 + `@ConditionalOnProperty` 切換真實/Mock 實現
+- **未發現循環依賴**
 
-**Recommendation:** Extract into a shared helper or use a `@PreAuthorize`-style interceptor. Note that `TripService.getTrip()` already throws `ResourceNotFoundException` if not found, so the `null` check is likely redundant.
+#### :blue_circle: S-01：BaseWebController 使用 @Autowired field injection
 
-**狀態：✅ 已修復** — `BaseWebController` 新增 `getTripOrRedirect()` helper，消除 ~150 行重複代碼。
+**檔案**：`src/main/java/com/wego/controller/web/BaseWebController.java:31-35`
 
----
+```java
+@Autowired
+protected UserService userService;
+@Autowired
+protected TripService tripService;
+```
 
-#### 2.4 Duplicated activity create/update form logic
+其他所有 Controller 和 Service 均使用 `@RequiredArgsConstructor` 的建構子注入。`BaseWebController` 是唯一使用 field injection 的類別。
 
-**Severity:** :yellow_circle: Warning
+**建議**：改為建構子注入或在子類別中注入後向上傳遞。不過因為這是 abstract class + 子類用 `@RequiredArgsConstructor`，field injection 是合理的折衷方案，影響不大。
 
-| File | Lines | Description |
-|------|-------|-------------|
-| `TripController.java` | 1081-1158 | `createActivity()` - Place find/create, date parse, transport validation |
-| `TripController.java` | 1304-1380 | `updateActivity()` - Nearly identical Place find/create, date parse, transport validation |
+#### :blue_circle: S-02：TripService 依賴過多 Repository
 
-**Description:** The `createActivity` and `updateActivity` methods share ~80% identical code for place lookup, date calculation, transport mode parsing, and manual minutes validation.
+**檔案**：`src/main/java/com/wego/service/TripService.java:81-92`
 
-**Recommendation:** Extract shared logic into a private helper method like `buildActivityFromFormParams()` or move the entire Place find-or-create + request building into the service layer.
+`TripService` 注入了 9 個 Repository + 3 個其他依賴（共 12 個依賴），主因是 `deleteTrip()` 需要級聯刪除所有關聯實體。
 
-**狀態：✅ 已修復** — Place find-or-create 邏輯已提取至 `PlaceService`。
-
----
-
-### 3. Single Responsibility Principle (SRP) Violations
-
-#### 3.1 TripController is a God Controller (originally 1664 lines)
-
-**Severity:** :red_circle: Critical
-
-**File:** `/Users/mark/WeGo/src/main/java/com/wego/controller/web/TripController.java`
-
-**Description:** `TripController` originally handled:
-- Trip CRUD (list, create, edit, view)
-- Activity CRUD (list, create, edit, delete, duplicate)
-- Activity detail view
-- Expense list view
-- Document list and upload form
-- Member management page
-- Transport recalculation
-- Weather coordinate calculation
-- Search coordinate calculation
-
-It injected 8 dependencies: `TripService`, `UserService`, `ActivityService`, `TodoService`, `ExpenseService`, `DocumentService`, `InviteLinkService`, `PlaceRepository`.
-
-**Recommendation:** Split into focused controllers:
-- `TripController` - Trip CRUD only (~300 lines)
-- `ActivityWebController` - Activity CRUD, duplicate, transport recalc (~500 lines)
-- Keep `ExpenseWebController` as-is (already separate, but expenses list is still in TripController)
-- `DocumentWebController` - Document list/upload (move from TripController)
-- `MemberWebController` - Member page (move from TripController)
-
-**狀態：✅ 已修復** — TripController 已從 1664 行縮減至 535 行。已拆分出：`DocumentWebController` (文件列表/上傳)、`MemberWebController` (成員頁面)，`showExpenses()` 移至 `ExpenseWebController`。TripController 僅保留 list, detail, create, edit, delete。
+**建議**：考慮使用 JPA Cascade Delete 或將刪除邏輯提取至 `TripDeletionService`，降低 `TripService` 的耦合度。
 
 ---
 
-#### 3.2 TripService handles cover image upload logic
+## 3. Entity 與 DTO 分離
 
-**Severity:** :blue_circle: Suggestion
+### 整體評價
 
-**File:** `/Users/mark/WeGo/src/main/java/com/wego/service/TripService.java` (lines 510-699)
+Entity/DTO 分離做得**非常好**：
+- 所有 API 回應使用 DTO（`TripResponse`、`ActivityResponse`、`ExpenseResponse` 等）
+- 每個 DTO 都有 `fromEntity()` 靜態工廠方法
+- Request DTO 使用 Builder 模式（`CreateTripRequest`、`UpdateTripRequest` 等）
+- Entity 不直接暴露給前端
+- `PlaceService.findOrCreate()` 已改為回傳 `UUID`（前次 W-03 已修復）
 
-**Description:** `TripService` contains ~190 lines of cover image validation and upload logic including magic byte validation, file extension validation, and storage path management. This is a separate concern from trip business logic.
+#### :yellow_circle: W-02（保留）：DocumentService.getDocumentForPreview() 回傳 Entity
 
-**Recommendation:** Extract into a `CoverImageService` or `ImageUploadService`.
+**檔案**：`src/main/java/com/wego/service/DocumentService.java:419`
 
----
+```java
+public Document getDocumentForPreview(UUID tripId, UUID documentId, UUID userId) {
+    // ... returns Document entity
+}
+```
 
-### 4. Inconsistent Authentication Patterns
+此方法回傳 `Document` Entity 供 `DocumentApiController` 直接使用（`DocumentApiController.java:183`）。
 
-#### 4.1 Web vs API auth divergence
-
-**Severity:** :yellow_circle: Warning
-
-| Layer | Auth Pattern | Principal Type | User Resolution |
-|-------|-------------|----------------|-----------------|
-| Web Controllers | `@AuthenticationPrincipal OAuth2User` | `OAuth2User` | `principal.getAttribute("email")` -> `userService.getUserByEmail()` |
-| API Controllers | `@CurrentUser UserPrincipal` | `UserPrincipal` | `principal.getId()` (direct UUID) |
-| `HomeController` (dashboard) | `@CurrentUser UserPrincipal` | `UserPrincipal` | `principal.getId()` |
-
-**Description:** Most web controllers use the OAuth2User pattern requiring an email lookup, while API controllers and `HomeController` use the custom `@CurrentUser` annotation which directly provides the user ID. This inconsistency means web controllers make an extra DB query per request.
-
-**Recommendation:** Migrate all web controllers to use `@CurrentUser UserPrincipal` like `HomeController` does. This eliminates the redundant `getUserByEmail()` call and the duplicated `getCurrentUser()` methods.
+**建議**：提供 DTO 或定義 `DocumentPreviewResponse`，避免 Entity 洩漏至 Controller。
 
 ---
 
-### 5. Entity/DTO Separation
+## 4. 例外處理
 
-#### 5.1 Entity mutation in controller
+### 整體評價
 
-**Severity:** :yellow_circle: Warning
+例外處理架構**設計優秀**：
+- `GlobalExceptionHandler`（`@RestControllerAdvice`）處理 API Controller，回傳 `ApiResponse` JSON
+- `WebExceptionHandler`（`@ControllerAdvice`）處理 Web Controller，回傳錯誤頁面 ModelAndView
+- 使用 `basePackages` 精確區分作用範圍
+- 例外階層清晰：`BusinessException` -> `ResourceNotFoundException` / `ForbiddenException` / `UnauthorizedException` / `ValidationException`
+- 所有例外都有 `errorCode`，便於前端處理
 
-**File:** `/Users/mark/WeGo/src/main/java/com/wego/controller/web/HomeController.java` (line 74)
+#### :blue_circle: S-03：GlobalExceptionHandler 缺少 ValidationException 處理
 
-**Description:** `HomeController.dashboard()` 在 Controller 層直接修改 `TripResponse` DTO 的 `daysUntil` 欄位。雖然這是 DTO 而非 Entity，但在 Controller 中進行 mutation 是 code smell。若 Service 在 `@Transactional` 上下文中返回此 DTO 且 JPA dirty-checking 啟用，Entity 的修改可能被意外持久化。
+**檔案**：`src/main/java/com/wego/exception/GlobalExceptionHandler.java`
 
-**Recommendation:** Compute `daysUntil` in the service layer or in the DTO's factory method.
+`WebExceptionHandler` 有明確的 `ValidationException` handler（line 71），但 `GlobalExceptionHandler` 沒有。`ValidationException` 繼承 `BusinessException`，會被 `handleBusinessException()` 捕獲並回傳 400，但 errorCode 會是 Service 層設定的值而非統一的 `VALIDATION_ERROR`。
 
----
+**建議**：在 `GlobalExceptionHandler` 中新增明確的 `ValidationException` handler，使行為與 `WebExceptionHandler` 一致。影響不大，因為目前行為已正確。
 
-#### 5.2 InviteController uses Entity directly in view model
+#### :blue_circle: S-04：WebExceptionHandler.handleGenericException 暴露 ex.getMessage()
 
-**Severity:** :yellow_circle: Warning
+**檔案**：`src/main/java/com/wego/exception/WebExceptionHandler.java:83`
 
-**File:** `/Users/mark/WeGo/src/main/java/com/wego/controller/web/InviteController.java` (line 93)
+```java
+return createErrorView(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", ex.getMessage(), request);
+```
 
-**Description:** `InviteController` 直接從 `TripRepository` 取得 `Trip` Entity 並傳遞給 view model，而其他所有 Controller 皆使用 `TripResponse` (DTO)。這會將 JPA Entity 暴露給模板層。
+`createErrorView` 會將 `ex.getMessage()` 放入 `errorDetails` model 屬性，若 Thymeleaf 模板顯示此值可能洩漏內部資訊。`GlobalExceptionHandler` 正確地使用了固定的 "An unexpected error occurred"。
 
-**Recommendation:** Use `TripService.getTrip()` or convert to a minimal DTO before passing to the view.
-
----
-
-### 6. Exception Handling
-
-#### 6.1 Exception handling is well-structured (positive finding)
-
-**Severity:** :large_blue_circle: Info
-
-The project has a clean dual exception handler setup:
-- `GlobalExceptionHandler` (`@RestControllerAdvice(basePackages = "com.wego.controller.api")`) - Returns `ApiResponse` JSON
-- `WebExceptionHandler` (`@ControllerAdvice(basePackages = "com.wego.controller.web")`) - Returns error view pages
-- Custom `ErrorController` for Spring's default error handling
-
-This is well-designed and correctly scoped.
+**建議**：改為使用固定訊息，將原始錯誤僅記錄在 log 中。
 
 ---
 
-#### 6.2 Overly broad exception catching in web controllers
+## 5. SOLID / DRY 原則
 
-**Severity:** :yellow_circle: Warning
+### DRY 違反
 
-Multiple web controller methods catch `Exception` broadly:
+#### :yellow_circle: W-03（保留）：`requireUserId()` 在多個 API Controller 重複
 
-| File | Line | Method |
-|------|------|--------|
-| `TripController.java` | 205 | `createTrip()` catches `Exception` |
-| `TripController.java` | 243 | `showTripDetail()` catches `Exception` for trip fetch |
-| `TripController.java` | 1166 | `createActivity()` catches `Exception` |
-| `TripController.java` | 1389 | `updateActivity()` catches `Exception` |
+**檔案**：
+- `src/main/java/com/wego/controller/api/ActivityApiController.java:276-281`
+- `src/main/java/com/wego/controller/api/ChatApiController.java:61-66`
 
-**Description:** These catch blocks handle exceptions that would be better handled by the `WebExceptionHandler`. The catch blocks often set model attributes and return the same form view, but `WebExceptionHandler` would redirect to the error page. The controllers are essentially duplicating error handling.
+同樣的 `requireUserId()` helper 方法在 2 個 API Controller 中重複。
 
-**Recommendation:** Let `WebExceptionHandler` handle unexpected exceptions. Only catch specific expected exceptions (e.g., `ValidationException`) when you need to return to the same form with error messages.
+**建議**：提取至 `BaseApiController` 或直接使用 `principal.getId()`（因為 Spring Security 已保證 authenticated endpoint 的 principal 非 null）。
 
----
+### SOLID 分析
 
-### 7. Magic Numbers
-
-#### 7.1 Hardcoded values in controllers
-
-**Severity:** :blue_circle: Suggestion
-
-| File | Line | Value | Description |
-|------|------|-------|-------------|
-| `TripController.java` | 88 | `50` | Page size for trip list |
-| `TripController.java` | 163 | `"TWD"` | Default currency |
-| `TripController.java` | 379-382 | `25.0330, 121.5654, 50000` | Default Taipei coordinates and search radius |
-| `TripController.java` | 431-432 | `25.0339, 121.5645` | Default Taipei 101 coordinates |
-| `TripController.java` | 1133, 1355 | `2880` | Max transport minutes (48 hours) |
-| `TripController.java` | 1453 | `50` | Max API calls for transport recalculation |
-| `TripApiController.java` | 100 | `50` | Max page size |
-| `InviteLinkService.java` | 43 | `10` | MAX_MEMBERS_PER_TRIP (also in TripService:59) |
-
-**Recommendation:** Extract into constants with descriptive names, or into configuration properties. Note that `MAX_MEMBERS_PER_TRIP` is duplicated between `TripService` and `InviteLinkService`.
+- **S（單一職責）**：大部分遵守良好。`TripService` 稍微超載（含圖片上傳邏輯），但在合理範圍內。ViewHelper 的引入顯著改善了 Controller 的單一職責。
+- **O（開放封閉）**：外部 API Client 使用介面 + 條件實作，符合 OCP。
+- **L（Liskov 替換）**：例外階層正確，`BusinessException` 子類可互換使用。
+- **I（介面隔離）**：`GoogleMapsClient`、`WeatherClient`、`StorageClient`、`ExchangeRateClient`、`GeminiClient` 介面設計適當。
+- **D（依賴反轉）**：Service 層依賴 Repository 介面和外部 Client 介面，正確遵守 DIP。
 
 ---
 
-### 8. Dependency Injection
+## 6. 命名規範與日誌
 
-#### 8.1 No circular dependency issues detected
+### 整體評價
 
-**Severity:** :large_blue_circle: Info
+命名規範遵守良好：
+- Entity 使用單數（`User`、`Trip`、`Activity`）
+- Service 使用 `{Domain}Service`（`TripService`、`ActivityService`）
+- Controller 分 `{Domain}Controller`（Web）和 `{Domain}ApiController`（REST）
+- DTO 使用 `Create{Entity}Request`、`Update{Entity}Request`、`{Entity}Response`
+- ViewHelper 使用 `{Domain}ViewHelper`
+- Domain 工具類命名清晰（`GeoUtils`、`FileValidationUtils`、`DebtSimplifier`）
 
-All dependencies follow a clean DAG:
-- Controllers -> Services -> Repositories/Domain
-- `InviteLinkService` -> `TripService` (one-way)
-- No bidirectional service dependencies found
+### Magic Number
 
-#### 8.2 InviteLinkService duplicates MAX_MEMBERS_PER_TRIP
+#### :blue_circle: S-05：Controller 中的 Magic Number
 
-**Severity:** :blue_circle: Suggestion
+**檔案**：
+- `src/main/java/com/wego/controller/web/TripController.java:58` -- `PageRequest.of(0, 50, ...)`
+- `src/main/java/com/wego/controller/web/HomeController.java:67` -- `PageRequest.of(0, 10, ...)`
+- `src/main/java/com/wego/controller/web/HomeController.java:80` -- `today.plusDays(30)`
 
-**Files:**
-- `/Users/mark/WeGo/src/main/java/com/wego/service/TripService.java` (line 59)
-- `/Users/mark/WeGo/src/main/java/com/wego/service/InviteLinkService.java` (line 43)
+**建議**：提取為命名常數（`MAX_TRIPS_PER_PAGE`、`UPCOMING_DAYS_WINDOW`）。
 
-**Description:** Both services define `MAX_MEMBERS_PER_TRIP = 10`. If one changes, the other must also change.
+#### :blue_circle: S-06：ExchangeRateApiController 內嵌 DTO
 
-**Recommendation:** Extract to a shared configuration property or constant class.
+**檔案**：`src/main/java/com/wego/controller/api/ExchangeRateApiController.java:191`
+
+```java
+public record ConversionResult(String from, String to, BigDecimal originalAmount, ...)
+```
+
+`ConversionResult` 定義為 Controller 的 inner record。雖然目前只在此處使用，但若日後需要在 Service 層共用會有問題。
+
+**建議**：移至 `dto/response/` 目錄。低優先，目前影響不大。
+
+### 日誌使用
+
+#### :blue_circle: S-07：日誌等級使用適當
+
+所有 Service 和 Controller 均使用 `@Slf4j`：
+- `log.debug()` 用於方法進入點和詳細追蹤
+- `log.info()` 用於成功的狀態變更操作
+- `log.warn()` 用於預期的失敗情境
+- `log.error()` 用於非預期的異常
+
+未發現 `System.out.println` 使用。
+
+#### :blue_circle: S-08：部分 catch block 的日誌等級可調整
+
+**檔案**：`src/main/java/com/wego/controller/web/ActivityWebController.java:311-322`
+
+```java
+} catch (ResourceNotFoundException e) {
+    log.error("Failed to create activity: {}", e.getMessage(), e);
+```
+
+業務例外（如 `ResourceNotFoundException`、`ForbiddenException`）使用 `log.error()` + 完整 stack trace 不太適當，應使用 `log.warn()`。
 
 ---
 
-### 9. Naming Conventions
+## 架構亮點
 
-#### 9.1 Naming is generally consistent (positive finding)
-
-- Entities: Singular (`User`, `Trip`, `Activity`)
-- Services: `{Domain}Service` (`TripService`, `ActivityService`)
-- Web Controllers: `{Domain}Controller` or `{Domain}WebController`
-- API Controllers: `{Domain}ApiController`
-- DTOs: `Create{Entity}Request`, `Update{Entity}Request`, `{Entity}Response`
-
-#### 9.2 Minor naming inconsistencies
-
-**Severity:** :blue_circle: Suggestion
-
-| Issue | Location |
-|-------|----------|
-| `ErrorController` (web package) vs Spring's `ErrorController` interface | Could be `CustomErrorController` for clarity |
-| `GlobalExceptionHandler` only handles API | Name suggests it handles all exceptions |
-| `GlobalExpenseController` / `GlobalDocumentController` prefix "Global" is unusual | Could be `ExpenseOverviewController` / `DocumentOverviewController` |
+1. **PermissionChecker**：集中式權限檢查 + Caffeine cache（5s TTL），避免重複 DB 查詢，設計優秀
+2. **ViewHelper 模式**：`TripViewHelper`、`ActivityViewHelper`、`ExpenseViewHelper` 將呈現邏輯從 Controller 提取，職責清晰（前次建議已落實）
+3. **例外處理雙軌制**：API 回傳 JSON / Web 回傳 ErrorPage，使用 `basePackages` 精確分流
+4. **外部 API 抽象**：所有外部服務（Google Maps、天氣、匯率、Gemini、Storage）均使用介面 + Mock 實作
+5. **AI Chat 安全設計**：系統提示與用戶資料結構性分離，防止 prompt injection
+6. **N+1 問題處理**：`getUserTrips()` 使用 batch query、`mapActivitiesToResponses()` 使用 `buildPlaceLookup()`
+7. **ApiResponse 統一格式**：所有 API 回傳 `{ success, data, message, errorCode, timestamp }`
+8. **Entity/DTO 完整分離**：每個 Entity 都有對應 Response DTO，使用 `fromEntity()` 靜態工廠方法
+9. **Domain 工具類統一**：`GeoUtils` 統一 Haversine 計算、`FileValidationUtils` 統一 magic bytes 驗證（前次建議已落實）
+10. **常數統一管理**：`TripConstants` 集中管理跨 Service 共用常數
 
 ---
 
-## Summary Statistics
+## 架構評分
 
-| Category | Critical | Warning | Suggestion | Info |
-|----------|:--------:|:-------:|:----------:|:----:|
-| Layering Violations | 2 | 0 | 0 | 0 |
-| DRY Violations | 0 | 4 | 0 | 0 |
-| SRP Violations | 1 | 0 | 1 | 0 |
-| Auth Inconsistency | 0 | 1 | 0 | 0 |
-| Entity/DTO Separation | 0 | 2 | 0 | 0 |
-| Exception Handling | 0 | 1 | 0 | 1 |
-| Magic Numbers | 0 | 0 | 1 | 0 |
-| Dependency Injection | 0 | 0 | 1 | 1 |
-| Naming Conventions | 0 | 0 | 1 | 1 |
-| **Total** | **3** | **8** | **4** | **3** |
+| 項目 | 前次分數 | 本次分數 | 說明 |
+|------|:--------:|:--------:|------|
+| 分層架構 | 9 | 9.5 | TripViewHelper 引入後 Controller 職責更清晰 |
+| 依賴注入 | 9 | 9 | 持平，BaseWebController field injection 影響小 |
+| Entity/DTO 分離 | 8.5 | 9 | PlaceService 已修復，僅剩 DocumentService 1 處 |
+| 例外處理 | 9 | 9 | 持平，設計優秀 |
+| SOLID/DRY | 7.5 | 8.5 | GeoUtils + FileValidationUtils + TripConstants 消除多處重複 |
+| 命名規範 | 9 | 9 | 持平，命名清晰一致 |
+| 日誌規範 | 8.5 | 8.5 | 持平，少數日誌等級可調整 |
 
-### Top 3 Priority Actions
+### **總分：8.9 / 10**（前次 8.6 → +0.3）
 
-1. ~~**Split TripController** (1664 lines) into 4-5 focused controllers~~ ✅ 已完成 — TripController 已從 1664 行縮減至 535 行，拆分出 DocumentWebController、MemberWebController，showExpenses 移至 ExpenseWebController
-2. ~~**Move Place creation/lookup and form-parsing logic** from TripController into the service layer~~ ✅ 已完成 — Place find-or-create 邏輯已提取至 PlaceService
-3. ~~**完成所有 Web Controller 繼承 `BaseWebController`**~~ ✅ 已完成 — 全部 9 個 Web Controller 已繼承 BaseWebController
+---
+
+## 改善優先順序
+
+### 高優先（建議立即處理）
+1. **W-01**：`TodoWebController` 使用 `BaseWebController` 的 `findCurrentMember()` 和 `canEdit()` 方法，消除重複
+2. **W-02**：`DocumentService.getDocumentForPreview()` 改回傳 DTO
+
+### 中優先（下次迭代處理）
+3. **W-03**：提取 `requireUserId()` 至 `BaseApiController` 或改用 `principal.getId()`
+4. **S-02**：考慮拆分 `TripService` 的刪除邏輯至 `TripDeletionService`
+5. **S-04**：`WebExceptionHandler` 的 generic exception 使用固定訊息
+
+### 低優先（有空時處理）
+6. **S-05**：提取 Controller 中的 magic number 為命名常數
+7. **S-06**：`ExchangeRateApiController.ConversionResult` 移至 `dto/response/`
+8. **S-08**：業務例外的日誌等級從 `error` 調整為 `warn`

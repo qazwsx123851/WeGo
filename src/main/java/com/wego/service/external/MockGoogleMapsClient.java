@@ -1,5 +1,6 @@
 package com.wego.service.external;
 
+import com.wego.domain.geo.GeoUtils;
 import com.wego.dto.response.DirectionResult;
 import com.wego.dto.response.PlaceDetails;
 import com.wego.dto.response.PlaceSearchResult;
@@ -34,7 +35,6 @@ import java.util.UUID;
 )
 public class MockGoogleMapsClient implements GoogleMapsClient {
 
-    private static final double EARTH_RADIUS_METERS = 6371000;
 
     // Average speeds in km/h for different transport modes
     private static final double WALKING_SPEED_KMH = 5.0;
@@ -252,22 +252,8 @@ public class MockGoogleMapsClient implements GoogleMapsClient {
      * @param lon2 Longitude of point 2
      * @return Distance in meters
      */
-    private double calculateHaversineDistance(
-            double lat1, double lon1,
-            double lat2, double lon2
-    ) {
-        double lat1Rad = Math.toRadians(lat1);
-        double lat2Rad = Math.toRadians(lat2);
-        double deltaLat = Math.toRadians(lat2 - lat1);
-        double deltaLon = Math.toRadians(lon2 - lon1);
-
-        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-                Math.cos(lat1Rad) * Math.cos(lat2Rad) *
-                        Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
-
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return EARTH_RADIUS_METERS * c;
+    private double calculateHaversineDistance(double lat1, double lon1, double lat2, double lon2) {
+        return GeoUtils.haversineDistanceMeters(lat1, lon1, lat2, lon2);
     }
 
     /**

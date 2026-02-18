@@ -1,5 +1,6 @@
 package com.wego.domain.route;
 
+import com.wego.domain.geo.GeoUtils;
 import com.wego.entity.Activity;
 import com.wego.entity.Place;
 import org.springframework.stereotype.Component;
@@ -36,10 +37,6 @@ public class RouteOptimizer {
      */
     public static final int MAX_ACTIVITIES_PER_DAY = 15;
 
-    /**
-     * Earth's radius in meters for Haversine distance calculation.
-     */
-    private static final double EARTH_RADIUS_METERS = 6_371_000;
 
     /**
      * Optimizes the route order for a list of activities.
@@ -288,16 +285,6 @@ public class RouteOptimizer {
      * @return Distance in meters
      */
     public double calculateDistanceMeters(double lat1, double lng1, double lat2, double lng2) {
-        double lat1Rad = Math.toRadians(lat1);
-        double lat2Rad = Math.toRadians(lat2);
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLng = Math.toRadians(lng2 - lng1);
-
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                   Math.cos(lat1Rad) * Math.cos(lat2Rad) *
-                   Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return EARTH_RADIUS_METERS * c;
+        return GeoUtils.haversineDistanceMeters(lat1, lng1, lat2, lng2);
     }
 }

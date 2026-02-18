@@ -413,7 +413,6 @@
                     renderExpenseDetail(currentExpenseData);
                 }
             } catch (error) {
-                console.error('Error fetching expense:', error);
                 // Use cached data from card
                 renderExpenseDetail(currentExpenseData);
             }
@@ -664,7 +663,6 @@
                     showToast('error', errorMsg);
                 }
             } catch (error) {
-                console.error('Error deleting expense:', error);
                 showToast('error', '網路錯誤，請稍後再試');
             } finally {
                 deleteBtn.disabled = false;

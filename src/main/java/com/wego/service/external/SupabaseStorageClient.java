@@ -49,6 +49,7 @@ public class SupabaseStorageClient implements StorageClient {
     private final ObjectMapper objectMapper;
     private final boolean enabled;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public SupabaseStorageClient(SupabaseProperties properties) {
         this.properties = properties;
 
@@ -63,21 +64,37 @@ public class SupabaseStorageClient implements StorageClient {
         this.fileRestTemplate = new RestTemplate(fileFactory);
 
         this.objectMapper = new ObjectMapper();
+        this.enabled = checkEnabled(properties);
+    }
 
-        // Check if Supabase is properly configured
-        this.enabled = properties.getUrl() != null &&
-                       !properties.getUrl().isBlank() &&
-                       properties.getServiceKey() != null &&
-                       !properties.getServiceKey().isBlank();
+    /**
+     * Test-friendly constructor allowing injection of RestTemplates.
+     */
+    SupabaseStorageClient(SupabaseProperties properties,
+                          RestTemplate apiRestTemplate,
+                          RestTemplate fileRestTemplate) {
+        this.properties = properties;
+        this.apiRestTemplate = apiRestTemplate;
+        this.fileRestTemplate = fileRestTemplate;
+        this.objectMapper = new ObjectMapper();
+        this.enabled = checkEnabled(properties);
+    }
 
-        if (!enabled) {
+    private boolean checkEnabled(SupabaseProperties props) {
+        boolean isEnabled = props.getUrl() != null &&
+                       !props.getUrl().isBlank() &&
+                       props.getServiceKey() != null &&
+                       !props.getServiceKey().isBlank();
+
+        if (!isEnabled) {
             log.warn("Supabase Storage is NOT properly configured. " +
                      "URL: {}, ServiceKey: {}",
-                     properties.getUrl() != null ? "set" : "missing",
-                     properties.getServiceKey() != null ? "set" : "missing");
+                     props.getUrl() != null ? "set" : "missing",
+                     props.getServiceKey() != null ? "set" : "missing");
         } else {
-            log.info("Supabase Storage initialized with URL: {}", properties.getUrl());
+            log.info("Supabase Storage initialized with URL: {}", props.getUrl());
         }
+        return isEnabled;
     }
 
     /**
