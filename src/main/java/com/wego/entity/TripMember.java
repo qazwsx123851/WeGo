@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -71,6 +72,9 @@ public class TripMember {
     @Column(name = "joined_at", nullable = false)
     @Builder.Default
     private Instant joinedAt = Instant.now();
+
+    @Column(name = "personal_budget", precision = 12, scale = 2)
+    private BigDecimal personalBudget;
 
     /**
      * Checks if this member can edit trip content.
