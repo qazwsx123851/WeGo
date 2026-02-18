@@ -11,6 +11,7 @@ import com.wego.security.UserPrincipal;
 import com.wego.service.ActivityService;
 import com.wego.service.ExpenseService;
 import com.wego.service.ExpenseViewHelper;
+import com.wego.service.PersonalExpenseService;
 import com.wego.service.SettlementService;
 import com.wego.service.TripService;
 import com.wego.service.UserService;
@@ -78,6 +79,9 @@ class ExpenseWebControllerTest {
 
     @MockBean
     private SettlementService settlementService;
+
+    @MockBean
+    private PersonalExpenseService personalExpenseService;
 
     private UUID userId;
     private UUID tripId;
