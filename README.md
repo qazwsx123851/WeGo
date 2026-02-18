@@ -23,6 +23,7 @@
 - **債務簡化** - Greedy 配對演算法，自動計算最少轉帳次數
 - **統計圖表** - 類別分析、趨勢圖、成員消費統計（Chart.js）
 - **結算管理** - 逐筆或批次標記結清
+- **個人記帳** - 個人支出追蹤（手動新增 + 自動同步分帳份額）、7 類別分布圓餅圖、每日花費長條圖、預算設定與三色進度條
 
 ### 檔案管理
 - **憑證上傳** - 支援 PDF、JPG、PNG、HEIC，單檔上限 10MB
@@ -61,15 +62,15 @@
 
 | 指標 | 數量 |
 |------|------|
-| REST API 端點 | 58 個 |
-| Web 頁面端點 | 37 個 |
+| REST API 端點 | 64 個 |
+| Web 頁面端點 | 40 個 |
 | Service 類別 | 22 個（含 ViewHelper） |
-| Entity / Enum | 10 / 6 個 |
-| Repository | 10 個 |
-| HTML 模板 | 31 個 |
-| JS 模組 | 8 個 |
-| 單元測試 | ~1060 個（79 個測試檔案） |
-| E2E 測試 | 11 個 Playwright spec |
+| Entity / Enum | 11 / 6 個 |
+| Repository | 11 個 |
+| HTML 模板 | 34 個 |
+| JS 模組 | 9 個 |
+| 單元測試 | 1138 個（86 個測試檔案） |
+| E2E 測試 | 12 個 Playwright spec |
 
 ---
 
@@ -86,21 +87,22 @@
 ```
 wego/
 ├── src/main/java/com/wego/
-│   ├── config/          # 設定（Security, Cache, OAuth, Rate Limit）
+│   ├── config/          # 設定（Security, Cache, OAuth, Rate Limit, HttpClient）
+│   ├── constant/        # 常數（ExpenseCategories, TripConstants）
 │   ├── controller/      # Web Controllers + API Controllers
-│   │   └── api/         # REST API 端點
-│   ├── service/         # 業務邏輯（20 個 Service，含 ViewHelper）
+│   │   └── api/         # REST API 端點（64 個）
+│   ├── service/         # 業務邏輯（22 個 Service，含 ViewHelper）
 │   ├── domain/          # 領域邏輯（DebtSimplifier, RouteOptimizer, PermissionChecker, ExpenseAggregator）
-│   ├── repository/      # 資料存取（10 個 Repository）
-│   ├── entity/          # JPA Entities（10 個）
+│   ├── repository/      # 資料存取（11 個 Repository）
+│   ├── entity/          # JPA Entities（11 個 Entity + 6 個 Enum）
 │   ├── dto/             # Request / Response DTOs
 │   └── external/        # 外部 API 整合（5 組 Interface + Impl + Mock）
 ├── src/main/resources/
-│   ├── templates/       # Thymeleaf 模板（27 個）
-│   └── static/          # CSS, JS, Images
-├── src/test/            # 單元測試（~1060 tests, 79 files）
-├── e2e/                 # E2E 測試（Playwright, 11 specs）
-└── docs/                # 專案文件（19 份）
+│   ├── templates/       # Thymeleaf 模板（34 個）
+│   └── static/js/       # JS 模組（9 個）
+├── src/test/            # 單元測試（1138 tests, 86 files）
+├── e2e/                 # E2E 測試（Playwright, 12 specs）
+└── docs/                # 專案文件
 ```
 
 ---
@@ -113,6 +115,7 @@ wego/
 | Phase 2 | 完成 | 權限模型、代辦事項、智慧排序、天氣預報、檔案管理 |
 | Phase 3 | 完成 | 多幣別匯率、統計圖表、債務簡化、Caffeine 快取 |
 | Phase 4 | 完成 | 安全強化、深色模式、E2E 測試、無障礙支援、效能優化 |
+| Phase 5 | 完成 | 個人記帳（AUTO+MANUAL 合併、預算追蹤）、7 個費用類別、AI 聊天整合 |
 
 ---
 

@@ -1,0 +1,69 @@
+schema: spec-driven
+
+context: |
+  # WeGo - Travel Planning Collaboration Platform
+
+  ## Tech Stack
+  - Backend: Spring Boot 3.x (Java 17+)
+  - Frontend: Thymeleaf + Tailwind CSS (server-rendered, no SPA)
+  - Database: Supabase (PostgreSQL 15+)
+  - Auth: Google OAuth2 via Spring Security
+  - External APIs: Google Maps, OpenWeatherMap, ExchangeRate-API
+  - Build: Maven (./mvnw), JaCoCo for coverage
+  - E2E: Playwright (in e2e/ directory, H2 in-memory DB)
+
+  ## Domain Model
+  User -> TripMember -> Trip -> (Activity, Expense, Document, Todo)
+  Roles: Owner (full control), Editor (CRUD content), Viewer (read-only)
+  Invite links with expiry for adding members (max 10 per trip)
+
+  ## Architecture
+  - Layered: Controller -> Service -> Repository -> Entity
+  - Web controllers: @CurrentUser UserPrincipal (zero DB query)
+  - API controllers: JWT sub claim -> UUID for auth
+  - ViewHelpers extract presentation logic from controllers
+  - PermissionChecker with Caffeine cache (5s TTL)
+  - CSRF: CookieCsrfTokenRepository (cookie XSRF-TOKEN, header X-XSRF-TOKEN)
+  - Shared JS: common.js -> WeGo.escapeHtml(), WeGo.getCsrfToken(), WeGo.fetchWithTimeout()
+
+  ## UI/UX
+  - All UI/UX work (design, layout, styling, component creation, visual changes) MUST first
+    invoke the /ui-ux-pro-max skill for guidance on styles, palettes, font pairings, and patterns
+  - This applies to: new pages, component redesigns, color/theme changes, responsive layouts,
+    animations, accessibility improvements, and any Thymeleaf template with visual impact
+
+  ## Conventions
+  - Conventional commits: feat, fix, refactor, docs, test, chore, perf
+  - Naming: {Domain}Service, {Domain}Controller (Web), {Domain}ApiController (REST)
+  - DTOs: {Action}{Entity}Request / {Entity}Response
+  - Routes use plural nouns (/trips/, /activities/)
+  - Thymeleaf: always use ?. for null-safe, never mix @{} inside ${}, use #temporals for dates
+  - No hardcoded API keys, no System.out.println, no ignored exceptions
+  - Service layer must not access HttpServletRequest
+
+  ## Testing
+  - 968+ unit tests, 70 test files, 10 E2E spec files (~118 E2E tests)
+  - @WebMvcTest + oauth2Login().oauth2User(testPrincipal) for web controller tests
+  - TDD workflow: RED -> GREEN -> REFACTOR, 80%+ coverage target
+  - E2E auth bypass via TestAuthController (@Profile("e2e"))
+
+  ## Key Files
+  - SecurityConfig.java: OAuth2, CSRF, CSP configuration
+  - TripConstants.java: shared constants (e.g., MAX_MEMBERS_PER_TRIP = 10)
+  - common.js: shared frontend utilities
+  - application-e2e.yml: E2E test profile (H2, port 8080)
+
+rules:
+  proposal:
+    - Include affected layers (Controller/Service/Repository/Entity)
+    - Note any Thymeleaf template changes needed
+    - Identify permission/role implications
+    - If the change involves UI/UX, note that /ui-ux-pro-max skill must be consulted during implementation
+  tasks:
+    - Each task should be independently testable
+    - Include test tasks (unit + integration) alongside implementation
+    - Note if migration or schema change is required
+  verification:
+    - Verify no Thymeleaf SpEL anti-patterns (EL1059E, EL1007E)
+    - Confirm CSRF handling for any new endpoints
+    - Check permission enforcement for new routes

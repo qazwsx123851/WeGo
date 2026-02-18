@@ -1,8 +1,10 @@
 # WeGo 開發貢獻指南
 
-> 最後更新: 2026-02-13 | 自動生成自 pom.xml 和 .env.example
+> 最後更新: 2026-02-18 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-18: 個人記帳功能 — PersonalExpense entity、AUTO+MANUAL 合併、預算追蹤、7 個費用類別、Chart.js 圖表
+> - 2026-02-18: 專案健康度改善第二輪 (8.4→8.7) — User composite index、GlobalExpense N+1 batch fix、HttpClientConfig Apache HC5、Google Maps CB
 > - 2026-02-13: AI 旅遊聊天機器人 — Gemini API、安全強化（prompt injection 防護、circuit breaker、Unicode 驗證、OOM 修復）
 > - 2026-02-13: 檔案管理頁效能優化 — Signed URL CDN 直連、Document N+1 批次查詢、Caffeine 快取
 > - 2026-02-12: 例外處理收緊 (24→19 catch blocks)、模板 head fragment 統一 (27/27)、ViewHelper 單元測試、表單防重複提交
@@ -43,8 +45,9 @@
 | Phase 2 | ✅ | 權限模型、代辦事項、智慧排序、天氣預報 | Unit |
 | Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 | Unit |
 | Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙 | Unit + E2E |
+| Phase 5 | ✅ | 個人記帳、AI 聊天、健康度改善 (8.7/10) | Unit + E2E |
 
-**測試統計**: 1060 單元測試 (79 個測試檔案) + 11 個 E2E spec (Playwright)
+**測試統計**: 1138 單元測試 (86 個測試檔案) + 12 個 E2E spec (Playwright)
 
 ---
 
@@ -176,24 +179,25 @@ src/
 ├── main/
 │   ├── java/com/wego/
 │   │   ├── WegoApplication.java    # Spring Boot 入口
-│   │   ├── config/                 # 設定類別
+│   │   ├── config/                 # 設定類別 (Security, Cache, HttpClientConfig)
+│   │   ├── constant/               # 常數 (ExpenseCategories, TripConstants)
 │   │   ├── controller/
-│   │   │   ├── web/                # 頁面控制器 (含 DocumentWebController, MemberWebController)
-│   │   │   └── api/                # REST API
-│   │   ├── service/                # 業務邏輯
-│   │   ├── repository/             # 資料存取
-│   │   ├── entity/                 # JPA 實體
+│   │   │   ├── web/                # 頁面控制器 (13 個，含 PersonalExpenseWebController)
+│   │   │   └── api/                # REST API (64 個端點，含 PersonalExpenseApiController)
+│   │   ├── service/                # 業務邏輯 (22 個，含 PersonalExpenseService)
+│   │   ├── repository/             # 資料存取 (11 個)
+│   │   ├── entity/                 # JPA 實體 (11 Entity + 6 Enum)
 │   │   ├── dto/                    # 資料傳輸物件
 │   │   ├── domain/                 # 領域邏輯
 │   │   ├── exception/              # 例外處理
 │   │   └── security/               # OAuth2 相關
 │   ├── resources/
-│   │   ├── templates/              # Thymeleaf 模板 (27 個)
-│   │   ├── static/                 # 靜態資源 (7 個 JS 模組)
+│   │   ├── templates/              # Thymeleaf 模板 (34 個)
+│   │   ├── static/js/              # JS 模組 (9 個，含 personal-expense.js)
 │   │   └── application.yml
 │   └── frontend/                   # Tailwind CSS 原始碼
 └── test/
-    └── java/com/wego/             # 測試類別 (74 個測試檔案)
+    └── java/com/wego/             # 測試類別 (86 個測試檔案，1138 tests)
 ```
 
 ---
