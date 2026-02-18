@@ -4,6 +4,8 @@ import com.wego.dto.request.CreateExpenseRequest;
 import com.wego.dto.request.UpdateExpenseRequest;
 import com.wego.dto.response.ActivityResponse;
 import com.wego.dto.response.ExpenseResponse;
+import com.wego.dto.response.PersonalExpenseItemResponse;
+import com.wego.dto.response.PersonalExpenseSummaryResponse;
 import com.wego.dto.response.TripResponse;
 import com.wego.entity.Role;
 import com.wego.entity.SplitType;
@@ -14,6 +16,7 @@ import com.wego.dto.response.SettlementResponse;
 import com.wego.service.ActivityService;
 import com.wego.service.ExpenseService;
 import com.wego.service.ExpenseViewHelper;
+import com.wego.service.PersonalExpenseService;
 import com.wego.service.SettlementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +59,7 @@ public class ExpenseWebController extends BaseWebController {
     private final ActivityService activityService;
     private final ExpenseViewHelper expenseViewHelper;
     private final SettlementService settlementService;
+    private final PersonalExpenseService personalExpenseService;
 
     /**
      * Show trip expenses page.
@@ -108,6 +112,23 @@ public class ExpenseWebController extends BaseWebController {
         model.addAttribute("conversionWarnings", settlement.getConversionWarnings());
         model.addAttribute("name", user.getNickname());
         model.addAttribute("picture", user.getAvatarUrl());
+
+        // Personal expense summary for the personal tab
+        try {
+            List<PersonalExpenseItemResponse> personalExpenses =
+                    personalExpenseService.getPersonalExpenses(user.getId(), tripId);
+            model.addAttribute("personalExpenses", personalExpenses);
+
+            PersonalExpenseSummaryResponse personalSummary =
+                    personalExpenseService.getPersonalSummary(user.getId(), tripId);
+            model.addAttribute("personalSummary", personalSummary);
+            model.addAttribute("hasBudget", personalSummary.getBudget() != null);
+        } catch (Exception e) {
+            log.warn("Failed to load personal expenses for trip {}: {}", tripId, e.getMessage());
+            model.addAttribute("personalExpenses", List.of());
+            model.addAttribute("personalSummary", null);
+            model.addAttribute("hasBudget", false);
+        }
 
         return "expense/list";
     }
