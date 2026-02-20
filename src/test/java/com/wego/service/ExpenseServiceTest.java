@@ -78,6 +78,9 @@ class ExpenseServiceTest {
     @Mock
     private PermissionChecker permissionChecker;
 
+    @Mock
+    private SettlementService settlementService;
+
     @InjectMocks
     private ExpenseService expenseService;
 
@@ -187,6 +190,7 @@ class ExpenseServiceTest {
 
             verify(expenseRepository).save(any(Expense.class));
             verify(expenseSplitRepository).saveAll(any());
+            verify(settlementService).evictExpenseCaches(tripId);
         }
 
         @Test
@@ -414,6 +418,7 @@ class ExpenseServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.getDescription()).isEqualTo("Updated Dinner");
             assertThat(response.getAmount()).isEqualByComparingTo(new BigDecimal("1500"));
+            verify(settlementService).evictExpenseCaches(tripId);
         }
 
         @Test
@@ -492,6 +497,7 @@ class ExpenseServiceTest {
             // Then
             verify(expenseSplitRepository).deleteByExpenseId(expenseId);
             verify(expenseRepository).delete(testExpense);
+            verify(settlementService).evictExpenseCaches(tripId);
         }
 
         @Test
@@ -519,6 +525,7 @@ class ExpenseServiceTest {
             // Then
             verify(expenseSplitRepository).deleteByExpenseId(expenseId);
             verify(expenseRepository).delete(otherUserExpense);
+            verify(settlementService).evictExpenseCaches(tripId);
         }
 
         @Test

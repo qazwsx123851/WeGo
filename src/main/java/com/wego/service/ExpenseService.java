@@ -58,6 +58,7 @@ public class ExpenseService {
     private final TripMemberRepository tripMemberRepository;
     private final UserRepository userRepository;
     private final PermissionChecker permissionChecker;
+    private final SettlementService settlementService;
 
     /**
      * Creates a new expense for a trip.
@@ -126,6 +127,8 @@ public class ExpenseService {
         expenseSplitRepository.saveAll(splits);
 
         log.info("Created expense {} for trip {}", expense.getId(), tripId);
+
+        settlementService.evictExpenseCaches(tripId);
 
         return buildExpenseResponse(expense);
     }
@@ -294,6 +297,8 @@ public class ExpenseService {
 
         log.info("Updated expense {}", expenseId);
 
+        settlementService.evictExpenseCaches(expense.getTripId());
+
         return buildExpenseResponse(expense);
     }
 
@@ -329,9 +334,13 @@ public class ExpenseService {
             throw new ForbiddenException("Only the creator or trip owner can delete this expense");
         }
 
+        UUID tripId = expense.getTripId();
+
         // Delete splits first (referential integrity)
         expenseSplitRepository.deleteByExpenseId(expenseId);
         expenseRepository.delete(expense);
+
+        settlementService.evictExpenseCaches(tripId);
 
         log.info("Deleted expense {}", expenseId);
     }

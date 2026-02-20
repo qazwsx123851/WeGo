@@ -15,6 +15,8 @@ import com.wego.repository.ExpenseSplitRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +58,7 @@ public class SettlementService {
     private final DebtSimplifier debtSimplifier;
     private final ExchangeRateService exchangeRateService;
     private final StatisticsService statisticsService;
+    private final CacheManager cacheManager;
 
     /**
      * Creates a SettlementService with all dependencies.
@@ -72,6 +75,7 @@ public class SettlementService {
      * @param debtSimplifier Debt simplifier algorithm
      * @param exchangeRateService Exchange rate service (optional, can be null)
      * @param statisticsService Statistics service for cache eviction
+     * @param cacheManager Cache manager for settlement cache eviction
      */
     public SettlementService(
             ExpenseRepository expenseRepository,
@@ -81,7 +85,8 @@ public class SettlementService {
             PermissionChecker permissionChecker,
             DebtSimplifier debtSimplifier,
             @Nullable ExchangeRateService exchangeRateService,
-            @Nullable StatisticsService statisticsService) {
+            @Nullable StatisticsService statisticsService,
+            CacheManager cacheManager) {
         this.expenseRepository = expenseRepository;
         this.expenseSplitRepository = expenseSplitRepository;
         this.tripRepository = tripRepository;
@@ -90,6 +95,7 @@ public class SettlementService {
         this.debtSimplifier = debtSimplifier;
         this.exchangeRateService = exchangeRateService;
         this.statisticsService = statisticsService;
+        this.cacheManager = cacheManager;
     }
 
     /**
@@ -107,6 +113,7 @@ public class SettlementService {
      * @throws ForbiddenException if user has no view permission
      * @throws ResourceNotFoundException if trip not found
      */
+    @Cacheable(value = "settlement", key = "#tripId")
     @Transactional(readOnly = true)
     public SettlementResponse calculateSettlement(UUID tripId, UUID userId) {
         log.debug("Calculating settlement for trip {} by user {}", tripId, userId);
@@ -244,7 +251,7 @@ public class SettlementService {
 
         split.markAsSettled();
         expenseSplitRepository.save(split);
-        evictStatisticsCache(expense.getTripId());
+        evictExpenseCaches(expense.getTripId());
 
         log.info("Marked split {} as settled", splitId);
     }
@@ -279,7 +286,7 @@ public class SettlementService {
 
         split.markAsUnsettled();
         expenseSplitRepository.save(split);
-        evictStatisticsCache(expense.getTripId());
+        evictExpenseCaches(expense.getTripId());
 
         log.info("Marked split {} as unsettled", splitId);
     }
@@ -316,7 +323,7 @@ public class SettlementService {
         reverseSplits.forEach(ExpenseSplit::markAsSettled);
         expenseSplitRepository.saveAll(reverseSplits);
 
-        evictStatisticsCache(tripId);
+        evictExpenseCaches(tripId);
         log.info("Settled {} + {} reverse splits between users {} <-> {} in trip {}",
                 splits.size(), reverseSplits.size(), fromUserId, toUserId, tripId);
     }
@@ -352,14 +359,26 @@ public class SettlementService {
         reverseSplits.forEach(ExpenseSplit::markAsUnsettled);
         expenseSplitRepository.saveAll(reverseSplits);
 
-        evictStatisticsCache(tripId);
+        evictExpenseCaches(tripId);
         log.info("Unsettled {} + {} reverse splits between users {} <-> {} in trip {}",
                 splits.size(), reverseSplits.size(), fromUserId, toUserId, tripId);
     }
 
-    private void evictStatisticsCache(UUID tripId) {
+    public void evictExpenseCaches(UUID tripId) {
         if (statisticsService != null) {
             statisticsService.evictCaches(tripId);
+        }
+        evictSettlementCache(tripId);
+    }
+
+    /**
+     * Evicts settlement cache for a trip.
+     * Called when expenses or settlements change.
+     */
+    public void evictSettlementCache(UUID tripId) {
+        var cache = cacheManager.getCache("settlement");
+        if (cache != null) {
+            cache.evict(tripId);
         }
     }
 
