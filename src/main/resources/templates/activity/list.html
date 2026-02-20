@@ -161,8 +161,7 @@
                                       active:bg-gray-100 dark:active:bg-gray-700
                                       transition-colors duration-200
                                       touch-manipulation"
-                                 th:data-activity-id="${activity.id}"
-                                 th:attr="draggable=${canEdit ? 'true' : 'false'}">
+                                 th:data-activity-id="${activity.id}">
                                 <a th:href="@{/trips/{tripId}/activities/{activityId}(tripId=${trip.id}, activityId=${activity.id})}"
                                    class="activity-link flex gap-3 items-start flex-1 cursor-pointer">
                                     <!-- Activity Type Icon (based on place category) -->
@@ -658,11 +657,16 @@
     <!-- Lottie Animation Library -->
     <script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
 
+    <!-- SortableJS for drag-and-drop reordering -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"
+            integrity="sha256-bQqDH8GbS66FF5etM5MVfoYa+3hiRZwRImNZsn4sQzc="
+            crossorigin="anonymous" defer></script>
+
     <!-- Scripts -->
     <script th:src="@{/js/app.js}" defer></script>
     <script th:src="@{/js/activity-list.js}" defer></script>
     <script th:src="@{/js/route-optimizer.js}" defer></script>
-    <script th:src="@{/js/drag-reorder.js}" defer></script>
+    <script th:src="@{/js/sortable-reorder.js}" defer></script>
 
     <!-- AI Chat Widget -->
     <div th:replace="~{fragments/chat-widget :: chat-widget(tripId=${trip.id})}"></div>
