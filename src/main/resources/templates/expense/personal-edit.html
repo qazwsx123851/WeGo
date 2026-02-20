@@ -220,9 +220,12 @@
                                    id="expenseDate"
                                    name="expenseDate"
                                    th:value="${request?.expenseDate != null ? #temporals.format(request.expenseDate, 'yyyy-MM-dd') : ''}"
+                                   th:min="${tripStartDate != null ? #temporals.format(tripStartDate, 'yyyy-MM-dd') : ''}"
+                                   th:max="${tripEndDate != null ? #temporals.format(tripEndDate, 'yyyy-MM-dd') : ''}"
                                    placeholder="選擇日期（選填）"
                                    class="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200">
                         </div>
+                        <p th:if="${dateError != null}" class="text-sm text-red-500 mt-1" th:text="${dateError}"></p>
                     </div>
                 </div>
             </section>

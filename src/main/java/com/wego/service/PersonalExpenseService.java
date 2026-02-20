@@ -405,6 +405,26 @@ public class PersonalExpenseService {
                 .getBaseCurrency();
     }
 
+    /**
+     * Returns the trip's start and end dates for client-side date range enforcement.
+     *
+     * @contract
+     *   - pre: tripId != null, userId != null
+     *   - pre: user must be a trip member
+     *   - post: returns non-null record with startDate and endDate
+     *   - calls: TripRepository#findById
+     */
+    public TripDateRange getTripDateRange(UUID tripId, UUID userId) {
+        if (!permissionChecker.isMember(tripId, userId)) {
+            throw new ForbiddenException("Not a member of this trip");
+        }
+        var trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip", tripId.toString()));
+        return new TripDateRange(trip.getStartDate(), trip.getEndDate());
+    }
+
+    public record TripDateRange(LocalDate startDate, LocalDate endDate) {}
+
     // ========== Private Helpers ==========
 
     /**

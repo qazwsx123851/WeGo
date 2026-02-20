@@ -4,9 +4,11 @@ import com.wego.constant.ExpenseCategories;
 import com.wego.dto.request.CreatePersonalExpenseRequest;
 import com.wego.dto.request.UpdatePersonalExpenseRequest;
 import com.wego.exception.ResourceNotFoundException;
+import com.wego.exception.ValidationException;
 import com.wego.security.CurrentUser;
 import com.wego.security.UserPrincipal;
 import com.wego.service.PersonalExpenseService;
+import com.wego.service.PersonalExpenseService.TripDateRange;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,14 +43,9 @@ public class PersonalExpenseWebController {
      *
      * @contract
      *   - pre: tripId != null, principal != null
-     *   - post: Returns personal expense create form
-     *   - calls: none (form only)
+     *   - post: Returns personal expense create form with trip date range for min/max
+     *   - calls: PersonalExpenseService#getBaseCurrency, PersonalExpenseService#getTripDateRange
      *   - calledBy: Web browser GET /trips/{tripId}/personal-expenses/create
-     *
-     * @param tripId    The trip ID
-     * @param model     The Spring MVC model
-     * @param principal The authenticated user
-     * @return The personal expense create view name
      */
     @GetMapping("/create")
     public String showCreateForm(
@@ -57,8 +54,11 @@ public class PersonalExpenseWebController {
             @CurrentUser UserPrincipal principal) {
         UUID userId = principal.getUser().getId();
         String baseCurrency = personalExpenseService.getBaseCurrency(tripId, userId);
+        TripDateRange dateRange = personalExpenseService.getTripDateRange(tripId, userId);
         model.addAttribute("tripId", tripId);
         model.addAttribute("baseCurrency", baseCurrency);
+        model.addAttribute("tripStartDate", dateRange.startDate());
+        model.addAttribute("tripEndDate", dateRange.endDate());
         model.addAttribute("categories", ExpenseCategories.ALL);
         model.addAttribute("request", new CreatePersonalExpenseRequest());
         return "expense/personal-create";
@@ -72,15 +72,9 @@ public class PersonalExpenseWebController {
      *   - pre: request.description not blank, request.amount > 0
      *   - post: PersonalExpense persisted and redirect to expenses tab=personal
      *   - post: Returns form with validation errors if bindingResult.hasErrors()
+     *   - post: Returns form with dateError if date outside trip range
      *   - calls: PersonalExpenseService#createPersonalExpense
      *   - calledBy: Web browser POST /trips/{tripId}/personal-expenses
-     *
-     * @param tripId        The trip ID
-     * @param request       The create request (bound from form)
-     * @param bindingResult Validation result
-     * @param model         The Spring MVC model
-     * @param principal     The authenticated user
-     * @return Redirect to expense list (personal tab) or back to form on error
      */
     @PostMapping
     public String createPersonalExpense(
@@ -90,18 +84,22 @@ public class PersonalExpenseWebController {
             Model model,
             @CurrentUser UserPrincipal principal) {
 
+        UUID userId = principal.getUser().getId();
+
         if (bindingResult.hasErrors()) {
-            UUID uid = principal.getUser().getId();
-            model.addAttribute("tripId", tripId);
-            model.addAttribute("baseCurrency", personalExpenseService.getBaseCurrency(tripId, uid));
-            model.addAttribute("categories", ExpenseCategories.ALL);
+            populateCreateFormModel(model, tripId, userId);
             return "expense/personal-create";
         }
 
-        UUID userId = principal.getUser().getId();
-        personalExpenseService.createPersonalExpense(userId, tripId, request);
-        log.info("Created personal expense for trip {} by user {}", tripId, userId);
+        try {
+            personalExpenseService.createPersonalExpense(userId, tripId, request);
+        } catch (ValidationException ex) {
+            populateCreateFormModel(model, tripId, userId);
+            model.addAttribute("dateError", ex.getMessage());
+            return "expense/personal-create";
+        }
 
+        log.info("Created personal expense for trip {} by user {}", tripId, userId);
         return "redirect:/trips/" + tripId + "/expenses?tab=personal";
     }
 
@@ -111,16 +109,9 @@ public class PersonalExpenseWebController {
      * @contract
      *   - pre: tripId != null, id != null, principal != null
      *   - pre: the expense must belong to the current user
-     *   - post: Returns personal expense edit form pre-filled with expense data
-     *   - calls: PersonalExpenseService#getPersonalExpenses
+     *   - post: Returns personal expense edit form pre-filled with expense data and trip date range
+     *   - calls: PersonalExpenseService#getPersonalExpenses, PersonalExpenseService#getTripDateRange
      *   - calledBy: Web browser GET /trips/{tripId}/personal-expenses/{id}/edit
-     *
-     * @param tripId    The trip ID
-     * @param id        The personal expense ID
-     * @param model     The Spring MVC model
-     * @param principal The authenticated user
-     * @return The personal expense edit view name
-     * @throws ResourceNotFoundException if the expense is not found
      */
     @GetMapping("/{id}/edit")
     public String showEditForm(
@@ -132,6 +123,7 @@ public class PersonalExpenseWebController {
         UUID userId = principal.getUser().getId();
 
         String baseCurrency = personalExpenseService.getBaseCurrency(tripId, userId);
+        TripDateRange dateRange = personalExpenseService.getTripDateRange(tripId, userId);
 
         var expense = personalExpenseService.getPersonalExpenses(userId, tripId)
                 .stream()
@@ -150,6 +142,8 @@ public class PersonalExpenseWebController {
 
         model.addAttribute("tripId", tripId);
         model.addAttribute("baseCurrency", baseCurrency);
+        model.addAttribute("tripStartDate", dateRange.startDate());
+        model.addAttribute("tripEndDate", dateRange.endDate());
         model.addAttribute("expenseId", id);
         model.addAttribute("categories", ExpenseCategories.ALL);
         model.addAttribute("request", updateRequest);
@@ -164,16 +158,9 @@ public class PersonalExpenseWebController {
      *   - pre: the expense must belong to the current user
      *   - post: PersonalExpense updated and redirect to expenses tab=personal
      *   - post: Returns form with validation errors if bindingResult.hasErrors()
+     *   - post: Returns form with dateError if date outside trip range
      *   - calls: PersonalExpenseService#updatePersonalExpense
      *   - calledBy: Web browser POST /trips/{tripId}/personal-expenses/{id}
-     *
-     * @param tripId        The trip ID
-     * @param id            The personal expense ID
-     * @param request       The update request (bound from form)
-     * @param bindingResult Validation result
-     * @param model         The Spring MVC model
-     * @param principal     The authenticated user
-     * @return Redirect to expense list (personal tab) or back to form on error
      */
     @PostMapping("/{id}")
     public String updatePersonalExpense(
@@ -184,19 +171,41 @@ public class PersonalExpenseWebController {
             Model model,
             @CurrentUser UserPrincipal principal) {
 
+        UUID userId = principal.getUser().getId();
+
         if (bindingResult.hasErrors()) {
-            UUID uid = principal.getUser().getId();
-            model.addAttribute("tripId", tripId);
-            model.addAttribute("baseCurrency", personalExpenseService.getBaseCurrency(tripId, uid));
-            model.addAttribute("expenseId", id);
-            model.addAttribute("categories", ExpenseCategories.ALL);
+            populateEditFormModel(model, tripId, id, userId);
             return "expense/personal-edit";
         }
 
-        UUID userId = principal.getUser().getId();
-        personalExpenseService.updatePersonalExpense(id, userId, request);
-        log.info("Updated personal expense {} for trip {} by user {}", id, tripId, userId);
+        try {
+            personalExpenseService.updatePersonalExpense(id, userId, request);
+        } catch (ValidationException ex) {
+            populateEditFormModel(model, tripId, id, userId);
+            model.addAttribute("dateError", ex.getMessage());
+            return "expense/personal-edit";
+        }
 
+        log.info("Updated personal expense {} for trip {} by user {}", id, tripId, userId);
         return "redirect:/trips/" + tripId + "/expenses?tab=personal";
+    }
+
+    private void populateCreateFormModel(Model model, UUID tripId, UUID userId) {
+        TripDateRange dateRange = personalExpenseService.getTripDateRange(tripId, userId);
+        model.addAttribute("tripId", tripId);
+        model.addAttribute("baseCurrency", personalExpenseService.getBaseCurrency(tripId, userId));
+        model.addAttribute("tripStartDate", dateRange.startDate());
+        model.addAttribute("tripEndDate", dateRange.endDate());
+        model.addAttribute("categories", ExpenseCategories.ALL);
+    }
+
+    private void populateEditFormModel(Model model, UUID tripId, UUID id, UUID userId) {
+        TripDateRange dateRange = personalExpenseService.getTripDateRange(tripId, userId);
+        model.addAttribute("tripId", tripId);
+        model.addAttribute("baseCurrency", personalExpenseService.getBaseCurrency(tripId, userId));
+        model.addAttribute("tripStartDate", dateRange.startDate());
+        model.addAttribute("tripEndDate", dateRange.endDate());
+        model.addAttribute("expenseId", id);
+        model.addAttribute("categories", ExpenseCategories.ALL);
     }
 }

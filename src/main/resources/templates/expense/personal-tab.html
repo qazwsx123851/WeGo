@@ -7,20 +7,11 @@
     <div class="mb-3 glass-card overflow-hidden"
          th:if="${personalExpenses != null and not #lists.isEmpty(personalExpenses)}">
         <!-- Hero total -->
-        <div class="px-5 pt-4 pb-3 flex items-start justify-between">
-            <div>
+        <div class="px-5 pt-4 pb-3">
                 <p class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">個人總覽</p>
                 <p class="text-3xl font-bold text-gray-900 dark:text-white tabular-nums"
                    th:text="${personalSummary != null ? currSymbol + #numbers.formatDecimal(personalSummary.totalAmount, 0, 'COMMA', 0, 'POINT') : currSymbol + '0'}">NT$0</p>
                 <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5" th:text="${defaultCurrency ?: 'TWD'}">TWD</p>
-            </div>
-            <a th:href="|/trips/${tripId}/personal-expenses/create|"
-               class="btn-cta text-sm px-3 py-2 flex items-center gap-1.5 flex-shrink-0 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                新增
-            </a>
         </div>
 
         <!-- Stats strip -->
