@@ -114,6 +114,24 @@
         });
     };
 
+    /**
+     * Shared category labels (Traditional Chinese).
+     * Used by personal-expense.js, expense-statistics.js, expense-list.js.
+     */
+    WeGo.CATEGORY_LABELS = {
+        FOOD: '餐飲', TRANSPORT: '交通', ACCOMMODATION: '住宿',
+        SHOPPING: '購物', ENTERTAINMENT: '娛樂', HEALTH: '健康', OTHER: '其他'
+    };
+
+    /**
+     * Shared category colors for charts.
+     * Used by personal-expense.js, expense-statistics.js.
+     */
+    WeGo.CATEGORY_COLORS = {
+        FOOD: '#F97316', TRANSPORT: '#3B82F6', ACCOMMODATION: '#8B5CF6',
+        SHOPPING: '#EC4899', ENTERTAINMENT: '#F43F5E', HEALTH: '#10B981', OTHER: '#6B7280'
+    };
+
     window.WeGo = WeGo;
 })();
 

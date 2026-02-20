@@ -395,14 +395,7 @@ const ExpenseList = (() => {
     }
 
     function getCategoryLabel(category) {
-        const labels = {
-            'FOOD': '餐飲',
-            'TRANSPORT': '交通',
-            'ACCOMMODATION': '住宿',
-            'ENTERTAINMENT': '娛樂',
-            'OTHER': '其他'
-        };
-        return labels[category] || '其他';
+        return (WeGo.CATEGORY_LABELS || {})[category] || '其他';
     }
 
     function getSplitTypeLabel(splitType) {
@@ -439,8 +432,8 @@ const ExpenseList = (() => {
                 deleteExpense();
                 break;
             case 'switch-tab':
-                if (typeof switchTab === 'function') {
-                    switchTab(target.closest('[data-tab]').dataset.tab);
+                if (typeof PersonalExpense !== 'undefined' && PersonalExpense.switchTab) {
+                    PersonalExpense.switchTab(target.closest('[data-tab]').dataset.tab);
                 }
                 break;
         }

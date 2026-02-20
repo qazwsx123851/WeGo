@@ -5,17 +5,11 @@
  * @module ExpenseStatistics
  */
 
-const CATEGORY_LABELS = {
-    FOOD: '餐飲', TRANSPORT: '交通', ACCOMMODATION: '住宿',
-    SHOPPING: '購物', ENTERTAINMENT: '娛樂', HEALTH: '健康', OTHER: '其他'
-};
-
-/** Respect prefers-reduced-motion */
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 const ExpenseStatistics = {
     /** Trip ID */
     tripId: '',
+    /** Respect prefers-reduced-motion */
+    prefersReducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     /** Chart instances */
     charts: {
         category: null,
@@ -193,7 +187,7 @@ const ExpenseStatistics = {
         }
 
         const isDarkMode = this.isDarkMode();
-        const labels = categories.map(c => CATEGORY_LABELS[c.category] || c.category);
+        const labels = categories.map(c => WeGo.CATEGORY_LABELS[c.category] || c.category);
         const data = categories.map(c => c.amount);
         const colors = categories.map(c => c.color);
         const self = this;
@@ -216,7 +210,7 @@ const ExpenseStatistics = {
                 responsive: true,
                 maintainAspectRatio: false,
                 cutout: '65%',
-                animation: prefersReducedMotion ? false : {
+                animation: this.prefersReducedMotion ? false : {
                     animateRotate: true,
                     duration: 800,
                     easing: 'easeOutQuart'
@@ -261,7 +255,7 @@ const ExpenseStatistics = {
         legendEl.innerHTML = categories.map(cat => `
             <div class="flex items-center gap-2 px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-800/50">
                 <div class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${this.escapeHtml(cat.color)}"></div>
-                <span class="text-gray-700 dark:text-gray-300 truncate">${this.escapeHtml(CATEGORY_LABELS[cat.category] || cat.category)}</span>
+                <span class="text-gray-700 dark:text-gray-300 truncate">${this.escapeHtml(WeGo.CATEGORY_LABELS[cat.category] || cat.category)}</span>
                 <span class="text-gray-500 dark:text-gray-400 font-mono ml-auto">${Number(cat.percentage).toFixed(1)}%</span>
             </div>
         `).join('');
@@ -400,7 +394,7 @@ const ExpenseStatistics = {
                     mode: 'index',
                     intersect: false
                 },
-                animation: prefersReducedMotion ? false : {
+                animation: this.prefersReducedMotion ? false : {
                     duration: 1200,
                     easing: 'easeOutQuart'
                 },
