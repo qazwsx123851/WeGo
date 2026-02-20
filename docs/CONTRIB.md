@@ -3,6 +3,7 @@
 > 最後更新: 2026-02-20 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-20: 拖曳排序遷移至 SortableJS — 移除自訂 HTML5 DnD 實作，改用 SortableJS 函式庫，新增 sortable-reorder.js 模組
 > - 2026-02-20: 前端品質改善 (7.8→9.0+) — 6 模板行內腳本抽取為外部 JS 模組、50+ onclick 改事件委派、Modal focus trap、skip-to-content、版權年份動態化
 > - 2026-02-20: 效能改善 — Settlement 快取 (1min TTL + eviction)、deleteTrip Storage 非同步刪除、ExpenseSplit 複合索引
 > - 2026-02-18: 個人記帳功能 — PersonalExpense entity、AUTO+MANUAL 合併、預算追蹤、7 個費用類別、Chart.js 圖表
@@ -185,11 +186,11 @@ src/
 │   │   ├── config/                 # 設定類別 (Security, Cache, HttpClientConfig)
 │   │   ├── constant/               # 常數 (ExpenseCategories, TripConstants)
 │   │   ├── controller/
-│   │   │   ├── web/                # 頁面控制器 (13 個，含 PersonalExpenseWebController)
-│   │   └── api/                # REST API (64 個端點，含 PersonalExpenseApiController)
-│   │   ├── service/                # 業務邏輯 (22 個，含 PersonalExpenseService)
+│   │   │   ├── web/                # 頁面控制器 (15 個，含 PersonalExpenseWebController)
+│   │   │   └── api/                # REST API 控制器 (14 個，64 個端點)
+│   │   ├── service/                # 業務邏輯 (19 個，含 PersonalExpenseService)
 │   │   ├── repository/             # 資料存取 (11 個)
-│   │   ├── entity/                 # JPA 實體 (11 Entity + 6 Enum)
+│   │   ├── entity/                 # JPA 實體 (17 Entity，含 enum)
 │   │   ├── dto/                    # 資料傳輸物件
 │   │   ├── domain/                 # 領域邏輯
 │   │   ├── exception/              # 例外處理
@@ -434,7 +435,8 @@ Activity/Expense 的 CRUD 路徑存在不一致：
 ### Activity 拖曳重排
 
 景點列表支援拖曳重新排序：
-- 使用原生 HTML5 Drag & Drop API
+- 使用 SortableJS 函式庫 (從自訂 HTML5 DnD 遷移，2026-02-20)
+- 前端模組: `sortable-reorder.js` (獨立 JS 模組)
 - 自動重新計算交通時間
 - 支援跨日拖曳（變更日期）
 - 前端即時回饋 + 後端持久化

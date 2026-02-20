@@ -271,6 +271,9 @@ function submitBudget() {
 var categoryChart = null;
 var dailyChart = null;
 
+/** Respect prefers-reduced-motion */
+var personalPrefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 var CATEGORY_COLORS = {
     FOOD: '#F97316',
     TRANSPORT: '#3B82F6',
@@ -343,6 +346,7 @@ function initPersonalCharts() {
     try {
         var categoryData = JSON.parse(dataEl.dataset.categoryBreakdown || '{}');
         var dailyData = JSON.parse(dataEl.dataset.dailyAmounts || '{}');
+        var isDark = document.documentElement.classList.contains('dark');
 
         // Category doughnut
         var catCanvas = document.getElementById('personal-category-chart');
@@ -350,6 +354,40 @@ function initPersonalCharts() {
             var labels = Object.keys(categoryData).map(function(k) { return CATEGORY_LABELS[k] || k; });
             var data = Object.values(categoryData).map(function(v) { return parseFloat(v); });
             var colors = Object.keys(categoryData).map(function(k) { return CATEGORY_COLORS[k] || '#6B7280'; });
+
+            // Center text plugin for personal doughnut
+            var personalCenterTextPlugin = {
+                id: 'personalCenterText',
+                afterDraw: function(chart) {
+                    // Hide center text when tooltip is active to avoid overlap
+                    var tooltip = chart.tooltip;
+                    if (tooltip && tooltip._active && tooltip._active.length > 0) return;
+
+                    var ctx = chart.ctx;
+                    var chartArea = chart.chartArea;
+                    if (!chartArea) return;
+                    var dataset = chart.data.datasets[0];
+                    if (!dataset || !dataset.data.length) return;
+
+                    var total = dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                    var centerX = (chartArea.left + chartArea.right) / 2;
+                    var centerY = (chartArea.top + chartArea.bottom) / 2;
+                    var dark = document.documentElement.classList.contains('dark');
+
+                    ctx.save();
+                    ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
+                    ctx.fillStyle = dark ? '#E5E7EB' : '#1F2937';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('$' + total.toLocaleString('en-US', { maximumFractionDigits: 0 }), centerX, centerY - 7);
+
+                    ctx.font = '10px system-ui, -apple-system, sans-serif';
+                    ctx.fillStyle = dark ? '#9CA3AF' : '#6B7280';
+                    ctx.fillText('總計', centerX, centerY + 10);
+                    ctx.restore();
+                }
+            };
+
             categoryChart = new Chart(catCanvas, {
                 type: 'doughnut',
                 data: {
@@ -357,15 +395,46 @@ function initPersonalCharts() {
                     datasets: [{
                         data: data,
                         backgroundColor: colors,
-                        borderWidth: 2
+                        borderWidth: 2,
+                        borderColor: isDark ? '#1F2937' : '#FFFFFF',
+                        hoverOffset: 10,
+                        hoverBorderWidth: 0,
+                        spacing: 2
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '60%',
-                    plugins: { legend: { display: false } }
-                }
+                    cutout: '65%',
+                    animation: personalPrefersReducedMotion ? false : {
+                        animateRotate: true,
+                        duration: 800,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            usePointStyle: true,
+                            cornerRadius: 8,
+                            padding: 12,
+                            backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                            titleColor: isDark ? '#F3F4F6' : '#1F2937',
+                            bodyColor: isDark ? '#D1D5DB' : '#4B5563',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#E5E7EB',
+                            borderWidth: 1,
+                            titleFont: { weight: '600' },
+                            callbacks: {
+                                label: function(context) {
+                                    var value = context.raw;
+                                    var total = context.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                                    var pct = total > 0 ? (value / total * 100).toFixed(1) : '0.0';
+                                    return ' $' + value.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' (' + pct + '%)';
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [personalCenterTextPlugin]
             });
             var total = data.reduce(function(sum, v) { return sum + v; }, 0);
             renderCategoryLegend(categoryData, total);
@@ -374,8 +443,7 @@ function initPersonalCharts() {
         // Daily bar chart (upgraded)
         var dailyCanvas = document.getElementById('personal-daily-chart');
         if (dailyCanvas && Object.keys(dailyData).length > 0) {
-            var isDark = document.documentElement.classList.contains('dark');
-            var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+            var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
             var textColor = isDark ? '#9CA3AF' : '#6B7280';
             var tooltipBg = isDark ? 'rgba(31,41,55,0.95)' : 'rgba(255,255,255,0.95)';
             var tooltipTitle = isDark ? '#F3F4F6' : '#1F2937';
@@ -403,14 +471,6 @@ function initPersonalCharts() {
                 dData = rawData;
             }
 
-            // Bar colors: orange for non-zero, light gray for zero
-            var barColors = dData.map(function(v) {
-                return v > 0 ? '#F97316' : (isDark ? 'rgba(75,85,99,0.3)' : 'rgba(209,213,219,0.5)');
-            });
-            var hoverColors = dData.map(function(v) {
-                return v > 0 ? '#EA580C' : (isDark ? 'rgba(75,85,99,0.5)' : 'rgba(209,213,219,0.7)');
-            });
-
             // Determine if horizontal scroll is needed (>14 days)
             var needsScroll = dLabels.length > 14;
             var wrapper = document.getElementById('daily-chart-wrapper');
@@ -420,6 +480,14 @@ function initPersonalCharts() {
                 dailyCanvas.style.minWidth = (dLabels.length * 48) + 'px';
             }
 
+            // Prepare gradient and zero-bar colors (applied after chart creation)
+            var zeroBarColor = isDark ? 'rgba(75,85,99,0.3)' : 'rgba(209,213,219,0.5)';
+            var zeroBarHover = isDark ? 'rgba(75,85,99,0.5)' : 'rgba(209,213,219,0.7)';
+
+            // Cache gradient to avoid re-creation on every animation frame
+            var barGradientCache = null;
+            var barGradientHeight = 0;
+
             dailyChart = new Chart(dailyCanvas, {
                 type: 'bar',
                 data: {
@@ -427,11 +495,29 @@ function initPersonalCharts() {
                     datasets: [{
                         label: '花費',
                         data: dData,
-                        backgroundColor: barColors,
-                        hoverBackgroundColor: hoverColors,
-                        borderRadius: 6,
+                        backgroundColor: function(context) {
+                            var chart = context.chart;
+                            var value = context.raw;
+                            if (value === 0 || value === undefined) return zeroBarColor;
+                            var chartArea = chart.chartArea;
+                            if (!chartArea) return '#F97316';
+                            var h = chartArea.bottom - chartArea.top;
+                            if (barGradientCache && h === barGradientHeight) return barGradientCache;
+                            barGradientHeight = h;
+                            barGradientCache = chart.ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                            barGradientCache.addColorStop(0, 'rgba(249, 115, 22, 0.6)');
+                            barGradientCache.addColorStop(1, 'rgba(249, 115, 22, 1)');
+                            return barGradientCache;
+                        },
+                        hoverBackgroundColor: function(context) {
+                            var value = context.raw;
+                            if (value === 0 || value === undefined) return zeroBarHover;
+                            return '#EA580C';
+                        },
+                        borderRadius: 8,
                         maxBarThickness: 40,
-                        borderSkipped: false
+                        borderSkipped: false,
+                        minBarLength: 2
                     }]
                 },
                 options: {
@@ -441,6 +527,16 @@ function initPersonalCharts() {
                         mode: 'index',
                         intersect: false
                     },
+                    animation: personalPrefersReducedMotion ? false : {
+                        delay: function(context) {
+                            if (context.type === 'data' && context.mode === 'default') {
+                                return Math.min(context.dataIndex * 50, 500);
+                            }
+                            return 0;
+                        },
+                        duration: 600,
+                        easing: 'easeOutQuart'
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
@@ -449,8 +545,10 @@ function initPersonalCharts() {
                             bodyColor: tooltipBody,
                             borderColor: tooltipBorder,
                             borderWidth: 1,
-                            borderRadius: 8,
-                            padding: 10,
+                            cornerRadius: 8,
+                            padding: 12,
+                            usePointStyle: true,
+                            titleFont: { weight: '600' },
                             displayColors: false,
                             callbacks: {
                                 title: function(items) {
@@ -489,11 +587,18 @@ function initPersonalCharts() {
                         },
                         y: {
                             beginAtZero: true,
-                            grid: { color: gridColor },
-                            border: { display: false },
+                            grid: {
+                                color: gridColor,
+                                drawTicks: false,
+                                borderDash: [4, 4]
+                            },
+                            border: {
+                                display: false
+                            },
                             ticks: {
                                 color: textColor,
                                 font: { size: 11 },
+                                padding: 8,
                                 maxTicksLimit: 5,
                                 callback: function(value) {
                                     if (value >= 10000) return '$' + (value / 1000) + 'K';

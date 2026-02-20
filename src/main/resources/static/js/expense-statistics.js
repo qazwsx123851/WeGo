@@ -10,6 +10,9 @@ const CATEGORY_LABELS = {
     SHOPPING: '購物', ENTERTAINMENT: '娛樂', HEALTH: '健康', OTHER: '其他'
 };
 
+/** Respect prefers-reduced-motion */
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 const ExpenseStatistics = {
     /** Trip ID */
     tripId: '',
@@ -138,6 +141,45 @@ const ExpenseStatistics = {
     },
 
     /**
+     * Create center text plugin for doughnut chart
+     * @param {Function} formatFn - Number formatting function
+     * @param {Function} darkModeFn - Dark mode detection function
+     * @returns {Object} Chart.js plugin
+     */
+    createCenterTextPlugin(formatFn, darkModeFn) {
+        return {
+            id: 'centerText',
+            afterDraw(chart) {
+                // Hide center text when tooltip is active to avoid overlap
+                var tooltip = chart.tooltip;
+                if (tooltip && tooltip._active && tooltip._active.length > 0) return;
+
+                const { ctx, chartArea } = chart;
+                if (!chartArea) return;
+                const dataset = chart.data.datasets[0];
+                if (!dataset || !dataset.data.length) return;
+
+                const total = dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                const centerX = (chartArea.left + chartArea.right) / 2;
+                const centerY = (chartArea.top + chartArea.bottom) / 2;
+                const isDark = darkModeFn();
+
+                ctx.save();
+                ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+                ctx.fillStyle = isDark ? '#E5E7EB' : '#1F2937';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('$' + formatFn(total), centerX, centerY - 8);
+
+                ctx.font = '11px system-ui, -apple-system, sans-serif';
+                ctx.fillStyle = isDark ? '#9CA3AF' : '#6B7280';
+                ctx.fillText('總計', centerX, centerY + 12);
+                ctx.restore();
+            }
+        };
+    },
+
+    /**
      * Render category donut chart
      * @param {Array} categories - Category data
      */
@@ -150,9 +192,11 @@ const ExpenseStatistics = {
             this.charts.category.destroy();
         }
 
+        const isDarkMode = this.isDarkMode();
         const labels = categories.map(c => CATEGORY_LABELS[c.category] || c.category);
         const data = categories.map(c => c.amount);
         const colors = categories.map(c => c.color);
+        const self = this;
 
         this.charts.category = new Chart(ctx, {
             type: 'doughnut',
@@ -161,29 +205,47 @@ const ExpenseStatistics = {
                 datasets: [{
                     data: data,
                     backgroundColor: colors,
-                    borderWidth: 0,
-                    hoverOffset: 8
+                    borderWidth: 2,
+                    borderColor: isDarkMode ? '#1F2937' : '#FFFFFF',
+                    hoverOffset: 10,
+                    hoverBorderWidth: 0,
+                    spacing: 2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '60%',
+                cutout: '65%',
+                animation: prefersReducedMotion ? false : {
+                    animateRotate: true,
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                },
                 plugins: {
                     legend: {
                         display: false
                     },
                     tooltip: {
+                        usePointStyle: true,
+                        cornerRadius: 8,
+                        padding: 12,
+                        backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                        titleColor: isDarkMode ? '#F3F4F6' : '#1F2937',
+                        bodyColor: isDarkMode ? '#D1D5DB' : '#4B5563',
+                        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#E5E7EB',
+                        borderWidth: 1,
+                        titleFont: { weight: '600' },
                         callbacks: {
-                            label: (context) => {
-                                const value = context.raw;
-                                const percentage = categories[context.dataIndex].percentage;
-                                return `$${this.formatNumber(value)} (${percentage.toFixed(1)}%)`;
+                            label: function(context) {
+                                var value = context.raw;
+                                var percentage = categories[context.dataIndex].percentage;
+                                return ' $' + self.formatNumber(value) + ' (' + percentage.toFixed(1) + '%)';
                             }
                         }
                     }
                 }
-            }
+            },
+            plugins: [this.createCenterTextPlugin(this.formatNumber, this.isDarkMode.bind(this))]
         });
     },
 
@@ -245,6 +307,36 @@ const ExpenseStatistics = {
     },
 
     /**
+     * Create crosshair plugin for line chart
+     * @param {Function} darkModeFn - Dark mode detection function
+     * @returns {Object} Chart.js plugin
+     */
+    createCrosshairPlugin(darkModeFn) {
+        return {
+            id: 'crosshair',
+            afterDraw: function(chart) {
+                var tooltip = chart.tooltip;
+                if (tooltip && tooltip._active && tooltip._active.length) {
+                    var x = tooltip._active[0].element.x;
+                    var chartArea = chart.chartArea;
+                    var ctx = chart.ctx;
+                    var isDark = darkModeFn();
+
+                    ctx.save();
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(x, chartArea.top);
+                    ctx.lineTo(x, chartArea.bottom);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        };
+    },
+
+    /**
      * Render trend line chart
      * @param {Array} dataPoints - Trend data points
      */
@@ -262,7 +354,11 @@ const ExpenseStatistics = {
 
         const isDarkMode = this.isDarkMode();
         const primaryColor = '#0EA5E9';
-        const fillColor = isDarkMode ? 'rgba(14, 165, 233, 0.1)' : 'rgba(14, 165, 233, 0.2)';
+        const self = this;
+
+        // Cache gradient to avoid re-creation on every animation frame
+        var lineGradientCache = null;
+        var lineGradientHeight = 0;
 
         this.charts.trend = new Chart(ctx, {
             type: 'line',
@@ -272,28 +368,60 @@ const ExpenseStatistics = {
                     label: '支出金額',
                     data: data,
                     borderColor: primaryColor,
-                    backgroundColor: fillColor,
+                    backgroundColor: function(context) {
+                        var chart = context.chart;
+                        var chartArea = chart.chartArea;
+                        if (!chartArea) return 'rgba(14, 165, 233, 0.1)';
+                        var h = chartArea.bottom - chartArea.top;
+                        if (lineGradientCache && h === lineGradientHeight) return lineGradientCache;
+                        lineGradientHeight = h;
+                        lineGradientCache = chart.ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        lineGradientCache.addColorStop(0, isDarkMode ? 'rgba(14, 165, 233, 0.2)' : 'rgba(14, 165, 233, 0.25)');
+                        lineGradientCache.addColorStop(1, 'rgba(14, 165, 233, 0)');
+                        return lineGradientCache;
+                    },
                     fill: true,
-                    tension: 0.3,
+                    tension: 0.4,
+                    borderWidth: 2.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
                     pointBackgroundColor: primaryColor,
-                    pointBorderColor: '#fff',
+                    pointBorderColor: isDarkMode ? '#1F2937' : '#FFFFFF',
                     pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
+                    pointHoverBackgroundColor: primaryColor,
+                    pointHoverBorderColor: isDarkMode ? '#1F2937' : '#FFFFFF',
+                    pointHoverBorderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                animation: prefersReducedMotion ? false : {
+                    duration: 1200,
+                    easing: 'easeOutQuart'
+                },
                 plugins: {
                     legend: {
                         display: false
                     },
                     tooltip: {
+                        usePointStyle: true,
+                        cornerRadius: 8,
+                        padding: 12,
+                        backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                        titleColor: isDarkMode ? '#F3F4F6' : '#1F2937',
+                        bodyColor: isDarkMode ? '#D1D5DB' : '#4B5563',
+                        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : '#E5E7EB',
+                        borderWidth: 1,
+                        titleFont: { weight: '600' },
                         callbacks: {
-                            label: (context) => {
-                                const point = dataPoints[context.dataIndex];
-                                return `$${this.formatNumber(context.raw)} (${point.count} 筆)`;
+                            label: function(context) {
+                                var point = dataPoints[context.dataIndex];
+                                return ' $' + self.formatNumber(context.raw) + ' (' + point.count + ' 筆)';
                             }
                         }
                     }
@@ -306,12 +434,22 @@ const ExpenseStatistics = {
                     },
                     y: {
                         beginAtZero: true,
+                        grid: {
+                            color: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
+                            drawTicks: false,
+                            borderDash: [4, 4]
+                        },
+                        border: {
+                            display: false
+                        },
                         ticks: {
-                            callback: (value) => '$' + this.formatNumber(value)
+                            padding: 8,
+                            callback: function(value) { return '$' + self.formatNumber(value); }
                         }
                     }
                 }
-            }
+            },
+            plugins: [this.createCrosshairPlugin(this.isDarkMode.bind(this))]
         });
     },
 
