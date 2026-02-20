@@ -62,7 +62,7 @@
 
         <!-- Footer -->
         <footer class="mt-8 text-caption text-gray-400 dark:text-gray-500">
-            &copy; 2025 WeGo. Made with love for travelers.
+            &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2026</span> WeGo. Made with love for travelers.
         </footer>
     </div>
 </body>

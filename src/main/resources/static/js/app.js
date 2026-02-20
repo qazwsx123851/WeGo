@@ -241,24 +241,30 @@ const FormValidation = {
 
 // Modal Management
 const Modal = {
+    _previousFocus: null,
+
     /**
-     * Open a modal by ID
+     * Open a modal by ID.
+     * Saves the previously focused element and traps focus inside the modal.
      */
     open(modalId) {
         const modal = document.getElementById(modalId);
         if (!modal) return;
 
+        this._previousFocus = document.activeElement;
+
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         document.body.classList.add('overflow-hidden');
 
-        // Focus trap
-        const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        // Focus first focusable element
+        const focusable = this._getFocusable(modal);
         if (focusable.length) focusable[0].focus();
     },
 
     /**
-     * Close a modal by ID
+     * Close a modal by ID.
+     * Restores focus to the element that was focused before the modal opened.
      */
     close(modalId) {
         const modal = document.getElementById(modalId);
@@ -267,6 +273,21 @@ const Modal = {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
         document.body.classList.remove('overflow-hidden');
+
+        // Restore focus
+        if (this._previousFocus && typeof this._previousFocus.focus === 'function') {
+            this._previousFocus.focus();
+            this._previousFocus = null;
+        }
+    },
+
+    /**
+     * Get all focusable elements within a container.
+     */
+    _getFocusable(container) {
+        return Array.from(container.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(el => el.offsetParent !== null);
     },
 
     /**
@@ -283,11 +304,35 @@ const Modal = {
             });
         });
 
-        // Close on Escape key
+        // Close on Escape key + focus trap (Tab/Shift+Tab)
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const openModal = document.querySelector('[data-modal]:not(.hidden)');
                 if (openModal) this.close(openModal.id);
+                return;
+            }
+
+            if (e.key === 'Tab') {
+                const openModal = document.querySelector('[data-modal]:not(.hidden)');
+                if (!openModal) return;
+
+                const focusable = this._getFocusable(openModal);
+                if (focusable.length === 0) return;
+
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+
+                if (e.shiftKey) {
+                    if (document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
             }
         });
 

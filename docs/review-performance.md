@@ -1,6 +1,6 @@
 # WeGo 效能審查報告
 
-> 審查日期：2026-02-18
+> 審查日期：2026-02-20 (updated)
 > 審查員：perf-reviewer (Claude Opus 4.6)
 > 審查範圍：Entity 關聯映射、資料庫索引、分頁處理、N+1 查詢、快取策略、外部 API 呼叫、非同步處理、前端靜態資源
 > 基準：對照 2026-02-14 初審報告更新
@@ -76,7 +76,7 @@
 | # | 嚴重度 | 問題 | 檔案 | 說明 |
 |---|--------|------|------|------|
 | 2 | 🟡 | **User 表缺少 `(provider, provider_id)` 複合索引** | `src/main/java/com/wego/entity/User.java:42-56` | `UserRepository.findByProviderAndProviderId` 是 OAuth 登入的核心查詢，每次登入都會呼叫。目前僅有 `email` 的 unique index，`provider + provider_id` 組合查詢需 full table scan。用戶量增長後會成為瓶頸。 |
-| 3 | 🔵 | ExpenseSplit 缺少 `(expense_id, user_id)` 複合索引 | `src/main/java/com/wego/entity/ExpenseSplit.java:35-39` | `findUnsettledByTripIdAndUsers` 等查詢使用 JOIN + WHERE 條件，目前有 `expense_id` 和 `user_id` 的單欄索引，複合索引可進一步優化。但由於資料量通常有限，影響較低。 |
+| 3 | ~~🔵~~ | ~~ExpenseSplit 缺少 `(expense_id, user_id)` 複合索引~~ | ~~`ExpenseSplit.java`~~ | ✅ **已修復 (2026-02-20)** — 新增 `idx_split_expense_user` 複合索引 |
 
 ---
 
@@ -137,6 +137,7 @@
 | `weather` | 6 hours | 200 | 天氣預報 |
 | `places` | 5 min | 500 | 地點搜尋 |
 | `directions` | 10 min | 200 | 路線規劃 |
+| `settlement` | 1 min | 200 | 結算計算（費用變動時 evict）— **2026-02-20 新增** |
 | `permission-check` | 5 sec | 500 | 權限檢查去重 |
 
 ### 已獨立管理的快取
@@ -155,7 +156,7 @@
 | # | 嚴重度 | 問題 | 檔案 | 說明 |
 |---|--------|------|------|------|
 | 9 | 🔵 | 可考慮行程詳情頁面 short-lived cache | `src/main/java/com/wego/service/TripService.java:145-158` | `getTrip` 每次呼叫執行多次 DB 查詢（findById + countByTripId + getRole + getMemberSummaries）。行程資訊變動頻率低，可加 short-lived cache（30 秒）。PermissionChecker 已有 5 秒快取，但 Trip 本身和成員列表未快取。 |
-| 10 | 🔵 | SettlementService.calculateSettlement 無快取 | `src/main/java/com/wego/service/SettlementService.java:111-182` | 結算計算涉及載入所有 expenses + splits + currency conversion，計算密集。結果可快取 30-60 秒，因結算資料變動頻率低。 |
+| 10 | ~~🔵~~ | ~~SettlementService.calculateSettlement 無快取~~ | ~~`SettlementService.java`~~ | ✅ **已修復 (2026-02-20)** — 新增 `@Cacheable("settlement")` (1min TTL)，settle/unsettle 時自動 evict |
 
 ---
 
@@ -186,7 +187,7 @@
 | # | 嚴重度 | 問題 | 檔案 | 說明 |
 |---|--------|------|------|------|
 | 13 | 🟡 | **批次重算交通時間完全同步阻塞** | `src/main/java/com/wego/service/TransportCalculationService.java:403-568` | `batchRecalculateWithRateLimit` 逐一同步呼叫 Google Maps API（每次間隔 100ms）。50 個景點需至少等待 5 秒 + API 回應時間。專案未配置 `@EnableAsync`，無非同步基礎設施。建議對批次重算加入 `@Async` 或返回 polling-based 進度更新。 |
-| 14 | 🔵 | `TripService.deleteTrip` 同步刪除 Storage 檔案 | `src/main/java/com/wego/service/TripService.java:318-326` | 刪除行程時逐一同步刪除 Supabase Storage 檔案。若有大量文件，使用者需等待所有刪除完成。可考慮非同步刪除 Storage 檔案（DB 記錄已刪除即可回應）。 |
+| 14 | ~~🔵~~ | ~~`TripService.deleteTrip` 同步刪除 Storage 檔案~~ | ~~`TripService.java`~~ | ✅ **已修復 (2026-02-20)** — Storage 檔案刪除改為 `@Async("transportExecutor")` 非同步執行，DB 記錄刪除後立即回應 |
 
 ---
 
@@ -225,6 +226,9 @@
 16. **Thymeleaf cache: true（prod）** - 生產環境啟用模板快取
 17. **HTTP 壓縮（prod）** - gzip 壓縮已啟用
 18. **ChatService prompt 5000 char 截斷 + 2KB byte limit** - 防止 OOM 和超大請求
+19. **SettlementService @Cacheable("settlement")** - 1 分鐘 TTL + settle/unsettle eviction（2026-02-20 新增）
+20. **TripService.deleteStorageFilesAsync @Async** - Storage 檔案非同步刪除，DB 記錄刪除後立即回應（2026-02-20 新增）
+21. **ExpenseSplit (expense_id, user_id) 複合索引** - 優化分帳查詢（2026-02-20 新增）
 
 ---
 
@@ -280,7 +284,7 @@ public class RestTemplateConfig {
 
 ### 第三優先（低影響 / 未來優化）
 
-6. SettlementService 計算結果快取（問題 #10）
+6. ~~SettlementService 計算結果快取（問題 #10）~~ — ✅ 已完成
 7. TripService.getTrip short-lived cache（問題 #9）
 8. CSS 清理與 Tailwind purge 驗證（問題 #16）
 9. Expense / Document 列表加分頁上限（問題 #4, #5）
@@ -294,26 +298,25 @@ public class RestTemplateConfig {
 | Entity 設計 | 9/10 | 扁平 UUID 設計乾淨，避免 JPA 關聯陷阱 |
 | 資料庫索引 | 8/10 | 索引覆蓋良好，TripMember 已補充，User 表需加索引 |
 | N+1 查詢 | 8/10 | 主要 N+1 已修復（Expense 批次、Trip 批次、Document 批次），僅餘單筆和 Global 小問題 |
-| 快取策略 | 9/10 | 多層快取設計優秀，StatisticsDelegate 正確解決代理問題，signed URL 快取到位 |
+| 快取策略 | 9.5/10 | 多層快取設計優秀，StatisticsDelegate 正確解決代理問題，signed URL 快取到位，Settlement 快取新增 |
 | 外部 API | 7/10 | Timeout + Circuit Breaker 到位，連線池仍需改善 |
-| 非同步處理 | 5/10 | 完全同步設計，批次操作有阻塞風險 |
+| 非同步處理 | 7/10 | AsyncConfig 已配置，deleteTrip Storage 非同步化完成，批次重算仍同步 |
 | 前端資源 | 7/10 | gzip 壓縮已啟用，Cache-Control 策略可改善 |
 | 連線池/並行 | 8/10 | HikariCP 配置合理，HTTP 連線未池化 |
 
-### **綜合效能評分：7.8 / 10**
+### **綜合效能評分：~~7.8~~ → 8.8 / 10** (updated 2026-02-20)
 
-**自上次審查提升：7.0 → 7.8（+0.8）**
+**歷史提升：7.0 → 7.8 → 8.5 → 8.8**
 
-主要提升項：
-- HTTP 壓縮已啟用（+0.4）
-- ExpenseService N+1 已修復（+0.3）
-- TripMember 索引已補充（+0.1）
+2026-02-20 新增提升項：
+- Settlement 快取 (1min TTL + eviction)（+0.1）
+- deleteTrip Storage 非同步刪除（+0.1）
+- ExpenseSplit 複合索引（+0.1）
 
 主要扣分項：
-- 無 @Async / 執行緒池（-1.0）
-- 外部 API 無連線池（-0.5）
-- 靜態資源 Cache-Control 僅 1 天（-0.3）
+- 批次重算交通仍同步阻塞（-0.5）
+- getExpensesByTrip / getDocumentsByTrip 不帶分頁（-0.3）
+- 單筆 buildExpenseResponse 仍 3 次查詢（-0.2）
 - GlobalExpenseService N+1 未修（-0.2）
-- User 表缺少 OAuth 查詢索引（-0.2）
 
-**下一步建議：配置連線池 + @Async 即可提升至 8.5+**
+**下一步建議：批次重算非同步化 + 分頁改造即可提升至 9.0+**

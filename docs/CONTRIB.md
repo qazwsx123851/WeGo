@@ -1,8 +1,10 @@
 # WeGo 開發貢獻指南
 
-> 最後更新: 2026-02-18 | 自動生成自 pom.xml 和 .env.example
+> 最後更新: 2026-02-20 | 自動生成自 pom.xml 和 .env.example
 >
 > **變更日誌**:
+> - 2026-02-20: 前端品質改善 (7.8→9.0+) — 6 模板行內腳本抽取為外部 JS 模組、50+ onclick 改事件委派、Modal focus trap、skip-to-content、版權年份動態化
+> - 2026-02-20: 效能改善 — Settlement 快取 (1min TTL + eviction)、deleteTrip Storage 非同步刪除、ExpenseSplit 複合索引
 > - 2026-02-18: 個人記帳功能 — PersonalExpense entity、AUTO+MANUAL 合併、預算追蹤、7 個費用類別、Chart.js 圖表
 > - 2026-02-18: 專案健康度改善第二輪 (8.4→8.7) — User composite index、GlobalExpense N+1 batch fix、HttpClientConfig Apache HC5、Google Maps CB
 > - 2026-02-13: AI 旅遊聊天機器人 — Gemini API、安全強化（prompt injection 防護、circuit breaker、Unicode 驗證、OOM 修復）
@@ -46,8 +48,9 @@
 | Phase 3 | ✅ | 多幣別匯率、統計圖表、債務簡化 | Unit |
 | Phase 4 | ✅ | 安全強化、深色模式、E2E 測試、無障礙 | Unit + E2E |
 | Phase 5 | ✅ | 個人記帳、AI 聊天、健康度改善 (8.7/10) | Unit + E2E |
+| Phase 6 | ✅ | 前端品質改善 (行內 JS 抽取)、效能改善 (快取/非同步) | Unit + E2E |
 
-**測試統計**: 1138 單元測試 (86 個測試檔案) + 12 個 E2E spec (Playwright)
+**測試統計**: 1152 單元測試 (86 個測試檔案) + 12 個 E2E spec (Playwright)
 
 ---
 
@@ -183,7 +186,7 @@ src/
 │   │   ├── constant/               # 常數 (ExpenseCategories, TripConstants)
 │   │   ├── controller/
 │   │   │   ├── web/                # 頁面控制器 (13 個，含 PersonalExpenseWebController)
-│   │   │   └── api/                # REST API (64 個端點，含 PersonalExpenseApiController)
+│   │   └── api/                # REST API (64 個端點，含 PersonalExpenseApiController)
 │   │   ├── service/                # 業務邏輯 (22 個，含 PersonalExpenseService)
 │   │   ├── repository/             # 資料存取 (11 個)
 │   │   ├── entity/                 # JPA 實體 (11 Entity + 6 Enum)
@@ -193,11 +196,11 @@ src/
 │   │   └── security/               # OAuth2 相關
 │   ├── resources/
 │   │   ├── templates/              # Thymeleaf 模板 (34 個)
-│   │   ├── static/js/              # JS 模組 (9 個，含 personal-expense.js)
+│   │   ├── static/js/              # JS 模組 (15 個，含 personal-expense.js)
 │   │   └── application.yml
 │   └── frontend/                   # Tailwind CSS 原始碼
 └── test/
-    └── java/com/wego/             # 測試類別 (86 個測試檔案，1138 tests)
+    └── java/com/wego/             # 測試類別 (86 個測試檔案，1152 tests)
 ```
 
 ---
@@ -252,7 +255,7 @@ src/
 | `InviteLinkService` | 邀請連結建立/接受/管理 | InviteLinkRepository, TripMemberRepository |
 | `ActivityService` | 景點 CRUD、排序、拖曳重排 | ActivityRepository, TransportCalculationService |
 | `ExpenseService` | 支出記錄、分帳計算 | ExpenseRepository, SettlementService |
-| `SettlementService` | 債務結算 | DebtSimplifier |
+| `SettlementService` | 債務結算（含 1 分鐘快取 + eviction） | DebtSimplifier, CacheManager |
 | `TodoService` | 代辦事項管理 | TodoRepository |
 | `DocumentService` | 檔案上傳/下載/預覽（Signed URL 快取、批次查詢） | StorageClient, CacheManager |
 | `TransportCalculationService` | 交通時間/距離計算、批次重算 | GoogleMapsClient, PlaceRepository |
@@ -493,7 +496,8 @@ Playwright E2E 測試覆蓋以下流程：
 | `settlement.spec.ts` | 6 | 結算流程 |
 | `profile.spec.ts` | 5 | 個人檔案編輯 |
 | `chat.spec.ts` | TBD | AI 聊天功能 |
-| **總計** | **TBD** | 11 個 spec 檔案 |
+| `personal-expense.spec.ts` | TBD | 個人記帳功能 |
+| **總計** | **TBD** | 12 個 spec 檔案 |
 
 ---
 

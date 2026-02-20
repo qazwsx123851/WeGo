@@ -238,14 +238,21 @@
      FEEDBACK COMPONENTS
      ===================================================== -->
 
-<!-- Toast Container -->
-<div th:fragment="toast-container"
-     id="toast-container"
+<!-- Toast Container (includes skip-to-content for accessibility) -->
+<th:block th:fragment="toast-container">
+<a href="#main-content"
+   class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999]
+          focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg
+          focus:shadow-lg focus:outline-none">
+    跳至主要內容
+</a>
+<div id="toast-container"
      role="status"
      aria-live="polite"
      class="fixed top-4 right-4 z-50 space-y-3">
     <!-- Toast messages will be inserted here dynamically -->
 </div>
+</th:block>
 
 <!-- Success Toast -->
 <div th:fragment="toast-success(title, message)"

@@ -6,7 +6,7 @@
 |------|------|
 | 專案名稱 | WeGo - 旅遊規劃協作平台 |
 | 版本 | 1.0.0 |
-| 最後更新 | 2026-02-13 |
+| 最後更新 | 2026-02-20 |
 | 狀態 | Draft |
 
 ---
@@ -631,6 +631,7 @@ Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMa
 | 匯率 (備援) | 24 小時 | 50 | CacheManager: exchange-rate-all-fallback |
 | 地點搜尋 | 5 分鐘 | 500 | CacheManager: places |
 | 統計資料 | 5 分鐘 | 100 | CacheManager: statistics |
+| 結算計算 | 1 分鐘 | 200 | CacheManager: settlement（費用變動時 evict） |
 | 權限檢查 | 5 秒 | 500 | CacheManager: permission-check |
 
 ### 6.4 資料庫索引設計
@@ -647,6 +648,7 @@ Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMa
 | `activity` | `idx_activity_trip_day` | (trip_id, day, sort_order) | INDEX | 行程內景點排序查詢 |
 | `expense` | `idx_expense_trip` | (trip_id, created_at DESC) | INDEX | 行程支出時間排序 |
 | `expense_split` | `idx_split_expense` | (expense_id) | INDEX | 支出明細查詢 |
+| `expense_split` | `idx_split_expense_user` | (expense_id, user_id) | INDEX | 支出分帳複合查詢 |
 | `expense_split` | `idx_split_user` | (user_id, is_settled) | INDEX | 用戶待結清查詢 |
 | `document` | `idx_document_trip` | (trip_id) | INDEX | 行程檔案查詢 |
 | `document` | `idx_document_activity` | (related_activity_id) | INDEX | 景點關聯檔案 |
@@ -785,16 +787,16 @@ Google Maps API 已從 Distance Matrix API 遷移至 Routes API（computeRouteMa
 
 | 項目 | 數量 |
 |------|------|
-| 單元測試 | 1060 個測試方法，79 個測試檔案 |
-| E2E 測試 | ~118 個測試案例，10 個 spec 檔案 |
-| REST API 端點 | 55 個 |
-| Web 端點 | 37 個 |
-| Service 類別 | 20 個 (含 2 個 ViewHelper) |
-| Entity 類別 | 10 個 |
+| 單元測試 | 1152 個測試方法，86 個測試檔案 |
+| E2E 測試 | 12 個 spec 檔案 |
+| REST API 端點 | 64 個 |
+| Web 端點 | 40 個 |
+| Service 類別 | 22 個 (含 2 個 ViewHelper) |
+| Entity 類別 | 11 個 |
 | Enum 類別 | 6 個 |
-| Repository | 10 個 |
-| HTML 模板 | 27 個 |
-| JS 模組 | 7 個 (含 common.js 共用工具) |
+| Repository | 11 個 |
+| HTML 模板 | 34 個 |
+| JS 模組 | 15 個 (含 common.js 共用工具) |
 | Domain 元件 | 5 個 (含 TripConstants) |
 | 外部服務整合 | 4 個 |
 

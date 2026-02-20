@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
  *   <li>statistics-members: Member statistics, 5 min TTL</li>
  *   <li>exchange-rate: Exchange rates, 1 hour TTL</li>
  *   <li>exchange-rate-fallback: Fallback rates, 24 hour TTL</li>
+ *   <li>settlement: Settlement calculation cache, 1 min TTL</li>
  * </ul>
  *
  * @contract
@@ -66,6 +67,9 @@ public class CacheConfig {
 
                 // Direction cache - 10 minute TTL
                 buildCache("directions", 10, TimeUnit.MINUTES, 200),
+
+                // Settlement cache - 1 minute TTL (evicted on expense changes)
+                buildCache("settlement", 1, TimeUnit.MINUTES, 200),
 
                 // Permission check cache - 5 second TTL (request-level dedup)
                 buildCache("permission-check", 5, TimeUnit.SECONDS, 500)

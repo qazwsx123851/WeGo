@@ -24,9 +24,9 @@
     <header th:replace="~{fragments/components :: header(title=${title})}"></header>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <!-- Content slot - use th:insert to add content -->
-        <div id="main-content">
+        <div>
             <!-- Page content here -->
         </div>
     </main>
@@ -47,9 +47,9 @@
 <head th:replace="~{fragments/head :: head(title=${title})}"></head>
 <body class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-100">
     <!-- Main Content -->
-    <main class="flex items-center justify-center min-h-screen p-6">
+    <main id="main-content" class="flex items-center justify-center min-h-screen p-6">
         <!-- Content slot -->
-        <div id="main-content">
+        <div>
             <!-- Page content here -->
         </div>
     </main>
@@ -105,8 +105,8 @@
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div id="main-content">
+    <main id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div>
             <!-- Dashboard content here -->
         </div>
     </main>

@@ -27,6 +27,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.support.NoOpCacheManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -137,7 +139,8 @@ class SettlementServiceTest {
                 permissionChecker,
                 debtSimplifier,
                 exchangeRateService,
-                null
+                null,
+                new NoOpCacheManager()
         );
     }
 

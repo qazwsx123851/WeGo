@@ -1,6 +1,6 @@
 # WeGo 專案健康度報告
 
-**日期:** 2026-02-18（第五次審查 — Batch 1-4 改善後）
+**日期:** 2026-02-20（第六次審查 — 前端品質 + 效能改善後）
 **審查範圍:** 架構、安全、前端、效能、測試
 **分支:** main
 
@@ -10,14 +10,14 @@
 
 | 面向 | 分數 (1-10) | 較上次 | 說明 |
 |------|:-----------:|:------:|------|
-| 架構設計 | **9.2** | ↑ 0.3 | DocumentService DTO 分離完成、requireUserId 消除、TodoWebController DRY 修復、業務例外日誌等級修正 |
-| 安全性 | **9.2** | ↑ 0.1 | WebExceptionHandler 隱藏內部錯誤訊息；既有 HSTS/Session Fixation/速率限制 |
-| 前端品質 | **7.8** | ↑ 0.3 | console.error/warn 全數清除、alert() 改 Toast；行內腳本仍為主要待改善項 |
-| 效能 | **8.5** | ↑ 0.7 | User 複合索引、GlobalExpense N+1 批次修復、Apache HttpClient 5 連線池、Google Maps Circuit Breaker |
-| 測試覆蓋 | **9.0** | ↑ 0.3 | 1100 測試全數通過（+31 新增）、ExchangeRateApiClient + SupabaseStorageClient 整合測試補齊 |
-| **整體** | **8.7** | ↑ 0.3 | 第二輪 Batch 1-4 全部完成，架構/效能/測試三面向同步提升 |
+| 架構設計 | **9.2** | — | 維持上次水準 |
+| 安全性 | **9.2** | — | 維持上次水準 |
+| 前端品質 | **9.0** | ↑ 1.2 | 6 模板行內腳本抽取為外部 JS 模組、50+ onclick→事件委派、Modal focus trap 完善、skip-to-content、版權年份動態化 |
+| 效能 | **8.8** | ↑ 0.3 | Settlement 快取 (1min TTL + eviction)、deleteTrip Storage 非同步刪除、ExpenseSplit 複合索引 |
+| 測試覆蓋 | **9.0** | — | 1152 測試全數通過（+52 新增） |
+| **整體** | **9.0** | ↑ 0.3 | 前端品質從 7.8 躍升至 9.0，效能從 8.5 提升至 8.8，整體突破 9.0 |
 
-> **評分說明**：本次改善涵蓋 4 個 Batch，從 Roadmap 立即項目到測試補強全部完成。效能面提升最大（+0.7），新增連線池、N+1 修復和 Circuit Breaker。架構面 Entity 洩漏和 DRY 問題全數解決。測試從 1069 增至 1100，外部 Client 整合測試覆蓋補齊。
+> **評分說明**：本次改善聚焦前端品質和效能兩大面向。前端面提升最大（+1.2），6 個模板的 ~1900 行行內 JavaScript 全數抽取為獨立模組，50+ onclick handler 改用 data-action 事件委派，Modal focus trap 和 skip-to-content 完善無障礙支援。效能面新增 Settlement 結算快取和 Storage 非同步刪除。
 
 ---
 
@@ -27,9 +27,38 @@
 
 ---
 
-## 本次改善項目（Batch 1-4）
+## 本次改善項目（前端品質 + 效能）
 
-### Batch 1 — 立即修復
+### 前端品質改善 — 行內腳本抽取
+| 項目 | 面向 | 檔案 |
+|------|------|------|
+| ✅ `settlement.js` 抽取 (~60 行) | 前端 | `settlement.js`（新增）, `expense/settlement.html` |
+| ✅ `activity-list.js` 抽取 (~260 行) | 前端 | `activity-list.js`（新增）, `activity/list.html` |
+| ✅ `activity-form.js` 抽取 (~370 行) | 前端 | `activity-form.js`（新增）, `activity/create.html` |
+| ✅ `member-management.js` 抽取 (~240 行) | 前端 | `member-management.js`（新增）, `trip/members.html` |
+| ✅ `expense-list.js` 抽取 (~480 行) | 前端 | `expense-list.js`（新增）, `expense/list.html` |
+| ✅ `document-list.js` 抽取 (~555 行) | 前端 | `document-list.js`（新增）, `document/list.html` |
+
+### 前端品質改善 — 無障礙與修補
+| 項目 | 面向 | 檔案 |
+|------|------|------|
+| ✅ Modal focus trap (Tab/Shift+Tab 循環 + 關閉恢復 focus) | 前端 | `app.js` |
+| ✅ skip-to-content 連結 | 前端 | `fragments/components.html`, 22+ 模板 `id="main-content"` |
+| ✅ 版權年份動態化 (`th:text` 取代硬編碼) | 前端 | `index.html` |
+
+### 效能改善
+| 項目 | 面向 | 檔案 |
+|------|------|------|
+| ✅ Settlement 結算快取 (1min TTL + 費用變動 eviction) | 效能 | `SettlementService.java`, `CacheConfig.java` |
+| ✅ deleteTrip Storage 非同步刪除 (`@Async`) | 效能 | `TripService.java` |
+| ✅ ExpenseSplit `(expense_id, user_id)` 複合索引 | 效能 | `ExpenseSplit.java` |
+
+### 上一輪改善項目（Batch 1-4, 2026-02-18）
+
+<details>
+<summary>展開查看上一輪改善項目</summary>
+
+#### Batch 1 — 立即修復
 | 項目 | 面向 | 檔案 |
 |------|------|------|
 | ✅ User 表加 `(provider, provider_id)` 複合索引 | 效能 | `User.java` |
@@ -37,25 +66,27 @@
 | ✅ WebExceptionHandler 隱藏內部錯誤訊息 | 安全 | `WebExceptionHandler.java` |
 | ✅ 前端 console 語句 + alert() 清理 | 前端 | 5 個 HTML 模板 |
 
-### Batch 2 — 架構收尾
+#### Batch 2 — 架構收尾
 | 項目 | 面向 | 檔案 |
 |------|------|------|
 | ✅ DocumentService.getDocumentForPreview() 改回傳 DTO | 架構 | `DocumentService.java`, `DocumentPreviewInfo.java`, `DocumentApiController.java` |
 | ✅ 消除 requireUserId() 重複 | 架構 | `ActivityApiController.java`, `ChatApiController.java` |
 | ✅ 業務例外日誌等級調整 | 架構 | `ActivityWebController.java` |
 
-### Batch 3 — 效能進階
+#### Batch 3 — 效能進階
 | 項目 | 面向 | 檔案 |
 |------|------|------|
 | ✅ GlobalExpenseService N+1 批次修復（2N+2 → 3 次查詢） | 效能 | `ExpenseSplitRepository.java`, `GlobalExpenseService.java` |
 | ✅ 共享 RestTemplate + Apache HttpClient 5 連線池 | 效能 | `HttpClientConfig.java`（新增）, 4 個 Client |
 | ✅ Google Maps Circuit Breaker | 效能 | `GoogleMapsClientImpl.java` |
 
-### Batch 4 — 測試補強
+#### Batch 4 — 測試補強
 | 項目 | 面向 | 檔案 |
 |------|------|------|
 | ✅ ExchangeRateApiClient 單元測試（13 tests） | 測試 | `ExchangeRateApiClientTest.java`（新增） |
 | ✅ SupabaseStorageClient 單元測試（18 tests） | 測試 | `SupabaseStorageClientTest.java`（新增） |
+
+</details>
 
 ---
 
@@ -77,36 +108,36 @@
 | 🟡 Warning | 4 | Chat AI innerHTML（有 escapeHtml）、CSP script-src unsafe-inline、CSP style-src unsafe-inline、Spring Boot 3.2.2 版本偏舊 |
 | 🔵 Suggestion | 4 | TestAuth prod 隔離測試、Method-Level Security、Session timeout、DOMPurify |
 
-### 前端 — 7.8/10
+### 前端 — 9.0/10
 
 | 嚴重度 | 數量 | 主要問題 |
 |--------|:----:|----------|
 | 🔴 Critical | 0 | — |
-| HIGH | 3 | 6 模板含 150-300 行行內 JS、50+ inline onclick handler、部分行內腳本缺 fetchWithTimeout |
-| MEDIUM | 4 | 行內腳本 AJAX 缺防重複提交、SpEL null-safety 少數可改善、Modal focus trap 不完整、fetchWithTimeout 部分覆蓋 |
-| LOW | 4 | 版權年份硬編碼、行內 var 5 處、!important 1 處、缺 skip-to-content |
+| HIGH | 0 | **全部已修復** — 6 模板行內 JS 已抽取為外部模組、onclick 改事件委派、fetchWithTimeout 統一使用 |
+| MEDIUM | 1 | SpEL null-safety 少數可改善 |
+| LOW | 1 | !important 1 處（覆蓋 Flatpickr 樣式，可接受） |
 
-### 效能 — 8.5/10
+### 效能 — 8.8/10
 
 | 嚴重度 | 數量 | 主要問題 |
 |--------|:----:|----------|
 | 🔴 Critical | 0 | — |
-| 🟡 Warning | 4 | getExpensesByTrip 不帶分頁、getDocumentsByTrip 不帶分頁、單筆 buildExpenseResponse 仍 3 次查詢、批次重算同步阻塞 |
-| 🔵 Suggestion | 5 | 行程詳情 short-lived cache、SettlementService 結算快取、ExpenseSplit 複合索引、CSS 未使用樣式、Todo 不帶分頁 |
+| 🟡 Warning | 3 | getExpensesByTrip 不帶分頁、getDocumentsByTrip 不帶分頁、單筆 buildExpenseResponse 仍 3 次查詢 |
+| 🔵 Suggestion | 3 | 行程詳情 short-lived cache、CSS 未使用樣式、Todo 不帶分頁 |
 
 ### 測試 — 9.0/10
 
 | 指標 | 數值 |
 |------|------|
-| 總測試數 | **1100**（從 1069 增至 1100） |
+| 總測試數 | **1152**（從 1100 增至 1152） |
 | 通過率 | 100%（0 失敗、0 跳過） |
-| 測試檔案數 | 89 |
+| 測試檔案數 | 86 |
 | 執行時間 | ~21 秒 |
 | API Controller 覆蓋 | 14/14 (100%) |
 | Web Controller 覆蓋 | 13/13 (100%) |
-| Service 覆蓋 | 21/21 (100%) |
+| Service 覆蓋 | 22/22 (100%) |
 | 外部 Client 覆蓋 | 6/6 (100%) |
-| E2E Spec | 11 個 |
+| E2E Spec | 12 個 |
 
 ---
 
@@ -121,14 +152,14 @@
 
 ### 🔧 中期（3-4 Sprint）
 
-| # | 任務 | 面向 | 預期效果 | 工時 |
-|---|------|------|----------|------|
-| 3 | CSP 從 `unsafe-inline` 遷移至 nonce-based | 安全 | XSS 防護等級大幅提升 | 2-3 天 |
-| 4 | 行內腳本抽取為外部 JS 模組（6 模板） | 前端 | 維護性提升、CSP 相容、消除 onclick | 3-5 天 |
-| 5 | @EnableAsync + 自訂執行緒池 + 批次重算非同步化 | 效能 | 釋放請求執行緒，避免阻塞 | 1 天 |
-| 6 | 靜態資源版本號 + 長期快取（30-365 天） | 效能 | 減少瀏覽器重驗證 | 半天 |
-| 7 | 成員管理 + 費用結算 E2E 測試 | 測試 | 關鍵流程端到端驗證 | 1-2 天 |
-| 8 | Modal focus trap 完善 + skip-to-content | 前端 | 無障礙合規 | 1 天 |
+| # | 任務 | 面向 | 預期效果 | 工時 | 狀態 |
+|---|------|------|----------|------|:----:|
+| 3 | CSP 從 `unsafe-inline` 遷移至 nonce-based | 安全 | XSS 防護等級大幅提升 | 2-3 天 | |
+| 4 | ~~行內腳本抽取為外部 JS 模組（6 模板）~~ | 前端 | ~~維護性提升、CSP 相容、消除 onclick~~ | ~~3-5 天~~ | ✅ |
+| 5 | ~~@EnableAsync + 自訂執行緒池~~ (已有) + deleteTrip 非同步化 | 效能 | 釋放請求執行緒，避免阻塞 | ~~1 天~~ | ✅ |
+| 6 | ~~靜態資源版本號 + 長期快取~~ (已有 VersionResourceResolver) | 效能 | ~~減少瀏覽器重驗證~~ | ~~半天~~ | ✅ 已存在 |
+| 7 | 成員管理 + 費用結算 E2E 測試 | 測試 | 關鍵流程端到端驗證 | 1-2 天 | |
+| 8 | ~~Modal focus trap 完善 + skip-to-content~~ | 前端 | ~~無障礙合規~~ | ~~1 天~~ | ✅ |
 
 ### 🏗️ 長期（5+ Sprint）
 
@@ -150,16 +181,17 @@
 | 2026-02-13 | 8.5 | 8.5 | 8.0 | 8.5 | 9.0 | **8.7** |
 | 2026-02-14 | 8.6 | 8.9 | 7.5 | 7.0 | 8.5 | **8.1** |
 | 2026-02-18 (審查) | 8.9 | 9.1 | 7.5 | 7.8 | 8.7 | **8.4** |
-| **2026-02-18 (改善後)** | **9.2** | **9.2** | **7.8** | **8.5** | **9.0** | **8.7** |
+| 2026-02-18 (改善後) | 9.2 | 9.2 | 7.8 | 8.5 | 9.0 | **8.7** |
+| **2026-02-20 (改善後)** | **9.2** | **9.2** | **9.0** | **8.8** | **9.0** | **9.0** |
 
-> **2026-02-18 改善後**：第二輪 Batch 1-4 全部完成（8.4 → 8.7）。效能提升最大（+0.7），歸功於連線池、N+1 批次修復和 Circuit Breaker。架構面 Warning 歸零（+0.3）。測試突破 1100 門檻，外部 Client 覆蓋 100%。前端 console/alert 清理完成（+0.3）。
+> **2026-02-20 改善後**：前端品質大幅提升（7.8 → 9.0），6 模板行內 JS 抽取為外部模組（~1900 行）、50+ onclick 改事件委派、Modal focus trap + skip-to-content 完善。效能新增 Settlement 快取和 Storage 非同步刪除（8.5 → 8.8）。整體首次突破 9.0。
 
 ---
 
 ## 近期已修復項目（累計）
 
 <details>
-<summary>展開查看所有已修復項目（56 項）</summary>
+<summary>展開查看所有已修復項目（68 項）</summary>
 
 | 項目 | 面向 | 原嚴重度 | 狀態 |
 |------|------|----------|------|
@@ -219,6 +251,19 @@
 | **Google Maps Circuit Breaker** | 效能 | 🔵 Suggestion | ✅ 新增 |
 | **ExchangeRateApiClient 單元測試** | 測試 | 🟡 Warning | ✅ 新增 |
 | **SupabaseStorageClient 單元測試** | 測試 | 🟡 Warning | ✅ 新增 |
+| **settlement.js 行內腳本抽取** | 前端 | HIGH | ✅ 新增 |
+| **activity-list.js 行內腳本抽取** | 前端 | HIGH | ✅ 新增 |
+| **activity-form.js 行內腳本抽取** | 前端 | HIGH | ✅ 新增 |
+| **member-management.js 行內腳本抽取** | 前端 | HIGH | ✅ 新增 |
+| **expense-list.js 行內腳本抽取** | 前端 | HIGH | ✅ 新增 |
+| **document-list.js 行內腳本抽取** | 前端 | HIGH | ✅ 新增 |
+| **50+ onclick handler → data-action 事件委派** | 前端 | HIGH | ✅ 新增 |
+| **Modal focus trap (Tab/Shift+Tab 循環)** | 前端 | 🟠 Medium | ✅ 新增 |
+| **skip-to-content 連結** | 前端 | LOW | ✅ 新增 |
+| **版權年份動態化** | 前端 | LOW | ✅ 新增 |
+| **Settlement 結算快取 (1min TTL + eviction)** | 效能 | 🔵 Suggestion | ✅ 新增 |
+| **deleteTrip Storage 非同步刪除** | 效能 | 🔵 Suggestion | ✅ 新增 |
+| **ExpenseSplit (expense_id, user_id) 複合索引** | 效能 | 🔵 Suggestion | ✅ 新增 |
 
 </details>
 
@@ -236,4 +281,4 @@
 
 ---
 
-*本報告基於第四次審查結果 + 第二輪 Batch 1-4 改善成果更新。*
+*本報告基於第五次審查結果 + 前端品質 / 效能改善成果更新（2026-02-20）。*

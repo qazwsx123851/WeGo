@@ -28,12 +28,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -314,15 +316,11 @@ public class TripService {
         // 2. Expenses (depends on Trip)
         expenseRepository.deleteByTripId(tripId);
 
-        // 3. Documents: clean storage files first, then delete DB records
-        documentRepository.findByTripIdOrderByCreatedAtDesc(tripId).forEach(doc -> {
-            try {
-                String storagePath = tripId + "/" + doc.getFileName();
-                storageClient.deleteFile(supabaseProperties.getStorageBucket(), storagePath);
-            } catch (Exception e) {
-                log.warn("Failed to delete storage file for document {}: {}", doc.getId(), e.getMessage());
-            }
-        });
+        // 3. Documents: collect storage paths, then delete DB records
+        List<String> storagePaths = new ArrayList<>();
+        documentRepository.findByTripIdOrderByCreatedAtDesc(tripId).forEach(doc ->
+            storagePaths.add(tripId + "/" + doc.getFileName())
+        );
         documentRepository.deleteByTripId(tripId);
 
         // 4. Activities (depends on Trip)
@@ -337,19 +335,46 @@ public class TripService {
         // 7. TripMembers (depends on Trip)
         tripMemberRepository.deleteByTripId(tripId);
 
-        // 8. Delete cover image from storage
-        if (trip.getCoverImageUrl() != null) {
-            try {
-                deleteCoverImage(trip.getCoverImageUrl());
-            } catch (Exception e) {
-                log.warn("Failed to delete cover image for trip {}: {}", tripId, e.getMessage());
-            }
-        }
+        // 8. Collect cover image path for async deletion
+        String coverImageUrl = trip.getCoverImageUrl();
 
         // 9. Finally delete the Trip itself
         tripRepository.delete(trip);
 
+        // 10. Async cleanup of storage files (non-blocking)
+        if (!storagePaths.isEmpty()) {
+            deleteStorageFilesAsync(supabaseProperties.getStorageBucket(), storagePaths, tripId);
+        }
+
+        // 11. Async cleanup of cover image (separate bucket)
+        if (coverImageUrl != null) {
+            String coverPath = extractStoragePath(coverImageUrl);
+            if (coverPath != null) {
+                deleteStorageFilesAsync(supabaseProperties.getCoverImageBucket(), List.of(coverPath), tripId);
+            }
+        }
+
         log.info("Deleted trip and all related data: {} by user: {}", tripId, userId);
+    }
+
+    /**
+     * Asynchronously deletes storage files after trip DB records are removed.
+     * Failures are logged but do not affect the caller.
+     */
+    @Async("transportExecutor")
+    public void deleteStorageFilesAsync(String bucket, List<String> paths, UUID tripId) {
+        int success = 0;
+        int failed = 0;
+        for (String path : paths) {
+            try {
+                storageClient.deleteFile(bucket, path);
+                success++;
+            } catch (Exception e) {
+                failed++;
+                log.warn("Failed to delete storage file {} for trip {}: {}", path, tripId, e.getMessage());
+            }
+        }
+        log.info("Async storage cleanup for trip {}: {} deleted, {} failed", tripId, success, failed);
     }
 
     /**

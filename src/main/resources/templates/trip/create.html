@@ -37,7 +37,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main id="main-content" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <!-- Form Card -->
         <div class="glass-card p-6 sm:p-8">
             <form th:action="${isEdit ? '/trips/' + trip.id + '/edit' : '/trips/create'}"

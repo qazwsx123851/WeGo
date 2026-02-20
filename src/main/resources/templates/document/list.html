@@ -21,7 +21,7 @@
                 <h1 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">檔案管理</h1>
             </div>
             <!-- Upload Button -->
-            <button onclick="openUploadModal()"
+            <button data-action="open-upload-modal"
                     class="btn-cta flex items-center gap-2"
                     aria-label="上傳檔案">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,7 +33,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-4xl mx-auto px-4 py-6">
+    <main id="main-content" class="max-w-4xl mx-auto px-4 py-6" th:data-trip-id="${trip.id}">
         <!-- Trip Info Banner -->
         <section class="glass-card p-4 mb-6" th:if="${trip}">
             <div class="flex items-center gap-3">
@@ -60,30 +60,30 @@
                 <button th:each="category : ${categories}"
                         th:classappend="${category.active ? 'bg-primary-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}"
                         th:data-category="${category.value}"
-                        onclick="filterByCategory(this.dataset.category)"
+                        data-action="filter-category"
                         th:text="${category.label}"
                         class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap cursor-pointer transition-all duration-200 min-h-[36px]">
                     全部
                 </button>
                 <!-- Default categories if not provided from backend -->
                 <th:block th:if="${categories == null}">
-                    <button data-category="all"
+                    <button data-category="all" data-action="filter-category"
                             class="category-btn active px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap cursor-pointer transition-all duration-200 min-h-[36px] bg-primary-500 text-white">
                         全部
                     </button>
-                    <button data-category="tickets"
+                    <button data-category="tickets" data-action="filter-category"
                             class="category-btn px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap cursor-pointer transition-all duration-200 min-h-[36px] bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                         票券
                     </button>
-                    <button data-category="receipts"
+                    <button data-category="receipts" data-action="filter-category"
                             class="category-btn px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap cursor-pointer transition-all duration-200 min-h-[36px] bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                         收據
                     </button>
-                    <button data-category="reservations"
+                    <button data-category="reservations" data-action="filter-category"
                             class="category-btn px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap cursor-pointer transition-all duration-200 min-h-[36px] bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                         訂房確認
                     </button>
-                    <button data-category="other"
+                    <button data-category="other" data-action="filter-category"
                             class="category-btn px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap cursor-pointer transition-all duration-200 min-h-[36px] bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                         其他
                     </button>
@@ -120,7 +120,7 @@
                  th:data-size="${doc.fileSize}"
                  th:data-name="${doc.originalFileName}"
                  th:data-signed-url="${doc.signedUrl}"
-                 onclick="openDocumentDetail(this)">
+                 data-action="open-document-detail">
                 <!--/* Security note: Signed URLs are time-limited (configurable, default 1hr)
                      and only rendered for authenticated users with VIEW permission on this trip.
                      This is acceptable since viewers already have download access via the proxy endpoint. */-->
@@ -212,7 +212,7 @@
             </div>
             <h3 class="text-h4 text-gray-700 dark:text-gray-200 mb-2">還沒有任何檔案</h3>
             <p class="text-body-sm text-gray-500 dark:text-gray-400 mb-6">上傳機票、住宿確認單、收據等旅行相關文件</p>
-            <button onclick="openUploadModal()" class="btn-primary" aria-label="上傳第一個檔案">
+            <button data-action="open-upload-modal" class="btn-primary" aria-label="上傳第一個檔案">
                 上傳檔案
             </button>
         </section>
@@ -224,7 +224,7 @@
     <!-- Upload Modal (Hidden by default) -->
     <div id="upload-modal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeUploadModal()"></div>
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" data-action="close-upload-modal"></div>
 
         <!-- Modal Content -->
         <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl max-h-[90vh] overflow-hidden animate-drawer-up">
@@ -236,7 +236,7 @@
             <!-- Modal Header -->
             <div class="px-6 pb-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">上傳檔案</h2>
-                <button onclick="closeUploadModal()"
+                <button data-action="close-upload-modal"
                         class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                         aria-label="關閉">
                     <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -266,7 +266,7 @@
                             </svg>
                             選擇檔案
                         </label>
-                        <input type="file" id="file-input" name="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" onchange="handleFileSelect(this)"/>
+                        <input type="file" id="file-input" name="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"/>
                         <p class="text-xs text-gray-400 dark:text-gray-500 mt-4">支援 PDF、JPG、PNG、GIF、WebP，最大 10MB</p>
                     </div>
 
@@ -293,7 +293,7 @@
                                 <p id="preview-name" class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">filename.pdf</p>
                                 <p id="preview-size" class="text-xs text-gray-500 dark:text-gray-400">1.2 MB</p>
                             </div>
-                            <button type="button" onclick="clearFileSelection()"
+                            <button type="button" data-action="clear-file-selection"
                                     class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                                     aria-label="移除檔案">
                                 <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,7 +332,7 @@
 
             <!-- Modal Footer -->
             <div id="upload-footer" class="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3">
-                <button type="button" id="cancel-btn" onclick="closeUploadModal()"
+                <button type="button" id="cancel-btn" data-action="close-upload-modal"
                         class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
                     取消
                 </button>
@@ -359,7 +359,7 @@
     <!-- Document Detail Modal (for preview) -->
     <div id="detail-modal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/80" onclick="closeDetailModal()"></div>
+        <div class="absolute inset-0 bg-black/80" data-action="close-detail-modal"></div>
 
         <!-- Modal Content -->
         <div class="absolute inset-4 md:inset-8 flex flex-col bg-white dark:bg-gray-900 rounded-2xl overflow-hidden">
@@ -367,7 +367,7 @@
             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between flex-shrink-0">
                 <h3 id="detail-title" class="text-base font-semibold text-gray-800 dark:text-gray-100 truncate">document-name.pdf</h3>
                 <div class="flex items-center gap-2">
-                    <button onclick="closeDetailModal()"
+                    <button data-action="close-detail-modal"
                             class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                             aria-label="關閉">
                         <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,7 +385,7 @@
             <!-- Info Footer -->
             <div class="px-4 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
                 <span id="detail-info">1.2 MB - 上傳於 01/15</span>
-                <button onclick="confirmDelete()"
+                <button data-action="confirm-delete"
                         class="text-error hover:text-red-600 font-medium cursor-pointer">
                     刪除檔案
                 </button>
@@ -395,7 +395,7 @@
 
     <!-- Delete Confirmation Modal -->
     <div id="delete-confirm-modal" class="fixed inset-0 z-[60] hidden" aria-modal="true" role="dialog">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeDeleteConfirmModal()"></div>
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" data-action="close-delete-confirm"></div>
         <div class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl p-6 animate-drawer-up">
             <div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-6"></div>
             <div class="text-center mb-6">
@@ -409,11 +409,11 @@
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">此操作無法復原</p>
             </div>
             <div class="flex gap-3">
-                <button onclick="closeDeleteConfirmModal()"
+                <button data-action="close-delete-confirm"
                         class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
                     取消
                 </button>
-                <button id="confirm-delete-btn" onclick="executeDelete()"
+                <button id="confirm-delete-btn" data-action="execute-delete"
                         class="flex-1 min-h-[44px] px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors cursor-pointer">
                     刪除
                 </button>
@@ -424,562 +424,8 @@
     <!-- Lottie Animation Library -->
     <script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
 
-    <script>
-        // Get tripId from hidden input
-        const tripId = document.querySelector('input[name="tripId"]').value;
-
-        // CSRF Token
-        const csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
-        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
-
-        // Current document ID for detail modal
-        let currentDocumentId = null;
-        let currentDocumentData = null;
-
-        // Upload state lock
-        let isUploading = false;
-
-        // Upload Modal Functions
-        function openUploadModal() {
-            document.getElementById('upload-modal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeUploadModal() {
-            if (isUploading) return;
-            document.getElementById('upload-modal').classList.add('hidden');
-            document.body.style.overflow = '';
-            clearFileSelection();
-            resetUploadUI();
-        }
-
-        // File Selection
-        function handleFileSelect(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            // Validate file size (10MB max)
-            if (file.size > 10 * 1024 * 1024) {
-                showToast('error', '檔案大小超過 10MB 限制');
-                input.value = '';
-                return;
-            }
-
-            // Update preview
-            const preview = document.getElementById('file-preview');
-            const previewIcon = document.getElementById('preview-icon');
-            const previewName = document.getElementById('preview-name');
-            const previewSize = document.getElementById('preview-size');
-
-            previewName.textContent = file.name;
-            previewSize.textContent = formatFileSize(file.size);
-
-            // Set icon based on file type
-            if (file.type.startsWith('image/')) {
-                previewIcon.innerHTML = '<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>';
-            } else if (file.type === 'application/pdf') {
-                previewIcon.innerHTML = '<svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4z"/></svg>';
-            } else {
-                previewIcon.innerHTML = '<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
-            }
-
-            preview.classList.remove('hidden');
-            document.getElementById('drop-zone').classList.add('hidden');
-            document.getElementById('submit-btn').disabled = false;
-        }
-
-        function clearFileSelection() {
-            document.getElementById('file-input').value = '';
-            document.getElementById('file-preview').classList.add('hidden');
-            document.getElementById('drop-zone').classList.remove('hidden');
-            document.getElementById('submit-btn').disabled = true;
-            document.getElementById('category').value = 'other';
-            document.getElementById('description').value = '';
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        }
-
-        // Reset upload UI after upload completes or fails
-        function resetUploadUI() {
-            isUploading = false;
-            document.getElementById('upload-progress').classList.add('hidden');
-            document.getElementById('progress-bar').style.width = '0%';
-            document.getElementById('progress-text').textContent = '0%';
-
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = false;
-            submitBtn.textContent = '上傳';
-            submitBtn.classList.remove('flex', 'items-center', 'justify-center', 'gap-2');
-
-            const cancelBtn = document.getElementById('cancel-btn');
-            cancelBtn.classList.remove('opacity-50', 'pointer-events-none');
-
-            document.getElementById('category').disabled = false;
-            document.getElementById('description').disabled = false;
-        }
-
-        // Upload success animation
-        function showUploadSuccess() {
-            // Close upload modal first
-            isUploading = false;
-            closeUploadModal();
-
-            // Show fullscreen success overlay
-            const overlay = document.getElementById('upload-success-overlay');
-            overlay.classList.remove('opacity-0', 'pointer-events-none');
-            overlay.classList.add('opacity-100');
-
-            // Check reduced motion preference
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-            if (prefersReducedMotion) {
-                document.getElementById('success-lottie').classList.add('hidden');
-                document.getElementById('success-fallback').classList.remove('hidden');
-                setTimeout(function() { window.location.reload(); }, 1500);
-                return;
-            }
-
-            // Lottie animation
-            const container = document.getElementById('success-lottie');
-            try {
-                if (typeof lottie !== 'undefined') {
-                    const anim = lottie.loadAnimation({
-                        container: container,
-                        renderer: 'svg',
-                        loop: false,
-                        autoplay: true,
-                        path: '/animations/Success.json'
-                    });
-                    anim.addEventListener('complete', function() {
-                        setTimeout(function() { window.location.reload(); }, 500);
-                    });
-                    anim.addEventListener('error', function() {
-                        container.classList.add('hidden');
-                        document.getElementById('success-fallback').classList.remove('hidden');
-                        setTimeout(function() { window.location.reload(); }, 1500);
-                    });
-                    // Safety timeout
-                    setTimeout(function() { window.location.reload(); }, 5000);
-                } else {
-                    throw new Error('lottie not loaded');
-                }
-            } catch (e) {
-                container.classList.add('hidden');
-                document.getElementById('success-fallback').classList.remove('hidden');
-                setTimeout(function() { window.location.reload(); }, 1500);
-            }
-        }
-
-        // AJAX Upload Handler
-        document.getElementById('upload-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const fileInput = document.getElementById('file-input');
-            const file = fileInput.files[0];
-            if (!file) {
-                showToast('error', '請選擇要上傳的檔案');
-                return;
-            }
-
-            const category = document.getElementById('category').value;
-            const description = document.getElementById('description').value;
-
-            await uploadDocument(file, category, description);
-        });
-
-        async function uploadDocument(file, category, description) {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            // Add metadata as JSON blob
-            const metadata = { category, description };
-            formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-
-            // Lock modal and show loading state
-            isUploading = true;
-            document.getElementById('upload-progress').classList.remove('hidden');
-            document.getElementById('file-preview').classList.add('hidden');
-
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> 上傳中...';
-            submitBtn.classList.add('flex', 'items-center', 'justify-center', 'gap-2');
-
-            const cancelBtn = document.getElementById('cancel-btn');
-            cancelBtn.classList.add('opacity-50', 'pointer-events-none');
-
-            document.getElementById('category').disabled = true;
-            document.getElementById('description').disabled = true;
-
-            try {
-                const xhr = new XMLHttpRequest();
-
-                // Progress event
-                xhr.upload.addEventListener('progress', (e) => {
-                    if (e.lengthComputable) {
-                        const percent = Math.round((e.loaded / e.total) * 100);
-                        document.getElementById('progress-bar').style.width = percent + '%';
-                        document.getElementById('progress-text').textContent = percent + '%';
-                    }
-                });
-
-                // Load complete event
-                xhr.onload = function() {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        showUploadSuccess();
-                    } else {
-                        try {
-                            const error = JSON.parse(xhr.responseText);
-                            showToast('error', error.message || '上傳失敗');
-                        } catch {
-                            showToast('error', '上傳失敗，請稍後再試');
-                        }
-                        resetUploadUI();
-                        document.getElementById('file-preview').classList.remove('hidden');
-                    }
-                };
-
-                // Error event
-                xhr.onerror = function() {
-                    showToast('error', '網路錯誤，請稍後再試');
-                    resetUploadUI();
-                    document.getElementById('file-preview').classList.remove('hidden');
-                };
-
-                // Send request
-                xhr.open('POST', `/api/trips/${tripId}/documents`);
-                xhr.setRequestHeader(csrfHeader, csrfToken);
-                xhr.send(formData);
-
-            } catch (error) {
-                showToast('error', '上傳失敗，請稍後再試');
-                resetUploadUI();
-                document.getElementById('file-preview').classList.remove('hidden');
-            }
-        }
-
-        // Drag and Drop
-        const dropZone = document.getElementById('drop-zone');
-        if (dropZone) {
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, preventDefaults, false);
-            });
-
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropZone.addEventListener(eventName, () => {
-                    dropZone.classList.add('border-primary-500', 'bg-primary-50', 'dark:bg-primary-900/20');
-                }, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, () => {
-                    dropZone.classList.remove('border-primary-500', 'bg-primary-50', 'dark:bg-primary-900/20');
-                }, false);
-            });
-
-            dropZone.addEventListener('drop', (e) => {
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    document.getElementById('file-input').files = files;
-                    handleFileSelect(document.getElementById('file-input'));
-                }
-            }, false);
-        }
-
-        // Category Filter
-        function filterByCategory(category) {
-            const buttons = document.querySelectorAll('.category-btn');
-            const cards = document.querySelectorAll('.document-card');
-
-            buttons.forEach(btn => {
-                if (btn.dataset.category === category) {
-                    btn.classList.add('bg-primary-500', 'text-white');
-                    btn.classList.remove('bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300', 'border');
-                } else {
-                    btn.classList.remove('bg-primary-500', 'text-white');
-                    btn.classList.add('bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-300', 'border');
-                }
-            });
-
-            cards.forEach(card => {
-                if (category === 'all' || card.dataset.category === category) {
-                    card.classList.remove('hidden');
-                } else {
-                    card.classList.add('hidden');
-                }
-            });
-        }
-
-        // Category button click handlers
-        document.querySelectorAll('.category-btn').forEach(btn => {
-            btn.addEventListener('click', () => filterByCategory(btn.dataset.category));
-        });
-
-        // Document Detail Modal
-        async function openDocumentDetail(card) {
-            currentDocumentId = card.dataset.id;
-            const mimeType = card.dataset.mime || '';
-
-            // Get document data from the card
-            const fileName = card.querySelector('h3').textContent;
-            const fileSize = card.querySelector('.text-xs span:first-child').textContent;
-            const uploadDate = card.querySelector('.text-xs span:last-child').textContent;
-            const thumbnailImg = card.querySelector('img');
-            const isPdf = mimeType === 'application/pdf';
-            const isImage = mimeType.startsWith('image/');
-
-            // Update modal
-            document.getElementById('detail-title').textContent = fileName;
-            document.getElementById('detail-info').textContent = `${fileSize} - 上傳於 ${uploadDate}`;
-
-            // Update preview area (using DOM methods to prevent XSS)
-            const previewArea = document.getElementById('detail-preview');
-            previewArea.innerHTML = '';
-
-            // Show modal first
-            document.getElementById('detail-modal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-
-            const signedUrl = card.dataset.signedUrl || '';
-
-            if (isImage) {
-                // Image preview - prefer signed URL (direct CDN), fallback to backend proxy
-                const img = document.createElement('img');
-                img.src = signedUrl || `/api/trips/${tripId}/documents/${currentDocumentId}/preview`;
-                img.alt = fileName;
-                img.className = 'max-w-full max-h-full object-contain rounded-lg';
-                previewArea.appendChild(img);
-            } else if (isPdf) {
-                // PDF preview - prefer signed URL, fallback to backend proxy
-                const previewUrl = signedUrl || `/api/trips/${tripId}/documents/${currentDocumentId}/preview`;
-                renderPdfPreview(previewArea, previewUrl);
-            } else {
-                // Other files - show generic icon
-                renderGenericPreview(previewArea);
-            }
-        }
-
-        function renderLoadingState(container) {
-            container.innerHTML = '';
-            const wrapper = document.createElement('div');
-            wrapper.className = 'text-center';
-            wrapper.setAttribute('role', 'status');
-            wrapper.setAttribute('aria-live', 'polite');
-            wrapper.innerHTML = `
-                <div class="inline-block w-10 h-10 border-4 border-gray-300 dark:border-gray-600 border-t-primary-500 rounded-full animate-spin mb-4"></div>
-            `;
-            const label = document.createElement('p');
-            label.className = 'text-gray-500 dark:text-gray-400 text-sm';
-            label.textContent = '載入預覽中...';
-            wrapper.appendChild(label);
-            container.appendChild(wrapper);
-        }
-
-        function renderPdfPreview(container, url) {
-            container.innerHTML = '';
-            const iframe = document.createElement('iframe');
-            iframe.src = url;
-            iframe.className = 'w-full h-full rounded-xl';
-            iframe.style.border = 'none';
-            iframe.style.minHeight = '400px';
-            iframe.title = 'PDF Preview';
-
-            // Track load state for timeout fallback
-            let loaded = false;
-
-            iframe.onload = function() {
-                loaded = true;
-            };
-
-            iframe.onerror = function() {
-                renderPreviewError(container);
-            };
-
-            // Timeout fallback - if iframe doesn't load in 15s
-            setTimeout(function() {
-                if (!loaded) {
-                    renderPreviewError(container);
-                }
-            }, 15000);
-
-            container.appendChild(iframe);
-        }
-
-        function renderPreviewError(container) {
-            container.innerHTML = '';
-            const wrapper = document.createElement('div');
-            wrapper.className = 'text-center';
-            wrapper.setAttribute('role', 'alert');
-            wrapper.innerHTML = `
-                <svg class="w-20 h-20 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4z"/>
-                </svg>
-            `;
-            const label = document.createElement('p');
-            label.className = 'text-gray-500 dark:text-gray-400 mb-4';
-            label.textContent = '無法預覽此檔案';
-            wrapper.appendChild(label);
-
-            container.appendChild(wrapper);
-        }
-
-        function renderGenericPreview(container) {
-            container.innerHTML = '';
-            const wrapper = document.createElement('div');
-            wrapper.className = 'text-center';
-            wrapper.innerHTML = `
-                <svg class="w-24 h-24 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-            `;
-            const label = document.createElement('p');
-            label.className = 'text-gray-600 dark:text-gray-400';
-            label.textContent = '此檔案類型不支援預覽';
-            wrapper.appendChild(label);
-            container.appendChild(wrapper);
-        }
-
-
-        function closeDetailModal() {
-            document.getElementById('detail-modal').classList.add('hidden');
-            document.body.style.overflow = '';
-            currentDocumentId = null;
-        }
-
-        // Delete Document
-        function confirmDelete() {
-            if (!currentDocumentId) return;
-            document.getElementById('delete-confirm-modal').classList.remove('hidden');
-        }
-
-        function closeDeleteConfirmModal() {
-            document.getElementById('delete-confirm-modal').classList.add('hidden');
-            const btn = document.getElementById('confirm-delete-btn');
-            btn.disabled = false;
-            btn.textContent = '刪除';
-        }
-
-        async function executeDelete() {
-            const deleteBtn = document.getElementById('confirm-delete-btn');
-            deleteBtn.disabled = true;
-            deleteBtn.textContent = '刪除中...';
-
-            try {
-                const response = await fetch('/api/trips/' + tripId + '/documents/' + currentDocumentId, {
-                    method: 'DELETE',
-                    headers: { [csrfHeader]: csrfToken }
-                });
-
-                if (response.ok) {
-                    const deletedId = currentDocumentId;
-                    closeDeleteConfirmModal();
-                    closeDetailModal();
-                    showToast('success', '檔案已刪除');
-
-                    const card = document.querySelector('[data-id="' + deletedId + '"]');
-                    if (card) {
-                        card.style.transition = 'opacity 200ms ease-out, transform 200ms ease-out';
-                        card.style.opacity = '0';
-                        card.style.transform = 'scale(0.95)';
-                    }
-                    setTimeout(function() { window.location.reload(); }, 500);
-                } else {
-                    deleteBtn.disabled = false;
-                    deleteBtn.textContent = '刪除';
-                    try {
-                        const error = await response.json();
-                        showToast('error', error.message || '刪除失敗');
-                    } catch (e) {
-                        showToast('error', '刪除失敗，請稍後再試');
-                    }
-                }
-            } catch (error) {
-                deleteBtn.disabled = false;
-                deleteBtn.textContent = '刪除';
-                showToast('error', '刪除失敗，請稍後再試');
-            }
-        }
-
-        // Toast Notification
-        function showToast(type, message) {
-            const container = document.getElementById('toast-container');
-            if (!container) return;
-
-            const toast = document.createElement('div');
-            toast.className = `flex items-center gap-3 bg-white dark:bg-gray-800 rounded-xl shadow-lg border-l-4 px-4 py-3 min-w-[280px] animate-slide-in ${type === 'success' ? 'border-success' : 'border-error'}`;
-
-            // Create icon element
-            const iconWrapper = document.createElement('div');
-            iconWrapper.innerHTML = type === 'success'
-                ? '<svg class="w-5 h-5 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
-                : '<svg class="w-5 h-5 text-error flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-            toast.appendChild(iconWrapper.firstChild);
-
-            // Create message element - use textContent to prevent XSS
-            const messageEl = document.createElement('p');
-            messageEl.className = 'flex-1 text-gray-800 dark:text-gray-100';
-            messageEl.textContent = message;
-            toast.appendChild(messageEl);
-
-            // Create close button
-            const closeBtn = document.createElement('button');
-            closeBtn.className = 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer';
-            closeBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
-            closeBtn.onclick = () => toast.remove();
-            toast.appendChild(closeBtn);
-
-            container.appendChild(toast);
-
-            setTimeout(() => {
-                toast.classList.add('animate-slide-out');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-
-        // Close modals with Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                closeDeleteConfirmModal();
-                closeUploadModal();
-                closeDetailModal();
-            }
-        });
-
-        // Sort functionality
-        document.getElementById('sort-select').addEventListener('change', function() {
-            sortDocuments(this.value);
-        });
-
-        function sortDocuments(sortBy) {
-            const grid = document.querySelector('.grid');
-            if (!grid) return;
-            const cards = Array.from(grid.querySelectorAll('.document-card'));
-
-            cards.sort((a, b) => {
-                switch (sortBy) {
-                    case 'date-desc': return b.dataset.date.localeCompare(a.dataset.date);
-                    case 'date-asc':  return a.dataset.date.localeCompare(b.dataset.date);
-                    case 'name-asc':  return a.dataset.name.localeCompare(b.dataset.name, 'zh-TW');
-                    case 'name-desc': return b.dataset.name.localeCompare(a.dataset.name, 'zh-TW');
-                    case 'size-desc': return Number(b.dataset.size) - Number(a.dataset.size);
-                    default: return 0;
-                }
-            });
-
-            cards.forEach(card => grid.appendChild(card));
-        }
-    </script>
+    <script th:src="@{/js/app.js}" defer></script>
+    <script th:src="@{/js/document-list.js}" defer></script>
 
     <style>
         /* Custom scrollbar hide for category filter */

@@ -36,7 +36,8 @@
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main id="member-management-container" th:data-trip-id="${trip.id}"
+          class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <!-- Trip Info Header -->
         <div class="glass-card p-4 mb-6 flex items-center gap-4">
             <div class="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
@@ -84,7 +85,7 @@
                                       text-gray-600 dark:text-gray-400
                                       text-sm truncate"/>
                         <button type="button"
-                                id="copyLinkBtn"
+                                data-action="copy-invite-link"
                                 class="btn-primary flex items-center gap-2 whitespace-nowrap"
                                 aria-label="複製連結">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -112,7 +113,7 @@
                 <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                     <span class="text-sm text-gray-600 dark:text-gray-400">連結已過期或想產生新連結？</span>
                     <button type="button"
-                            onclick="generateInviteLink()"
+                            data-action="generate-invite-link"
                             class="btn-text text-sm cursor-pointer">
                         產生新連結
                     </button>
@@ -197,7 +198,7 @@
                         <!-- Change Role Dropdown -->
                         <div class="relative">
                             <button type="button"
-                                    onclick="toggleRoleDropdown(this)"
+                                    data-action="toggle-role-dropdown"
                                     class="p-2 rounded-lg text-gray-500 dark:text-gray-400
                                            hover:bg-gray-100 dark:hover:bg-gray-800
                                            transition-colors duration-200 cursor-pointer"
@@ -218,10 +219,10 @@
                                         py-1 z-10"
                                  style="bottom: 100%; margin-bottom: 0.5rem;">
                                 <button type="button"
+                                        data-action="change-role"
                                         th:data-trip-id="${trip.id}"
                                         th:data-user-id="${member.userId}"
                                         data-role="EDITOR"
-                                        onclick="changeRole(this.dataset.tripId, this.dataset.userId, this.dataset.role)"
                                         class="w-full px-4 py-2 text-left text-sm
                                                text-gray-700 dark:text-gray-300
                                                hover:bg-gray-100 dark:hover:bg-gray-700
@@ -229,10 +230,10 @@
                                     設為編輯者
                                 </button>
                                 <button type="button"
+                                        data-action="change-role"
                                         th:data-trip-id="${trip.id}"
                                         th:data-user-id="${member.userId}"
                                         data-role="VIEWER"
-                                        onclick="changeRole(this.dataset.tripId, this.dataset.userId, this.dataset.role)"
                                         class="w-full px-4 py-2 text-left text-sm
                                                text-gray-700 dark:text-gray-300
                                                hover:bg-gray-100 dark:hover:bg-gray-700
@@ -244,7 +245,7 @@
 
                         <!-- Remove Member -->
                         <button type="button"
-                                onclick="confirmRemoveMember(this)"
+                                data-action="confirm-remove-member"
                                 th:data-member-id="${member.userId}"
                                 th:data-member-name="${member.nickname != null ? member.nickname : 'Unknown'}"
                                 class="p-2 rounded-lg text-gray-500 dark:text-gray-400
@@ -270,7 +271,7 @@
         <!-- Leave Trip Button (for non-owners) -->
         <div th:if="${!isOwner}" class="mt-8">
             <button type="button"
-                    onclick="confirmLeaveTrip()"
+                    data-action="confirm-leave-trip"
                     class="w-full min-h-[44px] cursor-pointer rounded-xl
                            border border-error/30 dark:border-error/20
                            bg-white dark:bg-gray-800
@@ -299,7 +300,7 @@
             </div>
             <div class="px-6 pb-6 flex gap-3">
                 <button type="button"
-                        onclick="closeRemoveDialog()"
+                        data-action="close-remove-dialog"
                         class="flex-1 px-4 py-2.5 rounded-xl
                                border border-gray-200 dark:border-gray-600
                                text-gray-700 dark:text-gray-200 font-medium
@@ -308,7 +309,7 @@
                     取消
                 </button>
                 <button type="button"
-                        onclick="removeMember()"
+                        data-action="remove-member"
                         class="flex-1 px-4 py-2.5 rounded-xl
                                bg-error hover:bg-red-600
                                text-white font-medium
@@ -335,7 +336,7 @@
             </div>
             <div class="px-6 pb-6 flex gap-3">
                 <button type="button"
-                        onclick="closeLeaveDialog()"
+                        data-action="close-leave-dialog"
                         class="flex-1 px-4 py-2.5 rounded-xl
                                border border-gray-200 dark:border-gray-600
                                text-gray-700 dark:text-gray-200 font-medium
@@ -344,7 +345,7 @@
                     取消
                 </button>
                 <button type="button"
-                        onclick="leaveTrip()"
+                        data-action="leave-trip"
                         class="flex-1 px-4 py-2.5 rounded-xl
                                bg-error hover:bg-red-600
                                text-white font-medium
@@ -360,250 +361,7 @@
 
     <!-- Scripts -->
     <script th:src="@{/js/app.js}" defer></script>
-    <script th:inline="javascript">
-        // CSRF Token
-        const csrfToken = document.querySelector('meta[name="_csrf"]')?.content || '';
-        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
-
-        // Trip ID
-        const tripId = /*[[${trip.id}]]*/ '';
-
-        // Currently selected member for removal
-        let selectedMemberId = null;
-        let selectedMemberName = null;
-
-        /**
-         * Toast notification (fallback if app.js Toast not available)
-         */
-        function showToast(type, message) {
-            if (typeof Toast !== 'undefined') {
-                type === 'success' ? Toast.success(message) : Toast.error(message);
-                return;
-            }
-
-            // Fallback: simple toast - use textContent to prevent XSS
-            const container = document.getElementById('toast-container') || document.body;
-            const toast = document.createElement('div');
-            toast.className = `fixed top-4 right-4 z-50 flex items-center gap-3 bg-white dark:bg-gray-800
-                               rounded-xl shadow-lg border-l-4 px-4 py-3 min-w-[280px]
-                               ${type === 'success' ? 'border-green-500' : 'border-red-500'}`;
-            const messageEl = document.createElement('p');
-            messageEl.className = 'text-gray-800 dark:text-gray-100';
-            messageEl.textContent = message;
-            toast.appendChild(messageEl);
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-
-        /**
-         * Change member role via AJAX
-         * @param {string} tripId - Trip ID
-         * @param {string} userId - User ID to change role
-         * @param {string} newRole - New role (EDITOR or VIEWER)
-         */
-        async function changeRole(tripId, userId, newRole) {
-            try {
-                const response = await fetch(`/api/trips/${tripId}/members/${userId}/role`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        [csrfHeader]: csrfToken
-                    },
-                    body: JSON.stringify({ role: newRole })
-                });
-
-                if (response.ok) {
-                    showToast('success', '成員角色已更新');
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
-                    const error = await response.json();
-                    showToast('error', error.message || '更新失敗');
-                }
-            } catch (error) {
-                showToast('error', '網路錯誤，請稍後再試');
-            }
-        }
-
-        /**
-         * Confirm remove member - shows dialog
-         * @param {HTMLElement} btn - Button element with data attributes
-         */
-        function confirmRemoveMember(btn) {
-            selectedMemberId = btn.dataset.memberId;
-            selectedMemberName = btn.dataset.memberName;
-
-            document.getElementById('memberName').textContent = selectedMemberName;
-            document.getElementById('removeMemberDialog').classList.remove('hidden');
-        }
-
-        /**
-         * Execute member removal via AJAX
-         */
-        async function removeMember() {
-            if (!selectedMemberId) return;
-
-            try {
-                const response = await fetch(`/api/trips/${tripId}/members/${selectedMemberId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        [csrfHeader]: csrfToken
-                    }
-                });
-
-                if (response.ok) {
-                    showToast('success', '成員已移除');
-                    closeRemoveDialog();
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
-                    const error = await response.json();
-                    showToast('error', error.message || '移除失敗');
-                }
-            } catch (error) {
-                showToast('error', '網路錯誤，請稍後再試');
-            }
-        }
-
-        /**
-         * Generate new invite link via AJAX
-         */
-        async function generateInviteLink() {
-            try {
-                const response = await fetch(`/api/trips/${tripId}/invites`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        [csrfHeader]: csrfToken
-                    },
-                    body: JSON.stringify({
-                        role: 'EDITOR',
-                        expiresInHours: 168  // 7 days
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('inviteLink').value = data.data.inviteUrl;
-                    const expiryEl = document.getElementById('inviteLinkExpiry');
-                    if (expiryEl) expiryEl.classList.remove('hidden');
-                    showToast('success', '已產生新的邀請連結');
-                } else {
-                    const error = await response.json();
-                    showToast('error', error.message || '產生連結失敗');
-                }
-            } catch (error) {
-                showToast('error', '網路錯誤，請稍後再試');
-            }
-        }
-
-        /**
-         * Leave trip via AJAX
-         * Uses the same endpoint as remove member (self-removal)
-         */
-        async function leaveTrip() {
-            try {
-                const response = await fetch(`/api/trips/${tripId}/members/me`, {
-                    method: 'DELETE',
-                    headers: {
-                        [csrfHeader]: csrfToken
-                    }
-                });
-
-                if (response.ok) {
-                    showToast('success', '已離開行程');
-                    setTimeout(() => {
-                        window.location.href = '/dashboard';
-                    }, 1000);
-                } else {
-                    const error = await response.json();
-                    showToast('error', error.message || '離開行程失敗');
-                }
-            } catch (error) {
-                showToast('error', '網路錯誤，請稍後再試');
-            }
-        }
-
-        // Copy invite link using modern Clipboard API
-        document.getElementById('copyLinkBtn')?.addEventListener('click', async function() {
-            const linkInput = document.getElementById('inviteLink');
-            const btn = this;
-
-            try {
-                await navigator.clipboard.writeText(linkInput.value);
-                // Show success feedback
-                const originalText = btn.querySelector('span').textContent;
-                btn.querySelector('span').textContent = '已複製';
-                setTimeout(() => {
-                    btn.querySelector('span').textContent = originalText;
-                }, 2000);
-            } catch (err) {
-                // Fallback for older browsers
-                linkInput.select();
-                document.execCommand('copy');
-                const originalText = btn.querySelector('span').textContent;
-                btn.querySelector('span').textContent = '已複製';
-                setTimeout(() => {
-                    btn.querySelector('span').textContent = originalText;
-                }, 2000);
-            }
-        });
-
-        function closeRemoveDialog() {
-            document.getElementById('removeMemberDialog').classList.add('hidden');
-            selectedMemberId = null;
-            selectedMemberName = null;
-        }
-
-        // Leave trip confirmation
-        function confirmLeaveTrip() {
-            document.getElementById('leaveTripDialog').classList.remove('hidden');
-        }
-
-        function closeLeaveDialog() {
-            document.getElementById('leaveTripDialog').classList.add('hidden');
-        }
-
-        /**
-         * Toggle role dropdown visibility
-         * @param {HTMLElement} btn - The gear button element
-         */
-        function toggleRoleDropdown(btn) {
-            const dropdown = btn.parentElement.querySelector('.role-dropdown');
-            // Close all other dropdowns first
-            document.querySelectorAll('.role-dropdown').forEach(function(d) {
-                if (d !== dropdown) d.classList.add('hidden');
-            });
-            dropdown.classList.toggle('hidden');
-        }
-
-        // Close role dropdowns when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.relative')) {
-                document.querySelectorAll('.role-dropdown').forEach(function(d) {
-                    d.classList.add('hidden');
-                });
-            }
-        });
-
-        // Close dialogs on escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeRemoveDialog();
-                closeLeaveDialog();
-                document.querySelectorAll('.role-dropdown').forEach(function(d) {
-                    d.classList.add('hidden');
-                });
-            }
-        });
-
-        // Close dialogs on backdrop click
-        document.getElementById('removeMemberDialog')?.addEventListener('click', function(e) {
-            if (e.target === this) closeRemoveDialog();
-        });
-
-        document.getElementById('leaveTripDialog')?.addEventListener('click', function(e) {
-            if (e.target === this) closeLeaveDialog();
-        });
-    </script>
+    <script th:src="@{/js/member-management.js}" defer></script>
 
 </body>
 </html>
