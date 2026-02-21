@@ -317,6 +317,22 @@
         }
     };
 
+    /**
+     * Initialize character counters for textareas with data-char-counter attribute.
+     * The attribute value should be the ID of the counter display element.
+     */
+    WeGo.initCharCounters = function() {
+        document.querySelectorAll('[data-char-counter]').forEach(function(textarea) {
+            var counterId = textarea.dataset.charCounter;
+            var counterEl = document.getElementById(counterId);
+            if (!counterEl) return;
+            counterEl.textContent = (textarea.value || '').length;
+            textarea.addEventListener('input', function() {
+                counterEl.textContent = this.value.length;
+            });
+        });
+    };
+
     window.WeGo = WeGo;
 })();
 
@@ -324,9 +340,11 @@
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         WeGo.preventDoubleSubmit();
+        WeGo.initCharCounters();
         WeGo.anime.initCountUpElements();
     });
 } else {
     WeGo.preventDoubleSubmit();
+    WeGo.initCharCounters();
     WeGo.anime.initCountUpElements();
 }

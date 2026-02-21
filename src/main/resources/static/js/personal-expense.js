@@ -33,22 +33,22 @@ const PersonalExpense = (() => {
         if (teamContent) teamContent.classList.toggle('hidden', isPersonal);
         if (personalContent) personalContent.classList.toggle('hidden', !isPersonal);
 
+        // Slide indicator to active tab
+        const mainIndicator = document.getElementById('main-tab-indicator');
+        if (mainIndicator) {
+            mainIndicator.style.left = isPersonal ? 'calc(50% + 2px)' : '4px';
+        }
+
         if (tabTeam) {
-            tabTeam.classList.toggle('bg-white', !isPersonal);
-            tabTeam.classList.toggle('dark:bg-gray-700', !isPersonal);
             tabTeam.classList.toggle('text-gray-800', !isPersonal);
             tabTeam.classList.toggle('dark:text-gray-100', !isPersonal);
-            tabTeam.classList.toggle('shadow-sm', !isPersonal);
             tabTeam.classList.toggle('text-gray-500', isPersonal);
             tabTeam.classList.toggle('dark:text-gray-400', isPersonal);
         }
 
         if (tabPersonal) {
-            tabPersonal.classList.toggle('bg-white', isPersonal);
-            tabPersonal.classList.toggle('dark:bg-gray-700', isPersonal);
             tabPersonal.classList.toggle('text-gray-800', isPersonal);
             tabPersonal.classList.toggle('dark:text-gray-100', isPersonal);
-            tabPersonal.classList.toggle('shadow-sm', isPersonal);
             tabPersonal.classList.toggle('text-gray-500', !isPersonal);
             tabPersonal.classList.toggle('dark:text-gray-400', !isPersonal);
         }
@@ -279,19 +279,23 @@ const PersonalExpense = (() => {
             if (dailyDiv) { dailyDiv.classList.remove('hidden'); dailyDiv.style.opacity = '0'; setTimeout(function() { dailyDiv.style.opacity = '1'; }, 10); }
         }
 
+        // Slide indicator to active tab
+        const chartIndicator = document.getElementById('chart-tab-indicator');
+        if (chartIndicator) {
+            if (type === 'category') {
+                chartIndicator.style.left = '4px';
+            } else {
+                chartIndicator.style.left = 'calc(50% + 2px)';
+            }
+        }
+
         if (catTab) {
-            catTab.classList.toggle('bg-white', type === 'category');
-            catTab.classList.toggle('dark:bg-gray-700', type === 'category');
-            catTab.classList.toggle('shadow-sm', type === 'category');
             catTab.classList.toggle('text-gray-800', type === 'category');
             catTab.classList.toggle('dark:text-gray-100', type === 'category');
             catTab.classList.toggle('text-gray-500', type !== 'category');
             catTab.classList.toggle('dark:text-gray-400', type !== 'category');
         }
         if (dailyTab) {
-            dailyTab.classList.toggle('bg-white', type === 'daily');
-            dailyTab.classList.toggle('dark:bg-gray-700', type === 'daily');
-            dailyTab.classList.toggle('shadow-sm', type === 'daily');
             dailyTab.classList.toggle('text-gray-800', type === 'daily');
             dailyTab.classList.toggle('dark:text-gray-100', type === 'daily');
             dailyTab.classList.toggle('text-gray-500', type !== 'daily');

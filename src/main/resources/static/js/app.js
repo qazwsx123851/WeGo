@@ -50,9 +50,11 @@ const Toast = {
             toast.classList.remove('animate-slide-in');
             toast.style.transform = 'translateX(100%)';
             toast.style.opacity = '0';
+            var staggerDelay = Math.min((this.container.children.length - 1) * 50, 200);
             anime.animate(toast, {
                 translateX: ['100%', 0],
                 opacity: [0, 1],
+                delay: staggerDelay,
                 ease: anime.createSpring({ stiffness: 300, damping: 20, mass: 1 })
             });
         }

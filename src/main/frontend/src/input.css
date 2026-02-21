@@ -62,7 +62,7 @@
   /* Primary Button */
   .btn-primary {
     @apply px-6 py-3 min-h-[44px] bg-primary-500 text-white font-semibold rounded-xl
-           hover:bg-primary-600 active:bg-primary-700
+           hover:bg-primary-600 active:bg-primary-700 active:scale-[0.97]
            focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
            transition-all duration-200 cursor-pointer
            disabled:opacity-50 disabled:cursor-not-allowed;
@@ -71,7 +71,7 @@
   /* CTA Button (Adventure Orange) */
   .btn-cta {
     @apply px-6 py-3 min-h-[44px] bg-adventure-500 text-white font-semibold rounded-xl
-           hover:bg-adventure-600 active:bg-adventure-700
+           hover:bg-adventure-600 active:bg-adventure-700 active:scale-[0.97]
            focus-visible:ring-2 focus-visible:ring-adventure-500 focus-visible:ring-offset-2
            transition-all duration-200 cursor-pointer
            disabled:opacity-50 disabled:cursor-not-allowed;
@@ -81,7 +81,7 @@
   .btn-secondary {
     @apply px-6 py-3 min-h-[44px] bg-gray-100 text-gray-700 font-semibold rounded-xl
            border border-gray-200
-           hover:bg-gray-200 active:bg-gray-300
+           hover:bg-gray-200 active:bg-gray-300 active:scale-[0.97]
            focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2
            transition-all duration-200 cursor-pointer
            disabled:opacity-50 disabled:cursor-not-allowed;
@@ -95,7 +95,7 @@
   /* Text Button */
   .btn-text {
     @apply px-4 py-2 min-h-[44px] text-primary-600 font-medium rounded-lg
-           hover:bg-primary-50 active:bg-primary-100
+           hover:bg-primary-50 active:bg-primary-100 active:scale-[0.97]
            focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
            transition-all duration-200 cursor-pointer;
   }
@@ -107,7 +107,7 @@
   /* Danger Button */
   .btn-danger {
     @apply px-6 py-3 min-h-[44px] bg-error text-white font-semibold rounded-xl
-           hover:bg-error-dark active:opacity-90
+           hover:bg-error-dark active:bg-error-dark active:scale-[0.97]
            focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2
            transition-all duration-200 cursor-pointer
            disabled:opacity-50 disabled:cursor-not-allowed;
@@ -121,9 +121,17 @@
            transition-all duration-200;
   }
 
+  .form-input:user-invalid {
+    @apply border-error ring-2 ring-error/20;
+  }
+
   .dark .form-input {
     @apply bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500
            focus:border-primary-400 focus:ring-primary-400/20;
+  }
+
+  .dark .form-input:user-invalid {
+    @apply border-error ring-2 ring-error/20;
   }
 
   /* Form Label */
@@ -544,5 +552,19 @@ html.dark .flatpickr-day.today:not(.selected) {
 
   .sortable-fallback {
     transform: none !important;
+  }
+
+  /* Disable button press scale and tab slide for reduced motion */
+  .btn-primary,
+  .btn-cta,
+  .btn-secondary,
+  .btn-text,
+  .btn-danger {
+    transform: none !important;
+  }
+
+  #main-tab-indicator,
+  #chart-tab-indicator {
+    transition: none !important;
   }
 }
