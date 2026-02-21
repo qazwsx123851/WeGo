@@ -32,6 +32,9 @@ const ExpenseStatistics = {
         trend: null
     },
 
+    /** Track which sections have been revealed by scroll */
+    _revealed: { category: false, trend: false, members: false },
+
     /**
      * Initialize the statistics module
      */
@@ -51,6 +54,31 @@ const ExpenseStatistics = {
         this.loadCategoryBreakdown();
         this.loadTrend();
         this.loadMemberStatistics();
+
+        // Scroll-triggered chart rendering: observe chart containers
+        this.initScrollTriggers();
+    },
+
+    /**
+     * Set up IntersectionObserver to trigger chart animations when visible.
+     */
+    initScrollTriggers() {
+        if (typeof WeGo === 'undefined' || !WeGo.anime || !WeGo.anime.onVisible) return;
+
+        const self = this;
+        WeGo.anime.onVisible('#category-chart-container', function() {
+            self._revealed.category = true;
+            if (self.cachedData.categories && !self.charts.category) {
+                self.renderCategoryChart(self.cachedData.categories);
+            }
+        }, { threshold: 0.1 });
+
+        WeGo.anime.onVisible('#trend-chart-container', function() {
+            self._revealed.trend = true;
+            if (self.cachedData.trend && !self.charts.trend) {
+                self.renderTrendChart(self.cachedData.trend);
+            }
+        }, { threshold: 0.1 });
     },
 
     /**
@@ -114,18 +142,29 @@ const ExpenseStatistics = {
             const data = result.data;
             containerEl.classList.remove('hidden');
 
-            // Update summary
-            document.getElementById('total-amount').textContent =
-                '$' + this.formatNumber(data.totalAmount);
+            // Update summary with countUp animation
+            var totalAmountEl = document.getElementById('total-amount');
+            var totalCountEl = document.getElementById('total-count');
             document.getElementById('currency-label').textContent = data.currency || 'TWD';
-            document.getElementById('total-count').textContent = data.totalCount;
 
-            // Cache data for theme change recreation
+            if (typeof WeGo !== 'undefined' && WeGo.anime && WeGo.anime.countUp) {
+                WeGo.anime.countUp(totalAmountEl, data.totalAmount, { format: 'currency', currency: data.currency || 'TWD' });
+                WeGo.anime.countUp(totalCountEl, data.totalCount);
+            } else {
+                totalAmountEl.textContent = '$' + this.formatNumber(data.totalAmount);
+                totalCountEl.textContent = data.totalCount;
+            }
+
+            // Cache data for theme change recreation and scroll-trigger deferred rendering
             this.cachedData.categories = data.categories;
 
-            // Render chart
-            this.renderCategoryChart(data.categories);
+            // Render legend immediately (text only, no animation needed)
             this.renderCategoryLegend(data.categories, data.currency);
+
+            // Render chart: immediately if already visible, or wait for scroll trigger
+            if (this._revealed.category || !WeGo.anime || !WeGo.anime.onVisible) {
+                this.renderCategoryChart(data.categories);
+            }
 
         } catch (error) {
             loadingEl.classList.add('hidden');
@@ -283,15 +322,21 @@ const ExpenseStatistics = {
             const data = result.data;
             containerEl.classList.remove('hidden');
 
-            // Update average per day
-            document.getElementById('average-per-day').textContent =
-                '$' + this.formatNumber(data.averagePerDay);
+            // Update average per day with countUp animation
+            var avgEl = document.getElementById('average-per-day');
+            if (typeof WeGo !== 'undefined' && WeGo.anime && WeGo.anime.countUp) {
+                WeGo.anime.countUp(avgEl, data.averagePerDay, { format: 'currency', currency: data.currency || 'TWD' });
+            } else {
+                avgEl.textContent = '$' + this.formatNumber(data.averagePerDay);
+            }
 
-            // Cache data for theme change recreation
+            // Cache data for theme change recreation and scroll-trigger deferred rendering
             this.cachedData.trend = data.dataPoints;
 
-            // Render chart
-            this.renderTrendChart(data.dataPoints);
+            // Render chart: immediately if already visible, or wait for scroll trigger
+            if (this._revealed.trend || !WeGo.anime || !WeGo.anime.onVisible) {
+                this.renderTrendChart(data.dataPoints);
+            }
 
         } catch (error) {
             loadingEl.classList.add('hidden');
@@ -472,6 +517,11 @@ const ExpenseStatistics = {
             // Render member list
             this.renderMemberList(data.members, data.currency);
 
+            // Stagger-in member cards
+            if (typeof WeGo !== 'undefined' && WeGo.anime && WeGo.anime.staggerIn) {
+                WeGo.anime.staggerIn('#members-list > div', { delay: 60, duration: 200 });
+            }
+
         } catch (error) {
             loadingEl.classList.add('hidden');
             emptyEl.classList.remove('hidden');
@@ -487,6 +537,10 @@ const ExpenseStatistics = {
     renderMemberList(members, currency) {
         const listEl = document.getElementById('members-list');
         if (!listEl) return;
+
+        var canStagger = typeof WeGo !== 'undefined' && WeGo.anime && WeGo.anime.staggerIn
+            && typeof anime !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var staggerStyle = canStagger ? ' style="opacity:0;transform:translateY(20px)"' : '';
 
         listEl.innerHTML = members.map(member => {
             // Use unsettledBalance for display (reflects settlement status)
@@ -538,7 +592,7 @@ const ExpenseStatistics = {
                    </div>`;
 
             return `
-                <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-card">
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-card"${staggerStyle}>
                     <div class="flex items-center gap-3">
                         ${avatarHtml}
                         <div class="flex-1 min-w-0">

@@ -2153,6 +2153,67 @@ body.dragging-active {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Stagger animation: elements start invisible, anime.js reveals them */
+.stagger-item {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Timeline stagger: slides in from left */
+.stagger-timeline-item {
+  opacity: 0;
+  transform: translateX(-15px);
+}
+
+/* Safety net: if anime.js fails to load, make content visible after 3s */
+@keyframes stagger-fallback {
+  to { opacity: 1; transform: none; }
+}
+
+.stagger-item,
+.stagger-timeline-item {
+  animation: stagger-fallback 0.3s ease-out 3s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-item,
+  .stagger-timeline-item {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
+/* Top Loading Bar (NProgress-style) */
+#wego-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #0EA5E9, #38BDF8);
+  z-index: 9999;
+  pointer-events: none;
+  transition: none;
+}
+
+#wego-loading-bar.active {
+  transition: width 8s cubic-bezier(0.1, 0.5, 0.3, 1);
+  width: 85%;
+}
+
+#wego-loading-bar.done {
+  transition: width 0.2s ease-out, opacity 0.3s ease-out 0.2s;
+  width: 100%;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #wego-loading-bar {
+    display: none;
+  }
+}
+
 @keyframes pulse {
   50% {
     opacity: .5;

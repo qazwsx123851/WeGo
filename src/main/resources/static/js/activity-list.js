@@ -250,6 +250,52 @@ const ActivityList = (() => {
         });
     }
 
+    // --- Stagger Animation ---
+
+    function _animateTimelineItems(items) {
+        if (!items || !items.length) return;
+        var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reducedMotion || typeof anime === 'undefined') {
+            items.forEach(function(el) {
+                el.style.opacity = '1';
+                el.style.transform = 'translateX(0)';
+            });
+            return;
+        }
+        anime.animate(items, {
+            opacity: [0, 1],
+            translateX: [-15, 0],
+            duration: 200,
+            delay: anime.stagger(60, { from: 'first' }),
+            ease: 'outQuad'
+        });
+    }
+
+    function initTimelineStagger() {
+        if (typeof anime === 'undefined') return;
+
+        // Animate activity cards in the first expanded group on page load
+        var firstGroup = document.querySelector('.activity-group-content:not(.max-h-0)');
+        if (firstGroup) {
+            _animateTimelineItems(firstGroup.querySelectorAll('.stagger-timeline-item'));
+        }
+
+        // When a collapsed group is expanded, animate its items
+        document.addEventListener('click', function(e) {
+            var toggle = e.target.closest('[data-action="toggle-group"]');
+            if (!toggle) return;
+            setTimeout(function() {
+                var content = toggle.nextElementSibling;
+                if (!content || content.classList.contains('max-h-0')) return;
+                var items = content.querySelectorAll('.stagger-timeline-item');
+                if (!items.length) return;
+                if (items[0] && getComputedStyle(items[0]).opacity === '0') {
+                    _animateTimelineItems(items);
+                }
+            }, 50);
+        });
+    }
+
     // --- Init ---
 
     function init() {
@@ -257,6 +303,7 @@ const ActivityList = (() => {
         initDateTabs();
         initReorderLoading();
         initRecalculateTransport();
+        initTimelineStagger();
     }
 
     return { init };

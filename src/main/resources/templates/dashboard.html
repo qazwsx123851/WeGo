@@ -89,7 +89,7 @@
             </div>
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <a th:each="trip : ${upcomingTrips}" th:href="@{/trips/{id}(id=${trip.id})}"
-                   class="glass-card group hover:shadow-card-hover transition-all duration-200 cursor-pointer overflow-hidden">
+                   class="stagger-item glass-card group hover:shadow-card-hover hover:scale-[1.02] transition-all duration-200 cursor-pointer overflow-hidden">
                     <!-- Cover Image -->
                     <div class="relative h-40 bg-gradient-to-br from-primary-400 to-primary-600">
                         <img th:if="${trip.coverImageUrl}" th:src="${trip.coverImageUrl}"
@@ -140,7 +140,7 @@
             </div>
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <a th:each="trip : ${trips}" th:href="@{/trips/{id}(id=${trip.id})}"
-                   class="glass-card group hover:shadow-card-hover transition-all duration-200 cursor-pointer overflow-hidden">
+                   class="stagger-item glass-card group hover:shadow-card-hover hover:scale-[1.02] transition-all duration-200 cursor-pointer overflow-hidden">
                     <!-- Cover Image -->
                     <div class="relative h-32 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700">
                         <img th:if="${trip.coverImageUrl}" th:src="${trip.coverImageUrl}"

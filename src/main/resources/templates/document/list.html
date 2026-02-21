@@ -112,7 +112,7 @@
         <!-- Document Grid -->
         <section th:if="${documents != null and !documents.isEmpty()}" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             <div th:each="doc : ${documents}"
-                 class="document-card glass-card p-3 cursor-pointer group hover:shadow-lg transition-all duration-200"
+                 class="stagger-item document-card glass-card p-3 cursor-pointer group hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
                  th:data-id="${doc.id}"
                  th:data-category="${doc.category}"
                  th:data-mime="${doc.mimeType}"

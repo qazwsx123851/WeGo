@@ -44,6 +44,19 @@ const Toast = {
 
         this.container.appendChild(toast);
 
+        // Use anime.js spring entrance if available, otherwise CSS handles it
+        const canAnimate = typeof anime !== 'undefined' && !(typeof WeGo !== 'undefined' && WeGo._reducedMotion);
+        if (canAnimate) {
+            toast.classList.remove('animate-slide-in');
+            toast.style.transform = 'translateX(100%)';
+            toast.style.opacity = '0';
+            anime.animate(toast, {
+                translateX: ['100%', 0],
+                opacity: [0, 1],
+                ease: anime.createSpring({ stiffness: 300, damping: 20, mass: 1 })
+            });
+        }
+
         // Auto dismiss
         if (duration > 0) {
             setTimeout(() => this.dismiss(toast), duration);
@@ -246,6 +259,7 @@ const Modal = {
     /**
      * Open a modal by ID.
      * Saves the previously focused element and traps focus inside the modal.
+     * Uses anime.js timeline for sequential entrance if available.
      */
     open(modalId) {
         const modal = document.getElementById(modalId);
@@ -257,6 +271,26 @@ const Modal = {
         modal.classList.add('flex');
         document.body.classList.add('overflow-hidden');
 
+        const backdrop = modal.querySelector('[data-modal-backdrop]');
+        const content = modal.querySelector('.relative');
+        const canAnimate = typeof anime !== 'undefined' && !(typeof WeGo !== 'undefined' && WeGo._reducedMotion);
+
+        if (canAnimate && backdrop && content) {
+            backdrop.style.opacity = '0';
+            content.style.opacity = '0';
+            content.style.transform = 'scale(0.95) translateY(10px)';
+
+            var tl = anime.createTimeline({ defaults: { ease: 'outQuad' } });
+            tl.add(backdrop, { opacity: [0, 1], duration: 120 }, 0);
+            tl.add(content, {
+                opacity: [0, 1],
+                scale: [0.95, 1],
+                translateY: [10, 0],
+                duration: 250,
+                ease: 'outQuint'
+            }, 80);
+        }
+
         // Focus first focusable element
         const focusable = this._getFocusable(modal);
         if (focusable.length) focusable[0].focus();
@@ -265,19 +299,39 @@ const Modal = {
     /**
      * Close a modal by ID.
      * Restores focus to the element that was focused before the modal opened.
+     * Uses anime.js for exit animation if available.
      */
     close(modalId) {
         const modal = document.getElementById(modalId);
         if (!modal) return;
 
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        document.body.classList.remove('overflow-hidden');
+        const backdrop = modal.querySelector('[data-modal-backdrop]');
+        const content = modal.querySelector('.relative');
+        const canAnimate = typeof anime !== 'undefined' && !(typeof WeGo !== 'undefined' && WeGo._reducedMotion);
 
-        // Restore focus
-        if (this._previousFocus && typeof this._previousFocus.focus === 'function') {
-            this._previousFocus.focus();
-            this._previousFocus = null;
+        const finalize = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.classList.remove('overflow-hidden');
+            // Reset inline styles from animation
+            if (backdrop) { backdrop.style.opacity = ''; }
+            if (content) { content.style.opacity = ''; content.style.transform = ''; }
+
+            if (this._previousFocus && typeof this._previousFocus.focus === 'function') {
+                this._previousFocus.focus();
+                this._previousFocus = null;
+            }
+        };
+
+        if (canAnimate && backdrop && content) {
+            var tl = anime.createTimeline({
+                defaults: { ease: 'inQuad' },
+                onComplete: finalize
+            });
+            tl.add(content, { opacity: [1, 0], scale: [1, 0.95], duration: 150 }, 0);
+            tl.add(backdrop, { opacity: [1, 0], duration: 150 }, 30);
+        } else {
+            finalize();
         }
     },
 
@@ -1161,6 +1215,11 @@ document.addEventListener('DOMContentLoaded', () => {
     CoverImagePreview.init();
     TripForm.init();
     DatePicker.init();
+
+    // Stagger-in animation for card grids
+    if (typeof WeGo !== 'undefined' && WeGo.anime) {
+        WeGo.anime.staggerIn('.stagger-item');
+    }
 
     // Expose to global scope for inline handlers
     window.Toast = Toast;
