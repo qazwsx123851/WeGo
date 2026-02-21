@@ -134,10 +134,8 @@ wego/
 
 | 文件 | 說明 |
 |------|------|
-| [docs/api-reference.md](docs/api-reference.md) | API 端點參考 |
-| [docs/api-keys-setup.md](docs/api-keys-setup.md) | 外部 API Key 設定指南 |
-| [docs/tdd-guide.md](docs/tdd-guide.md) | TDD 測試開發指南 |
-| [docs/test-cases.md](docs/test-cases.md) | 測試案例規格書 |
+| [docs/testing-guide.md](docs/testing-guide.md) | 測試指南（TDD + 測試案例 + API 端點參考） |
+| [docs/setup-guide.md](docs/setup-guide.md) | 環境設定與 API Key 設定指南 |
 | [docs/ui-design-guide.md](docs/ui-design-guide.md) | UI 設計指南 |
 | [docs/ai-coding-guidelines.md](docs/ai-coding-guidelines.md) | AI 輔助開發規範 |
 
@@ -146,19 +144,7 @@ wego/
 | 文件 | 說明 |
 |------|------|
 | [docs/RUNBOOK.md](docs/RUNBOOK.md) | 運維手冊 |
-| [docs/plan.md](docs/plan.md) | 開發計畫與里程碑 |
-| [docs/task.md](docs/task.md) | 任務追蹤 |
-
-### 審查報告
-
-| 文件 | 說明 |
-|------|------|
-| [docs/project-health-report.md](docs/project-health-report.md) | 專案健康度報告（綜合評分 8.7/10） |
-| [docs/review-architecture.md](docs/review-architecture.md) | 架構審查 |
-| [docs/review-security.md](docs/review-security.md) | 安全審查 |
-| [docs/review-frontend.md](docs/review-frontend.md) | 前端審查 |
-| [docs/review-performance.md](docs/review-performance.md) | 效能審查 |
-| [docs/review-testing.md](docs/review-testing.md) | 測試審查 |
+| [docs/quality-review-report.md](docs/quality-review-report.md) | 品質審查報告（綜合評分 8.6/10） |
 
 ---
 

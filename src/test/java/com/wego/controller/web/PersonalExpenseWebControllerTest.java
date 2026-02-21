@@ -1,6 +1,8 @@
 package com.wego.controller.web;
 
+import com.wego.dto.response.PersonalExpenseItemResponse;
 import com.wego.entity.User;
+import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
 import com.wego.security.UserPrincipal;
 import com.wego.service.PersonalExpenseService;
@@ -16,7 +18,9 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -138,8 +142,113 @@ class PersonalExpenseWebControllerTest {
     }
 
     @Nested
+    @DisplayName("POST /create success")
+    class CreatePersonalExpenseSuccess {
+
+        @Test
+        @DisplayName("valid data redirects to expenses tab=personal")
+        void validData_redirectsToExpensesTab() throws Exception {
+            when(personalExpenseService.createPersonalExpense(any(), eq(tripId), any()))
+                    .thenReturn(PersonalExpenseItemResponse.builder()
+                            .source(PersonalExpenseItemResponse.Source.MANUAL)
+                            .id(UUID.randomUUID())
+                            .description("Lunch")
+                            .amount(new BigDecimal("500"))
+                            .build());
+
+            mockMvc.perform(post("/trips/{tripId}/personal-expenses", tripId)
+                    .with(SecurityMockMvcRequestPostProcessors.oauth2Login()
+                            .oauth2User(testPrincipal))
+                    .with(csrf())
+                    .param("description", "Lunch")
+                    .param("amount", "500")
+                    .param("expenseDate", "2024-03-15"))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/trips/" + tripId + "/expenses?tab=personal"));
+
+            verify(personalExpenseService).createPersonalExpense(any(), eq(tripId), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /{id}/edit")
+    class ShowEditForm {
+
+        @Test
+        @DisplayName("should return edit form with pre-filled data")
+        void showEditForm_shouldReturnView() throws Exception {
+            UUID expenseId = UUID.randomUUID();
+
+            PersonalExpenseItemResponse item = PersonalExpenseItemResponse.builder()
+                    .source(PersonalExpenseItemResponse.Source.MANUAL)
+                    .id(expenseId)
+                    .description("Taxi")
+                    .amount(new BigDecimal("300"))
+                    .originalAmount(new BigDecimal("300"))
+                    .originalCurrency("TWD")
+                    .category("Transport")
+                    .expenseDate(LocalDate.of(2024, 3, 10))
+                    .build();
+
+            when(personalExpenseService.getPersonalExpenses(any(), eq(tripId)))
+                    .thenReturn(List.of(item));
+
+            mockMvc.perform(get("/trips/{tripId}/personal-expenses/{id}/edit", tripId, expenseId)
+                    .with(SecurityMockMvcRequestPostProcessors.oauth2Login()
+                            .oauth2User(testPrincipal)))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("expense/personal-edit"))
+                    .andExpect(model().attribute("expenseId", expenseId))
+                    .andExpect(model().attribute("baseCurrency", "TWD"))
+                    .andExpect(model().attribute("tripStartDate", TRIP_START))
+                    .andExpect(model().attribute("tripEndDate", TRIP_END))
+                    .andExpect(model().attributeExists("request", "categories"));
+        }
+
+        @Test
+        @DisplayName("should throw when expense not found")
+        void showEditForm_notFound_shouldThrow() throws Exception {
+            UUID expenseId = UUID.randomUUID();
+
+            when(personalExpenseService.getPersonalExpenses(any(), eq(tripId)))
+                    .thenReturn(List.of());
+
+            mockMvc.perform(get("/trips/{tripId}/personal-expenses/{id}/edit", tripId, expenseId)
+                    .with(SecurityMockMvcRequestPostProcessors.oauth2Login()
+                            .oauth2User(testPrincipal)))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    @Nested
     @DisplayName("POST /{id} update")
     class UpdatePersonalExpense {
+
+        @Test
+        @DisplayName("valid data redirects to expenses tab=personal")
+        void validData_redirectsToExpensesTab() throws Exception {
+            UUID expenseId = UUID.randomUUID();
+
+            when(personalExpenseService.updatePersonalExpense(eq(expenseId), any(), any()))
+                    .thenReturn(PersonalExpenseItemResponse.builder()
+                            .source(PersonalExpenseItemResponse.Source.MANUAL)
+                            .id(expenseId)
+                            .description("Updated expense")
+                            .amount(new BigDecimal("200"))
+                            .build());
+
+            mockMvc.perform(post("/trips/{tripId}/personal-expenses/{id}", tripId, expenseId)
+                    .with(SecurityMockMvcRequestPostProcessors.oauth2Login()
+                            .oauth2User(testPrincipal))
+                    .with(csrf())
+                    .param("description", "Updated expense")
+                    .param("amount", "200")
+                    .param("expenseDate", "2024-03-15"))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/trips/" + tripId + "/expenses?tab=personal"));
+
+            verify(personalExpenseService).updatePersonalExpense(eq(expenseId), any(), any());
+        }
 
         @Test
         @DisplayName("date outside trip range returns to edit form with dateError")
@@ -162,6 +271,47 @@ class PersonalExpenseWebControllerTest {
                     .andExpect(model().attribute("tripStartDate", TRIP_START))
                     .andExpect(model().attribute("tripEndDate", TRIP_END))
                     .andExpect(model().attribute("expenseId", expenseId));
+        }
+
+        @Test
+        @DisplayName("binding errors return to edit form without calling service")
+        void bindingErrors_returnsEditForm() throws Exception {
+            UUID expenseId = UUID.randomUUID();
+
+            mockMvc.perform(post("/trips/{tripId}/personal-expenses/{id}", tripId, expenseId)
+                    .with(SecurityMockMvcRequestPostProcessors.oauth2Login()
+                            .oauth2User(testPrincipal))
+                    .with(csrf())
+                    .param("amount", "-1"))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("expense/personal-edit"))
+                    .andExpect(model().attribute("expenseId", expenseId))
+                    .andExpect(model().attribute("tripStartDate", TRIP_START))
+                    .andExpect(model().attribute("tripEndDate", TRIP_END));
+
+            verify(personalExpenseService, never()).updatePersonalExpense(any(), any(), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("Unauthenticated access")
+    class UnauthenticatedAccess {
+
+        @Test
+        @DisplayName("GET /create should redirect when not authenticated")
+        void createForm_notAuthenticated_shouldRedirect() throws Exception {
+            mockMvc.perform(get("/trips/{tripId}/personal-expenses/create", tripId))
+                    .andExpect(status().is3xxRedirection());
+        }
+
+        @Test
+        @DisplayName("POST should redirect when not authenticated")
+        void createSubmit_notAuthenticated_shouldRedirect() throws Exception {
+            mockMvc.perform(post("/trips/{tripId}/personal-expenses", tripId)
+                    .with(csrf())
+                    .param("description", "Test")
+                    .param("amount", "100"))
+                    .andExpect(status().is3xxRedirection());
         }
     }
 }

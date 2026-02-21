@@ -1,9 +1,9 @@
 # WeGo 效能審查報告
 
-> 審查日期：2026-02-20 (第三次更新)
+> 審查日期：2026-02-21 (第四次更新)
 > 審查員：perf-reviewer (Claude Opus 4.6)
 > 審查範圍：Entity 關聯映射、FetchType、資料庫索引、分頁處理、N+1 查詢、快取策略、外部 API 呼叫、非同步處理、前端靜態資源、HikariCP 連線池
-> 基準：對照 2026-02-14 初審、2026-02-20 二審更新
+> 基準：對照 2026-02-14 初審、2026-02-20 二/三審更新
 
 ---
 
@@ -16,20 +16,20 @@
 | 分頁處理 | 0 | 2 | 1 | 3 |
 | N+1 查詢 | 0 | 2 | 0 | 2 |
 | 快取策略 | 0 | 0 | 1 | 1 |
-| 外部 API 呼叫 | 0 | 1 | 1 | 2 |
+| 外部 API 呼叫 | 0 | 1 | 0 | 1 |
 | 非同步處理 | 0 | 1 | 0 | 1 |
 | 前端靜態資源 | 0 | 0 | 1 | 1 |
 | HikariCP 連線池 | 0 | 0 | 0 | 0 |
-| **合計** | **0** | **7** | **5** | **12** |
+| **合計** | **0** | **7** | **4** | **11** |
 
-**自上次審查（2026-02-14/20）以來的變化：**
-- 🔴 Critical: 3 → 0（全部已修復）
-- 已修復：HTTP 壓縮已啟用、ExpenseService N+1 已用批次查詢修復、TripMember 已新增索引
-- StatisticsService `@Cacheable` 代理問題已透過 `StatisticsCacheDelegate` 模式正確修復
-- Settlement 快取已新增（1min TTL + eviction）
-- deleteTrip Storage 非同步刪除已完成
-- ExpenseSplit `(expense_id, user_id)` 複合索引已新增
-- **靜態資源 Content-hash 版本化 + 365 天長期快取已完成**（`WebConfig.java`）
+**自上次審查（2026-02-20）以來的變化：**
+- 問題總數 12 → 11（-1）
+- 已確認修復（先前報告遺漏）：
+  - ✅ 外部 API Client 共享連線池 RestTemplate（`HttpClientConfig.java`）— 問題 #9 已不存在
+  - ✅ Google Maps 已有 Circuit Breaker（5 failures / 5min）— 問題 #10 已不存在
+- 新增發現：
+  - 🟡 SupabaseStorageClient 仍使用 `SimpleClientHttpRequestFactory`，未共享連線池
+- 移除 CSS purge 建議（降為非效能範疇）
 
 ---
 
@@ -136,6 +136,7 @@
 5. **ChatService.fetchPlaceMap**（`ChatService.java:262-273`）— 批次載入 places。
 6. **DocumentRepository.countByTripIds** — 專用批次計數查詢。
 7. **StatisticsCacheDelegate** — 將 `@Cacheable` 方法提取到獨立 Bean，正確解決 Spring AOP self-invocation 問題。
+8. **PersonalExpenseService** — 3-query 批次模式（expenses + splits + merge），避免 N+1。
 
 ### 剩餘問題
 
@@ -189,21 +190,30 @@
 
 ### 現有配置
 
-| API | Connect Timeout | Read Timeout | 快取 | Circuit Breaker |
-|-----|-----------------|-------------|------|-----------------|
-| Google Maps Routes API | 5s | 10s | directions: 10min | 無 |
-| Google Maps Places API | 5s | 10s | places: 5min | 無 |
-| OpenWeatherMap | 共用 RestTemplate | 同上 | weather: 6h | 無 |
-| ExchangeRate API | 5s | 10s | 1h + 24h fallback | 5 failures / 5min |
-| Gemini AI | 5s | 30s | 無 | 3 failures / 5min |
-| Supabase Storage | 共用 RestTemplate | 同上 | Signed URL CDN | 無 |
+**共享連線池（`src/main/java/com/wego/config/HttpClientConfig.java`）：**
+- Apache HttpClient 5 + `PoolingHttpClientConnectionManager`（maxTotal=50, maxPerRoute=10）
+- `externalApiRestTemplate`：connect 5s / read 10s → Google Maps, ExchangeRate, OpenWeatherMap
+- `geminiRestTemplate`：connect 5s / read 30s → Gemini AI
+
+| API | RestTemplate | 快取 | Circuit Breaker | Rate Limit |
+|-----|-------------|------|-----------------|------------|
+| Google Maps Routes API | `externalApiRestTemplate` (pooled) | directions: 10min | ✅ 5 failures / 5min | Per-user Bucket |
+| Google Maps Places API | `externalApiRestTemplate` (pooled) | places: 5min | ✅ 5 failures / 5min | Per-user Bucket |
+| OpenWeatherMap | `externalApiRestTemplate` (pooled) | weather: 6h | ❌ 無 | 無 |
+| ExchangeRate API | `externalApiRestTemplate` (pooled) | 1h + 24h fallback | ✅ 可配置 | 無 |
+| Gemini AI | `geminiRestTemplate` (pooled) | 無 | ✅ 3 failures / 5min | Per-user Caffeine |
+| Supabase Storage | **獨立** `SimpleClientHttpRequestFactory` | Signed URL CDN | ❌ 無 | 無 |
+
+### 已修復（先前報告遺漏，本次確認已到位）
+
+- ✅ **外部 API Client 共享連線池 RestTemplate**（`HttpClientConfig.java`）— Google Maps、ExchangeRate、OpenWeatherMap、Gemini 均使用 `@Qualifier` 注入共享 RestTemplate
+- ✅ **Google Maps Circuit Breaker**（`GoogleMapsClientImpl.java:75-76`）— `CIRCUIT_BREAKER_THRESHOLD = 5`, `CIRCUIT_BREAKER_COOLDOWN_MS = 5min`
 
 ### 問題
 
 | # | 嚴重度 | 問題 | 檔案 | 說明 |
 |---|--------|------|------|------|
-| 9 | 🟡 | **外部 API Client 各自建立獨立 RestTemplate，無連線池** | `src/main/java/com/wego/service/external/GeminiClientImpl.java:63-67`, `ExchangeRateApiClient.java:97-101` | 使用 `SimpleClientHttpRequestFactory`（底層 `HttpURLConnection`），每次請求建新 TCP 連線。建議使用 `HttpComponentsClientHttpRequestFactory`（Apache HttpClient 5）配合連線池。 |
-| 10 | 🔵 | Google Maps API 缺少 Circuit Breaker | `src/main/java/com/wego/service/external/GoogleMapsClientImpl.java` | ExchangeRate 和 Gemini 都有 circuit breaker，但 Google Maps 沒有。API key 失效或配額耗盡時仍會嘗試呼叫。影響中等。 |
+| 9 | 🟡 | **SupabaseStorageClient 仍使用獨立 `SimpleClientHttpRequestFactory`，未共享連線池** | `src/main/java/com/wego/service/external/SupabaseStorageClient.java:56-64` | 建立了 `apiRestTemplate` 和 `fileRestTemplate` 兩個獨立 RestTemplate，底層為 `HttpURLConnection`，每次請求建新 TCP 連線。檔案上傳/下載場景連線重用效益較大。建議改用共享連線池或建立專用 `supabaseRestTemplate` Bean。同時缺少 Circuit Breaker。 |
 
 ---
 
@@ -219,7 +229,7 @@
 
 | # | 嚴重度 | 問題 | 檔案 | 說明 |
 |---|--------|------|------|------|
-| 11 | 🟡 | **批次重算交通時間 `batchRecalculateWithRateLimit` 同步阻塞** | `src/main/java/com/wego/service/TransportCalculationService.java:403-568` | 逐一同步呼叫 Google Maps API（每次間隔 100ms）。50 個景點需至少 5 秒 + API 回應時間。雖有 `@Async` 基礎設施，此方法仍為同步執行。建議返回 `CompletableFuture` 或提供 polling-based 進度更新。 |
+| 10 | 🟡 | **批次重算交通時間 `batchRecalculateWithRateLimit` 同步阻塞** | `src/main/java/com/wego/service/TransportCalculationService.java:403-568` | 逐一同步呼叫 Google Maps API（每次間隔 100ms）。50 個景點需至少 5 秒 + API 回應時間。雖有 `@Async` 基礎設施，此方法仍為同步執行。建議返回 `CompletableFuture` 或提供 polling-based 進度更新。 |
 
 ---
 
@@ -238,7 +248,7 @@
 
 | # | 嚴重度 | 問題 | 檔案 | 說明 |
 |---|--------|------|------|------|
-| 12 | 🔵 | CSS 可能有未使用的樣式 | `src/main/resources/static/css/` | `output.css`（Tailwind 產出）和 `styles.css` 共存。建議確認 Tailwind purge/content 設定是否正確，移除未使用的樣式可減少 CSS 體積。 |
+| 11 | 🔵 | **`common.js` 缺少 `defer` 屬性，阻塞頁面渲染** | `src/main/resources/templates/fragments/head.html:55` | `<script th:src="@{/js/common.js}">` 無 `defer`，會阻塞 HTML 解析。同檔案中 Lottie 和 Flatpickr 已正確使用 `defer`。建議加上 `defer` 屬性，確保 DOM 解析不被阻塞。 |
 
 ---
 
@@ -269,20 +279,23 @@
 6. **ExpenseService.buildExpenseResponsesBatch** — 批次 splits + users（3 次查詢）
 7. **DocumentService.buildDocumentResponses** — 批次 uploaders、activities、places
 8. **DocumentRepository.countByTripIds** — 專用批次計數查詢
-9. **PermissionChecker 5 秒 Caffeine 快取** — 請求級去重
-10. **ExchangeRateService 雙層快取** — Primary（1h）+ Fallback（24h）
-11. **Gemini + ExchangeRate Circuit Breaker** — 熔斷保護
-12. **StatisticsCacheDelegate 模式** — 正確解決 AOP self-invocation 問題
-13. **DocumentService signedUrlCache** — Signed URL CDN 快取
-14. **JPA `ddl-auto: none`**（prod: `validate`）— 不自動變更 schema
-15. **UUID 主鍵 + 應用層生成** — 避免序列瓶頸
-16. **Thymeleaf cache: true（prod）** — 生產環境啟用模板快取
-17. **HTTP 壓縮（prod）** — gzip 壓縮
-18. **ChatService prompt 5000 char 截斷 + 2KB byte limit** — 防止 OOM
-19. **SettlementService @Cacheable("settlement")** — 1min TTL + eviction
-20. **TripService.deleteStorageFilesAsync @Async** — Storage 非同步刪除
-21. **ExpenseSplit (expense_id, user_id) 複合索引** — 優化分帳查詢
-22. **Content-hash 版本化靜態資源 + 365 天快取**（`WebConfig.java:60-83`）— 最佳化瀏覽器快取
+9. **PersonalExpenseService 3-query 批次模式** — expenses + splits + merge sorted
+10. **PermissionChecker 5 秒 Caffeine 快取** — 請求級去重
+11. **ExchangeRateService 雙層快取** — Primary（1h）+ Fallback（24h）
+12. **4/5 外部 API Client Circuit Breaker** — Gemini、ExchangeRate、Google Maps Routes、Google Maps Places
+13. **StatisticsCacheDelegate 模式** — 正確解決 AOP self-invocation 問題
+14. **DocumentService signedUrlCache** — Signed URL CDN 快取
+15. **JPA `ddl-auto: none`**（prod: `validate`）— 不自動變更 schema
+16. **UUID 主鍵 + 應用層生成** — 避免序列瓶頸
+17. **Thymeleaf cache: true（prod）** — 生產環境啟用模板快取
+18. **HTTP 壓縮（prod）** — gzip 壓縮
+19. **ChatService prompt 5000 char 截斷 + 2KB byte limit** — 防止 OOM
+20. **SettlementService @Cacheable("settlement")** — 1min TTL + eviction
+21. **TripService.deleteStorageFilesAsync @Async** — Storage 非同步刪除
+22. **ExpenseSplit (expense_id, user_id) 複合索引** — 優化分帳查詢
+23. **Content-hash 版本化靜態資源 + 365 天快取**（`WebConfig.java:60-83`）— 最佳化瀏覽器快取
+24. **HttpClientConfig 共享連線池**（`HttpClientConfig.java`）— Apache HttpClient 5, maxTotal=50, maxPerRoute=10
+25. **Bucket4j per-IP Rate Limiting**（`RateLimitConfig.java`）— 100 req/min
 
 ---
 
@@ -313,29 +326,23 @@
 
 影響：M 個未結算行程從 2M+2 次查詢降為 1-2 次。
 
-### 第二優先（中等影響）
+3. **`common.js` 加 `defer` 屬性**（問題 #11）
 
-3. **共享 RestTemplate + 連線池**（問題 #9）
-
-```java
-@Configuration
-public class RestTemplateConfig {
-    @Bean
-    public RestTemplate restTemplate() {
-        var factory = new HttpComponentsClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(5));
-        // Apache HttpClient 5 自帶連線池
-        return new RestTemplate(factory);
-    }
-}
+```html
+<script defer th:src="@{/js/common.js}"></script>
 ```
 
-4. **@Async 批次重算非同步化**（問題 #11）— 對 `batchRecalculateWithRateLimit` 返回 `CompletableFuture`，搭配前端 polling 顯示進度
+影響：消除渲染阻塞，改善首屏載入速度。
+
+### 第二優先（中等影響）
+
+4. **SupabaseStorageClient 改用共享連線池**（問題 #9）— 注入 `externalApiRestTemplate` 或建立專用 `supabaseRestTemplate`，加入 Circuit Breaker
+
+5. **@Async 批次重算非同步化**（問題 #10）— 對 `batchRecalculateWithRateLimit` 返回 `CompletableFuture`，搭配前端 polling 顯示進度
 
 ### 第三優先（低影響 / 未來優化）
 
-5. TripService.getTrip short-lived cache（問題 #8）
-6. CSS 清理與 Tailwind purge 驗證（問題 #12）
+6. TripService.getTrip short-lived cache（問題 #8）
 7. Expense / Document 列表加分頁上限（問題 #3, #4）
 
 ---
@@ -348,19 +355,18 @@ public class RestTemplateConfig {
 | 資料庫索引 | 8.5/10 | 索引覆蓋良好，僅 User 表需加索引 |
 | N+1 查詢 | 8/10 | 主要 N+1 已修復，僅餘單筆和 Global 小問題 |
 | 快取策略 | 9.5/10 | 多層快取設計優秀，StatisticsDelegate + Settlement 快取到位 |
-| 外部 API | 7/10 | Timeout + Circuit Breaker 到位，連線池仍需改善 |
+| 外部 API | 8.5/10 | 共享連線池 + Timeout + Circuit Breaker 到位，僅 Supabase 未池化 |
 | 非同步處理 | 7.5/10 | AsyncConfig 已配置，deleteTrip 非同步化完成，批次重算仍同步 |
-| 前端資源 | 9/10 | gzip 壓縮 + Content-hash 版本化 + 365 天快取，僅餘 CSS purge 建議 |
-| 連線池/並行 | 8/10 | HikariCP 配置合理，HTTP 連線未池化 |
+| 前端資源 | 9/10 | gzip 壓縮 + Content-hash 版本化 + 365 天快取，common.js 缺 defer |
+| 連線池/並行 | 9/10 | HikariCP + Apache HttpClient 5 連線池配置合理 |
 
-### **綜合效能評分：8.5 → 8.8 / 10** (updated 2026-02-20)
+### **綜合效能評分：8.8 → 9.0 / 10** (updated 2026-02-21)
 
-**歷史提升：7.0 → 7.8 → 8.5 → 8.8**
+**歷史提升：7.0 → 7.8 → 8.5 → 8.8 → 9.0**
 
-2026-02-20 提升項：
-- Settlement 快取（+0.1）
-- deleteTrip Storage 非同步刪除（+0.1）
-- ExpenseSplit 複合索引（+0.1）
+2026-02-21 提升項（先前報告遺漏修正，本次確認已到位）：
+- 外部 API 共享連線池 RestTemplate 已實作（+0.1 外部 API 維度）
+- Google Maps Circuit Breaker 已實作（+0.1 外部 API 維度）
 
 主要扣分項：
 - 批次重算交通仍同步阻塞（-0.5）
@@ -368,4 +374,4 @@ public class RestTemplateConfig {
 - 單筆 buildExpenseResponse 仍 3 次查詢（-0.2）
 - GlobalExpenseService N+1 未修（-0.2）
 
-**下一步建議：批次重算非同步化 + GlobalExpenseService 批次查詢即可提升至 9.0+**
+**下一步建議：批次重算非同步化 + GlobalExpenseService 批次查詢即可穩固維持 9.0+**

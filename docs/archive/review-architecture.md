@@ -1,7 +1,7 @@
 # WeGo 架構審查報告
 
-> 審查日期：2026-02-20（第三次審查）
-> 前次審查：2026-02-18
+> 審查日期：2026-02-21（第四次審查）
+> 前次審查：2026-02-20
 > 審查範圍：Controller / Service / Repository / Domain / Entity / DTO / Config / Exception
 > 審查員：Architecture Reviewer Agent
 
@@ -34,7 +34,40 @@
 
 ### 問題
 
-#### 🟡 Warning — TripController.createTrip 包含過多表單處理邏輯
+#### :yellow_circle: Warning — PlaceApiController 與 DirectionApiController 包含業務邏輯
+
+**檔案**：
+- `src/main/java/com/wego/controller/api/PlaceApiController.java:81-135`
+- `src/main/java/com/wego/controller/api/DirectionApiController.java:73-131`
+
+兩個 Controller 都直接注入 `CacheManager` 和 `RateLimitService`，在 Controller 層內執行快取查找/寫入和速率限制檢查。這些是業務邏輯，應屬於 Service 層。
+
+```java
+// PlaceApiController.java — 快取邏輯直接寫在 Controller
+Cache cache = cacheManager.getCache("places");
+if (cache != null) {
+    Cache.ValueWrapper wrapper = cache.get(cacheKey);
+    if (wrapper != null) { ... }
+}
+```
+
+**修正建議**：將快取、速率限制和座標驗證邏輯下沉到 `PlaceService` / `DirectionService`，讓 Controller 只負責 HTTP 處理和委派。
+
+#### :yellow_circle: Warning — DocumentApiController 直接注入 StorageClient
+
+**檔案**：`src/main/java/com/wego/controller/api/DocumentApiController.java:53-55`
+
+```java
+private final DocumentService documentService;
+private final StorageClient storageClient;
+private final SupabaseProperties supabaseProperties;
+```
+
+Controller 跳過 Service 直接存取外部服務 `StorageClient` 和配置 `SupabaseProperties`（用於文件預覽/下載），違反分層原則。
+
+**修正建議**：將預覽和下載邏輯移至 `DocumentService`，Controller 只調用 Service 方法。
+
+#### :yellow_circle: Warning — TripController.createTrip 包含過多表單處理邏輯
 
 **檔案**：`src/main/java/com/wego/controller/web/TripController.java:97-189`
 
@@ -42,7 +75,7 @@
 
 **修正建議**：將 model 屬性回填邏輯提取為 `populateFormModel()` 私有方法，減少 catch 區塊中的重複代碼。
 
-#### 🟡 Warning — ExpenseWebController.showExpenses 方法過長
+#### :yellow_circle: Warning — ExpenseWebController.showExpenses 方法過長
 
 **檔案**：`src/main/java/com/wego/controller/web/ExpenseWebController.java:77-176`
 
@@ -50,13 +83,21 @@
 
 **修正建議**：將個人支出 tab 的資料準備邏輯提取到 `ExpenseViewHelper` 或新增 `PersonalExpenseViewHelper`。
 
-#### 🔵 Suggestion — TripService 職責偏多
+#### :blue_circle: Suggestion — TripService 職責偏多
 
 **檔案**：`src/main/java/com/wego/service/TripService.java`（共 715 行）
 
 TripService 同時負責：Trip CRUD、成員管理（加入/移除/角色變更）、封面圖片上傳/刪除/驗證、非同步儲存清理。注入了 12 個依賴。
 
 **修正建議**：可考慮將成員管理抽出為 `TripMemberService`，封面圖片管理抽出為 `CoverImageService`。目前規模尚可接受，但若繼續增長應優先拆分。
+
+#### :blue_circle: Suggestion — PersonalExpenseWebController 未繼承 BaseWebController
+
+**檔案**：`src/main/java/com/wego/controller/web/PersonalExpenseWebController.java:37`
+
+15 個 Web Controller 中有 11 個繼承 `BaseWebController`。`PersonalExpenseWebController` 未繼承，改用直接注入 `PersonalExpenseService`。由於此 Controller 使用 `@CurrentUser UserPrincipal` 取得 userId 而非透過 `getCurrentUser()`，設計上合理，但風格不一致。
+
+**修正建議**：可維持現狀（功能上無問題），或統一繼承 `BaseWebController` 以保持一致性。`HomeController` 和 `ErrorController` 不繼承也合理（分別不需要 trip 操作和不需要認證）。
 
 ---
 
@@ -70,7 +111,7 @@ TripService 同時負責：Trip CRUD、成員管理（加入/移除/角色變更
 
 ### 問題
 
-#### 🟡 Warning — BaseWebController 使用 Field Injection
+#### :yellow_circle: Warning — BaseWebController 使用 Field Injection
 
 **檔案**：`src/main/java/com/wego/controller/web/BaseWebController.java:31-35`
 
@@ -99,7 +140,7 @@ protected TripService tripService;
 
 ### 問題
 
-#### 🟡 Warning — TripResponse 使用 Setter 填充額外欄位
+#### :yellow_circle: Warning — TripResponse 使用 Setter 填充額外欄位
 
 **檔案**：`src/main/java/com/wego/dto/response/TripResponse.java` 和 `src/main/java/com/wego/service/TripService.java:125-128`
 
@@ -116,11 +157,23 @@ response.setCurrentUserRole(Role.OWNER);
 public static TripResponse fromEntity(Trip trip, int memberCount, Role currentUserRole) { ... }
 ```
 
-#### 🔵 Suggestion — Response DTO 中的 `@Data` 可改為 `@Getter` + `@Builder`
+#### :blue_circle: Suggestion — Response DTO 中的 `@Data` 可改為 `@Getter` + `@Builder`
 
 多個 Response DTO（如 `ExpenseResponse`、`ExpenseSplitResponse`）使用 `@Data` 暴露了 Setter，理論上 Response DTO 應為不可變物件。
 
 **修正建議**：將 Response DTO 的 `@Data` 改為 `@Getter` + `@Builder` + `@AllArgsConstructor`（或改為 Java record）。由於目前 Service 層依賴 setter 填充關聯資訊（如 `paidByName`），此重構需同步調整 Service 層。
+
+#### :blue_circle: Suggestion — ProfileController 直接傳遞 User Entity 到 Model
+
+**檔案**：`src/main/java/com/wego/controller/web/ProfileController.java:80`
+
+```java
+model.addAttribute("user", user);
+```
+
+`showEditForm()` 方法直接將 `User` Entity 傳到 Thymeleaf 視圖。雖然在 Web Controller（非 API）中這不會導致序列化問題，但增加了 Entity 與視圖的耦合。
+
+**修正建議**：建立 `UserEditFormDto` 只包含可編輯欄位（nickname），或使用現有的 `UserProfileResponse`。
 
 ---
 
@@ -138,7 +191,17 @@ public static TripResponse fromEntity(Trip trip, int memberCount, Role currentUs
 
 ### 問題
 
-#### 🔵 Suggestion — WebExceptionHandler 的 `@Order(1)` 可移除
+#### :yellow_circle: Warning — PlaceApiController 和 DirectionApiController 各自有 handleGoogleMapsException
+
+**檔案**：
+- `src/main/java/com/wego/controller/api/PlaceApiController.java`
+- `src/main/java/com/wego/controller/api/DirectionApiController.java:189-202`
+
+兩個 Controller 各自實作了 `handleGoogleMapsException()` 私有方法，邏輯相似但泛型不同（`PlaceSearchResult` vs `DirectionResult`）。
+
+**修正建議**：將 `GoogleMapsException` 處理統一到 `GlobalExceptionHandler` 中，或提取為共用的 helper 方法。
+
+#### :blue_circle: Suggestion — WebExceptionHandler 的 `@Order(1)` 可移除
 
 **檔案**：`src/main/java/com/wego/exception/WebExceptionHandler.java:26`
 
@@ -146,7 +209,7 @@ public static TripResponse fromEntity(Trip trip, int memberCount, Role currentUs
 
 **修正建議**：可保留作為防禦性措施，或移除以減少困惑。
 
-#### 🔵 Suggestion — ValidationException 可獨立處理
+#### :blue_circle: Suggestion — ValidationException 可獨立處理
 
 **檔案**：`src/main/java/com/wego/exception/ValidationException.java`
 
@@ -168,7 +231,7 @@ public static TripResponse fromEntity(Trip trip, int memberCount, Role currentUs
 - `ViewHelper` 類專職視圖準備邏輯
 - `ExpenseAggregator` 專職統計聚合
 
-#### 🟡 Warning — TripService 職責過多（同第 1 節）
+#### :yellow_circle: Warning — TripService 職責過多（同第 1 節）
 
 ### 開閉原則 (OCP)
 
@@ -193,7 +256,7 @@ public static TripResponse fromEntity(Trip trip, int memberCount, Role currentUs
 - 外部服務全部透過介面注入（`StorageClient`、`GoogleMapsClient`、`GeminiClient` 等）
 - `PermissionChecker` 注入 `TripMemberRepository` 介面
 
-#### 🔵 Suggestion — SettlementService 未使用 `@RequiredArgsConstructor`
+#### :blue_circle: Suggestion — SettlementService 未使用 `@RequiredArgsConstructor`
 
 **檔案**：`src/main/java/com/wego/service/SettlementService.java:80-99`
 
@@ -213,7 +276,7 @@ public static TripResponse fromEntity(Trip trip, int memberCount, Role currentUs
 
 ### 問題
 
-#### 🟡 Warning — getUserMap() 方法重複定義
+#### :yellow_circle: Warning — getUserMap() 方法重複定義
 
 **檔案**：
 - `src/main/java/com/wego/service/ExpenseService.java:644-647`
@@ -230,7 +293,7 @@ private Map<UUID, User> getUserMap(List<UUID> userIds) {
 
 **修正建議**：提取為 `UserService.getUserMap()` 公開方法，或建立共用的 `UserLookupHelper`。
 
-#### 🟡 Warning — TripController 中 model 屬性回填代碼重複
+#### :yellow_circle: Warning — TripController 中 model 屬性回填代碼重複
 
 **檔案**：`src/main/java/com/wego/controller/web/TripController.java`
 
@@ -246,7 +309,7 @@ model.addAttribute("trip", CreateTripRequest.builder()...build());
 
 **修正建議**：提取為 `populateCreateFormModel(Model model, User user, boolean isEdit, ...)` 方法。
 
-#### 🟡 Warning — buildPlaceLookup() 邏輯重複
+#### :yellow_circle: Warning — buildPlaceLookup() 邏輯重複
 
 **檔案**：
 - `src/main/java/com/wego/service/ActivityService.java:552-565`
@@ -256,7 +319,25 @@ model.addAttribute("trip", CreateTripRequest.builder()...build());
 
 **修正建議**：提取為 `PlaceService.buildPlaceLookup(List<Activity>)` 或放在 `ActivityService` 中暴露為 public。
 
-#### 🔵 Suggestion — getFileExtension() 方法重複
+#### :yellow_circle: Warning — PlaceApiController 和 DirectionApiController 快取樣板重複
+
+**檔案**：
+- `src/main/java/com/wego/controller/api/PlaceApiController.java:109-120`
+- `src/main/java/com/wego/controller/api/DirectionApiController.java:103-113`
+
+兩者的快取查找/寫入模式完全相同（get cache → check wrapper → return cached / put cache），是 copy-paste 模式。
+
+```java
+Cache cache = cacheManager.getCache("...");
+if (cache != null) {
+    Cache.ValueWrapper wrapper = cache.get(cacheKey);
+    if (wrapper != null) { ... }
+}
+```
+
+**修正建議**：將快取邏輯下沉到 Service 層（如 `PlaceService`、`DirectionService`），或使用 Spring `@Cacheable` 註解消除樣板代碼。
+
+#### :blue_circle: Suggestion — getFileExtension() 方法重複
 
 **檔案**：
 - `src/main/java/com/wego/service/TripService.java:707-714`
@@ -283,7 +364,7 @@ model.addAttribute("trip", CreateTripRequest.builder()...build());
 
 ### 問題
 
-#### 🔵 Suggestion — 混用英文與中文錯誤訊息
+#### :blue_circle: Suggestion — 混用英文與中文錯誤訊息
 
 **檔案**：多處
 
@@ -312,10 +393,12 @@ throw new ForbiddenException("您沒有權限查看此行程");
   - `ChatService.GAP_THRESHOLD_MINUTES = 120`
   - `PersonalExpenseService.BUDGET_THRESHOLD_YELLOW/RED`
   - `CurrencyConverter.MIN_RATE`、`CurrencyConverter.MAX_RATE`
+  - `PlaceApiController.DEFAULT_RADIUS_METERS`、`MAX_RADIUS_METERS`、`RATE_LIMIT_SEARCH`、`RATE_LIMIT_DETAILS`
+  - `DirectionApiController.RATE_LIMIT_DIRECTIONS`
 
 ### 問題
 
-#### 🟡 Warning — ExpenseService 中的容差值未提取為常數
+#### :yellow_circle: Warning — ExpenseService 中的容差值未提取為常數
 
 **檔案**：`src/main/java/com/wego/service/ExpenseService.java:519,540`
 
@@ -327,7 +410,7 @@ if (totalSplitAmount.subtract(expenseAmount).abs().compareTo(new BigDecimal("0.0
 
 **修正建議**：提取為 `private static final BigDecimal SPLIT_TOLERANCE = new BigDecimal("0.01");`
 
-#### 🔵 Suggestion — TripController 中的分頁參數
+#### :blue_circle: Suggestion — TripController 中的分頁參數
 
 **檔案**：`src/main/java/com/wego/controller/web/TripController.java:57-58`
 
@@ -340,7 +423,7 @@ Page<TripResponse> tripPage = tripService.getUserTrips(user.getId(),
 
 **修正建議**：提取為常數或配置項。
 
-#### 🔵 Suggestion — TripViewHelper 中的預設座標
+#### :blue_circle: Suggestion — TripViewHelper 中的預設座標
 
 **檔案**：`src/main/java/com/wego/service/TripViewHelper.java:138-139`
 
@@ -376,36 +459,45 @@ final double defaultLng = 121.5645;
 
 | 面向 | 評分 | 說明 |
 |------|:----:|------|
-| 分層架構 | 9.0 | Controller/Service/Repository/Domain 分層清晰，ViewHelper 提取得當 |
+| 分層架構 | 8.5 | Controller/Service/Repository/Domain 分層清晰，但 PlaceApiController 和 DirectionApiController 包含業務邏輯 |
 | 依賴注入 | 8.5 | 構造器注入為主，BaseWebController 的 Field Injection 為唯一例外 |
 | Entity/DTO 分離 | 8.5 | DTO 體系完整，fromEntity 模式統一，但 Response 可變性可改善 |
-| 例外處理 | 9.5 | 雙層 ExceptionHandler + 結構化 errorCode，設計優秀 |
+| 例外處理 | 9.0 | 雙層 ExceptionHandler + 結構化 errorCode，handleGoogleMapsException 重複為小瑕疵 |
 | SOLID 原則 | 8.5 | 外部服務介面化、Domain 層獨立，TripService 略有職責過重 |
-| DRY 原則 | 8.0 | BaseWebController 和 ViewHelper 消除大量重複，但仍有少數重複代碼 |
+| DRY 原則 | 7.5 | BaseWebController 和 ViewHelper 消除大量重複，但 Controller 層仍有明顯的 copy-paste |
 | 命名規範 | 9.0 | 嚴格遵循專案規範，中英混用為唯一小問題 |
 | Magic Number | 8.5 | 大部分已提取為常數，僅少數遺漏 |
 | 日誌使用 | 9.5 | 全面使用 SLF4J，分級合理，無 System.out |
 
-### **架構整體評分：8.8 / 10**
+### **架構整體評分：8.6 / 10**
+
+### 問題統計
+
+| 嚴重度 | 數量 |
+|--------|:----:|
+| :red_circle: Critical | 0 |
+| :yellow_circle: Warning | 11 |
+| :blue_circle: Suggestion | 8 |
 
 ### 總結
 
 WeGo 專案的架構設計整體水準很高。四層分層清晰，外部服務透過介面抽象化，例外處理系統完善且安全。主要改進方向集中在：
 
-1. **TripService 拆分**（長期）：當功能繼續增長時，將成員管理和封面圖片管理拆出
-2. **消除重複代碼**（中期）：`getUserMap()`、`getFileExtension()`、`buildPlaceLookup()` 提取為共用方法
+1. **PlaceApiController / DirectionApiController 業務邏輯下沉**（高優先級）：快取、速率限制、座標驗證應移至 Service 層
+2. **消除重複代碼**（中期）：`getUserMap()`、`getFileExtension()`、`buildPlaceLookup()`、快取樣板 提取為共用方法
 3. **Response DTO 不可變性**（中期）：改用 `@Getter` + `@Builder` 或 Java record
-4. **錯誤訊息語言統一**（短期）：統一為中文
-5. **BaseWebController Field Injection**（低優先級）：改為構造器注入
+4. **TripService 拆分**（長期）：當功能繼續增長時，將成員管理和封面圖片管理拆出
+5. **錯誤訊息語言統一**（短期）：統一為中文
 
 這些問題都不影響功能正確性和安全性，是進一步提升代碼品質的改進方向。
 
 ### 與上次審查比較
 
-相較 2026-02-18 的第二次審查，本次觀察到以下改進：
-- 新增 `PersonalExpenseService` 遵循既有架構模式，權限檢查一致
-- `StatisticsCacheDelegate` 分離快取邏輯
-- 支出變動後即時清除分帳與統計快取（`evictExpenseCaches`）
-- 前端 JS 模組化持續優化（6 個內聯 JS 已提取為獨立模組）
+相較 2026-02-20 的第三次審查（8.8 分），本次評分調整為 8.6 分，主要因為：
 
-整體架構品質穩定維持在高水準。
+- **新增發現**：PlaceApiController 和 DirectionApiController 的業務邏輯洩漏至 Controller 層（快取 + 速率限制），此問題在前次審查中未被充分標記
+- **新增發現**：DocumentApiController 直接注入 `StorageClient`，跳過 Service 層
+- **新增發現**：PlaceApiController / DirectionApiController 的快取樣板重複
+- **新增發現**：ProfileController 直接傳遞 User Entity 到視圖
+
+前次審查的所有優點仍然成立，架構品質維持在高水準。評分調整反映了更嚴格的分層架構審查標準。

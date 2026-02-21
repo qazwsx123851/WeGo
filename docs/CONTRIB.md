@@ -68,24 +68,7 @@
 
 複製 `.env.example` 為 `.env` 並設定：
 
-| 變數 | 必須 | 說明 | 格式範例 |
-|------|:----:|------|----------|
-| `DATABASE_URL` | ✅ | PostgreSQL 連線 URL | `jdbc:postgresql://host:5432/db` |
-| `DATABASE_USERNAME` | ✅ | 資料庫使用者 | `postgres` |
-| `DATABASE_PASSWORD` | ✅ | 資料庫密碼 | |
-| `SUPABASE_URL` | ✅ | Supabase 專案 URL | `https://xxx.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | ✅ | Supabase **Service Role** Key | `eyJhbGciOiJIUzI1NiIs...` |
-| `GOOGLE_CLIENT_ID` | ✅ | Google OAuth Client ID | `xxx.apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | ✅ | Google OAuth Secret | `GOCSPX-xxx` |
-| `GOOGLE_MAPS_API_KEY` | ❌ | Google Maps API (可選) | |
-| `GOOGLE_MAPS_ENABLED` | ❌ | 啟用 Google Maps | `true` / `false` |
-| `GOOGLE_MAPS_USE_ROUTES_API` | ❌ | 使用 Routes API (推薦) | `true` / `false` |
-| `OPENWEATHERMAP_API_KEY` | ❌ | 天氣 API (可選) | |
-| `OPENWEATHERMAP_ENABLED` | ❌ | 啟用天氣 API | `true` / `false` |
-| `EXCHANGERATE_API_KEY` | ❌ | 匯率 API (可選) | |
-| `EXCHANGERATE_ENABLED` | ❌ | 啟用匯率 API | `true` / `false` |
-| `GEMINI_API_KEY` | ❌ | Gemini AI API Key (可選) | |
-| `GEMINI_ENABLED` | ❌ | 啟用 AI 聊天 | `true` / `false` |
+> 完整環境變數設定請參考 [setup-guide.md](setup-guide.md#part-1-外部-api-設定)
 
 ### 載入環境變數
 
@@ -139,7 +122,8 @@ E2E 測試位於 `e2e/` 目錄，使用 Playwright 框架：
 
 ### 2. TDD 開發
 
-遵循 RED-GREEN-REFACTOR 循環：先撰寫失敗的測試，再撰寫最小程式碼使測試通過，最後重構並保持測試通過。
+本專案採用 TDD 開發流程：先寫失敗測試 (RED) → 實作最小程式碼通過 (GREEN) → 重構 (REFACTOR)。
+詳細測試方法論與程式碼範例請參考 [testing-guide.md](testing-guide.md)。
 
 ### 3. 執行測試
 
@@ -381,7 +365,7 @@ src/
 | REST API | `controller/api/*` | `@RequestBody` (JSON) | JSON (`ApiResponse`) |
 
 > 新增 API endpoint 時，需考慮是否同時需要前端呼叫，或僅作為 API-only (供未來 mobile/SPA 使用)。
-> 詳細前後端 API 對照表請參考 [api-reference.md](./api-reference.md)。
+> 詳細前後端 API 對照表請參考 [testing-guide.md](./testing-guide.md) Part 3。
 
 ### API 路徑模式不一致
 
@@ -507,11 +491,9 @@ Playwright E2E 測試覆蓋以下流程：
 
 | 文件 | 說明 |
 |------|------|
-| [api-reference.md](./api-reference.md) | 前後端 API 對照表 |
+| [testing-guide.md](./testing-guide.md) | 測試指南（TDD + 測試案例 + API 端點參考） |
+| [setup-guide.md](./setup-guide.md) | 環境設定與 API Key 設定指南 |
 | [RUNBOOK.md](./RUNBOOK.md) | 部署與維運手冊 |
-| [requirements.md](./requirements.md) | 需求規格書 (PRD) |
 | [software-design-document.md](./software-design-document.md) | 軟體設計文件 |
-| [test-cases.md](./test-cases.md) | 測試案例規格書 |
-| [tdd-guide.md](./tdd-guide.md) | TDD 開發指南 |
+| [quality-review-report.md](./quality-review-report.md) | 品質審查報告 |
 | [ui-design-guide.md](./ui-design-guide.md) | UI 設計指南 |
-| [api-keys-setup.md](./api-keys-setup.md) | API Keys 設定指南 |

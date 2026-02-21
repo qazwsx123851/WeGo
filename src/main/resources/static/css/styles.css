@@ -3963,6 +3963,32 @@ html.dark .flatpickr-day.today:not(.selected) {
   border-color: rgb(156 163 175);
 }
 
+html.dark .flatpickr-day.flatpickr-disabled,
+html.dark .flatpickr-day.flatpickr-disabled:hover {
+  color: rgb(75 85 99);
+  background: transparent;
+}
+
+html.dark .flatpickr-day.prevMonthDay,
+html.dark .flatpickr-day.nextMonthDay {
+  color: rgb(75 85 99);
+}
+
+html.dark .flatpickr-months .flatpickr-prev-month,
+html.dark .flatpickr-months .flatpickr-next-month {
+  fill: rgb(156 163 175);
+}
+
+html.dark .flatpickr-months .flatpickr-prev-month:hover,
+html.dark .flatpickr-months .flatpickr-next-month:hover {
+  fill: rgb(243 244 246);
+}
+
+html.dark .flatpickr-monthDropdown-months option {
+  background: rgb(31 41 55);
+  color: rgb(243 244 246);
+}
+
 /* Reduced motion */
 
 @media (prefers-reduced-motion: reduce) {

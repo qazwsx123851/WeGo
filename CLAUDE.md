@@ -207,7 +207,9 @@ GEMINI_API_KEY=
 | 文件 | 內容 |
 |------|------|
 | `docs/CONTRIB.md` | 專案結構、開發流程 |
-| `docs/tdd-guide.md` | TDD 測試規範 |
-| `docs/software-design-document.md` | 架構設計、ADR |
+| `docs/software-design-document.md` | 架構設計、ADR、API 規範 |
+| `docs/testing-guide.md` | TDD 方法論、測試案例、API 端點清單 |
+| `docs/setup-guide.md` | 外部 API 設定、編碼標準 |
+| `docs/quality-review-report.md` | 品質審查報告（架構/安全/前端/效能/測試）|
 | `~/.claude/skills/thymeleaf-spel.md` | Thymeleaf 完整參考 |
 | `~/.claude/rules/` | Agent、Git、測試規範 |
