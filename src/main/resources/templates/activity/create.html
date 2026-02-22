@@ -41,6 +41,7 @@
               th:action="${'/trips/' + trip.id + '/activities' + (activity?.id != null ? '/' + activity.id : '')}"
               method="post"
               data-validate-form
+              novalidate
               data-prevent-double-submit
               class="space-y-6">
 

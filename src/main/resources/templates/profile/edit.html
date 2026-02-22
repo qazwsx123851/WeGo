@@ -47,7 +47,7 @@
                 <p class="text-body-sm text-rose-600 dark:text-rose-400" th:text="${error}">錯誤訊息</p>
             </div>
 
-            <form th:action="@{/profile/edit}" method="post" data-validate-form data-prevent-double-submit class="space-y-6">
+            <form th:action="@{/profile/edit}" method="post" data-validate-form novalidate data-prevent-double-submit class="space-y-6">
                 <!-- CSRF Token -->
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 

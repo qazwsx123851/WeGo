@@ -26,6 +26,7 @@
               method="post"
               id="expense-form"
               data-validate-form
+              novalidate
               data-prevent-double-submit
               class="space-y-6">
             <input type="hidden" name="_method" th:value="${expense?.id != null ? 'PUT' : 'POST'}">

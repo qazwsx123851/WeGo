@@ -352,6 +352,7 @@ const FormValidation = {
     init(form) {
         if (!form || form.dataset.validationInitialized) return;
         form.dataset.validationInitialized = 'true';
+        form.setAttribute('novalidate', '');
         var self = this;
 
         var inputs = form.querySelectorAll('[data-validate]');
