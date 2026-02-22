@@ -137,7 +137,8 @@ const Toast = {
 // Dark Mode Toggle
 const DarkMode = {
     /**
-     * Initialize dark mode based on system preference or saved preference
+     * Initialize dark mode based on system preference or saved preference.
+     * Syncs the checkbox toggle switch state on page load.
      */
     init() {
         const savedTheme = localStorage.getItem('theme');
@@ -149,20 +150,39 @@ const DarkMode = {
             document.documentElement.classList.remove('dark');
         }
 
+        // Sync checkbox with current theme state
+        const themeSwitch = document.getElementById('theme-switch');
+        if (themeSwitch) {
+            themeSwitch.checked = document.documentElement.classList.contains('dark');
+
+            // Listen for checkbox change (user clicks the SVG toggle)
+            themeSwitch.addEventListener('change', () => {
+                DarkMode.toggle();
+            });
+        }
+
         // Listen for system preference changes
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
             if (!localStorage.getItem('theme')) {
                 document.documentElement.classList.toggle('dark', e.matches);
+                const cb = document.getElementById('theme-switch');
+                if (cb) cb.checked = e.matches;
             }
         });
     },
 
     /**
-     * Toggle dark mode
+     * Toggle dark mode and sync checkbox state
      */
     toggle() {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
+
+        // Sync checkbox (guard prevents infinite loop from change event)
+        const themeSwitch = document.getElementById('theme-switch');
+        if (themeSwitch && themeSwitch.checked !== isDark) {
+            themeSwitch.checked = isDark;
+        }
 
         // Dispatch custom event for components (e.g., Chart.js) to update
         window.dispatchEvent(new CustomEvent('themechange', { detail: { isDark } }));

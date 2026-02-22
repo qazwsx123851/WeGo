@@ -380,6 +380,148 @@
   .dark .transport-connector-info {
     @apply text-gray-400;
   }
+
+  /* =====================================================
+   * Theme Toggle Switch (Animated Sun/Moon SVG)
+   * Pure CSS-driven via checkbox :checked state
+   * ===================================================== */
+
+  /* Hidden checkbox — state driver for CSS transitions */
+  .theme-toggle-checkbox {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* Clickable label — 44px touch target */
+  .theme-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px;
+    border-radius: 9999px;
+    transition: transform 0.2s ease;
+  }
+  .theme-toggle-label:hover {
+    transform: scale(1.05);
+  }
+  .theme-toggle-label:active {
+    transform: scale(0.95);
+  }
+
+  /* Keyboard focus indicator (WCAG 2.4.7) */
+  .theme-toggle-checkbox:focus-visible ~ .theme-toggle-label {
+    outline: 2px solid theme('colors.primary.500');
+    outline-offset: 2px;
+  }
+
+  /* SVG container — scaled from 220x110 viewBox */
+  .theme-toggle-svg {
+    width: 56px;
+    height: 28px;
+    border-radius: 14px;
+    overflow: hidden;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+  }
+
+  /* --- Background track --- */
+  .theme-toggle-bg {
+    fill: #5DBDF0;
+    transition: fill 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .theme-toggle-checkbox:checked ~ .theme-toggle-label .theme-toggle-bg {
+    fill: #1D263B;
+  }
+
+  /* --- Clouds (day) --- */
+  .theme-toggle-clouds {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.6s ease, transform 0.8s ease;
+  }
+  .theme-toggle-checkbox:checked ~ .theme-toggle-label .theme-toggle-clouds {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+
+  /* --- Stars (night) --- */
+  .theme-toggle-stars {
+    opacity: 0;
+    transform: translateY(-40px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .theme-toggle-checkbox:checked ~ .theme-toggle-label .theme-toggle-stars {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* --- Knob slide --- */
+  .theme-toggle-knob {
+    transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform: translateX(0);
+  }
+  .theme-toggle-checkbox:checked ~ .theme-toggle-label .theme-toggle-knob {
+    transform: translateX(100px);
+  }
+
+  /* --- Sun --- */
+  .theme-toggle-sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+    transform-origin: 55px 55px;
+    transition: opacity 0.6s ease, transform 0.8s ease;
+  }
+  .theme-toggle-checkbox:checked ~ .theme-toggle-label .theme-toggle-sun {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.5);
+  }
+
+  /* --- Moon --- */
+  .theme-toggle-moon {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.5);
+    transform-origin: 55px 55px;
+    transition: opacity 0.6s ease, transform 0.8s ease;
+  }
+  .theme-toggle-checkbox:checked ~ .theme-toggle-label .theme-toggle-moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+
+  /* --- Sun aura pulse --- */
+  .theme-toggle-aura {
+    animation: theme-toggle-pulse 3s infinite;
+    transform-origin: 55px 55px;
+  }
+
+  /* --- Cloud float --- */
+  .theme-toggle-cloud-1 { animation: theme-toggle-float 4s ease-in-out infinite; }
+  .theme-toggle-cloud-2 { animation: theme-toggle-float 5s ease-in-out infinite 1.5s; }
+
+  /* --- Star twinkle --- */
+  .theme-toggle-star:nth-child(1) use { animation: theme-toggle-twinkle 3s infinite; }
+  .theme-toggle-star:nth-child(2) use { animation: theme-toggle-twinkle 2.5s infinite 1s; }
+  .theme-toggle-star:nth-child(3) use { animation: theme-toggle-twinkle 4s infinite 2s; }
+}
+
+@keyframes theme-toggle-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.2; }
+  50% { transform: scale(1.05); opacity: 0.35; }
+}
+
+@keyframes theme-toggle-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes theme-toggle-twinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.6); }
 }
 
 /* Utility Layer - Custom Utilities */
@@ -611,6 +753,22 @@ html.dark .flatpickr-day.today:not(.selected) {
 
   .sortable-fallback {
     transform: none !important;
+  }
+
+  /* Theme Toggle: disable all animations */
+  .theme-toggle-bg,
+  .theme-toggle-clouds,
+  .theme-toggle-stars,
+  .theme-toggle-knob,
+  .theme-toggle-sun,
+  .theme-toggle-moon,
+  .theme-toggle-aura,
+  .theme-toggle-cloud-1,
+  .theme-toggle-cloud-2,
+  .theme-toggle-label,
+  .theme-toggle-star use {
+    transition: none !important;
+    animation: none !important;
   }
 
   /* Disable button press scale and card hover lift for reduced motion */

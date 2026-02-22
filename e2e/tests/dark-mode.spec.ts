@@ -20,7 +20,7 @@ test.describe('Dark Mode', () => {
       await page.waitForLoadState('networkidle');
 
       // Look for dark mode toggle button
-      const toggleButton = page.locator('#dark-mode-toggle, [aria-label*="深色"], [aria-label*="dark"], button:has(svg.icon-sun), button:has(svg.icon-moon)');
+      const toggleButton = page.locator('#dark-mode-toggle, [aria-label*="深色"], [aria-label*="dark"]');
 
       // Toggle button should exist (may be in navbar or header)
       const count = await toggleButton.count();
@@ -61,7 +61,7 @@ test.describe('Dark Mode', () => {
       }
     });
 
-    test('toggle updates icon visibility', async ({ page }) => {
+    test('toggle checkbox syncs with dark mode state', async ({ page }) => {
       const isAvailable = await isTestAuthAvailable(page);
       if (!isAvailable) {
         test.skip(true, 'Test auth endpoint not available');
@@ -71,24 +71,29 @@ test.describe('Dark Mode', () => {
       await page.goto('/dashboard');
       await page.waitForLoadState('networkidle');
 
-      const toggleButton = page.locator('#dark-mode-toggle').first();
+      const themeSwitch = page.locator('#theme-switch');
 
-      if (await toggleButton.count() > 0) {
-        // Check initial icon visibility
-        const sunIcon = toggleButton.locator('.icon-sun');
-        const moonIcon = toggleButton.locator('.icon-moon');
-
+      if (await themeSwitch.count() > 0) {
         // Get initial dark mode state
         const isDark = await page.evaluate(() =>
           document.documentElement.classList.contains('dark')
         );
 
-        // In dark mode: sun visible (click to go light), moon hidden
-        // In light mode: moon visible (click to go dark), sun hidden
+        // Checkbox should match current dark state
         if (isDark) {
-          await expect(sunIcon).toBeVisible();
+          await expect(themeSwitch).toBeChecked();
         } else {
-          await expect(moonIcon).toBeVisible();
+          await expect(themeSwitch).not.toBeChecked();
+        }
+
+        // Click the toggle label to switch
+        await page.locator('#dark-mode-toggle').click();
+
+        // Checkbox state should flip (Playwright auto-retries assertions)
+        if (isDark) {
+          await expect(themeSwitch).not.toBeChecked();
+        } else {
+          await expect(themeSwitch).toBeChecked();
         }
       }
     });
