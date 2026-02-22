@@ -168,7 +168,7 @@
 
         <!-- Weather Forecast Section -->
         <section id="weather-section"
-                 class="mb-6"
+                 class="mb-6 scroll-reveal"
                  th:data-fallback-lat="${weatherFallbackLat}"
                  th:data-fallback-lng="${weatherFallbackLng}">
             <div class="flex items-center justify-between mb-4">
@@ -227,10 +227,10 @@
         </section>
 
         <!-- Quick Actions Grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 scroll-reveal">
             <!-- Activities -->
             <a th:href="@{/trips/{id}/activities(id=${trip.id})}"
-               class="glass-card p-4 text-center group hover:shadow-lg transition-all duration-200 cursor-pointer">
+               class="glass-card-interactive p-4 text-center group">
                 <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-primary-100 dark:bg-primary-900/30
                             flex items-center justify-center
                             group-hover:scale-110 transition-transform duration-200">
@@ -248,7 +248,7 @@
 
             <!-- Expenses -->
             <a th:href="@{/trips/{id}/expenses(id=${trip.id})}"
-               class="glass-card p-4 text-center group hover:shadow-lg transition-all duration-200 cursor-pointer">
+               class="glass-card-interactive p-4 text-center group">
                 <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-adventure-100 dark:bg-adventure-900/30
                             flex items-center justify-center
                             group-hover:scale-110 transition-transform duration-200">
@@ -264,7 +264,7 @@
 
             <!-- Documents -->
             <a th:href="@{/trips/{id}/documents(id=${trip.id})}"
-               class="glass-card p-4 text-center group hover:shadow-lg transition-all duration-200 cursor-pointer">
+               class="glass-card-interactive p-4 text-center group">
                 <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-success-light dark:bg-success/10
                             flex items-center justify-center
                             group-hover:scale-110 transition-transform duration-200">
@@ -280,7 +280,7 @@
 
             <!-- Todos -->
             <a th:href="@{/trips/{id}/todos(id=${trip.id})}"
-               class="glass-card p-4 text-center group hover:shadow-lg transition-all duration-200 cursor-pointer">
+               class="glass-card-interactive p-4 text-center group">
                 <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-warning-light dark:bg-warning/10
                             flex items-center justify-center
                             group-hover:scale-110 transition-transform duration-200">
@@ -296,7 +296,7 @@
         </div>
 
         <!-- Daily Schedule Preview -->
-        <section class="mb-6">
+        <section class="mb-6 scroll-reveal">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">行程概覽</h2>
                 <a th:href="@{/trips/{id}/activities(id=${trip.id})}"
@@ -368,7 +368,7 @@
         </section>
 
         <!-- Todo Preview Section -->
-        <section class="mb-6" th:if="${todoCount != null && todoCount > 0}">
+        <section class="mb-6 scroll-reveal" th:if="${todoCount != null && todoCount > 0}">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading flex items-center gap-2">
                     <svg class="w-5 h-5 text-warning-dark dark:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -491,7 +491,7 @@
         </section>
 
         <!-- Expense Summary -->
-        <section class="mb-6" th:if="${totalExpense != null && totalExpense > 0}">
+        <section class="mb-6 scroll-reveal" th:if="${totalExpense != null && totalExpense > 0}">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">支出摘要</h2>
                 <a th:href="@{/trips/{id}/expenses(id=${trip.id})}"

@@ -2,8 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Google Fonts Import */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+/* Google Fonts: loaded via <link> in head.html (not @import) to avoid render-blocking */
 
 /* CSS Variables for Glassmorphism */
 :root {
@@ -47,6 +46,24 @@
   }
 
   .dark .glass-card {
+    @apply bg-gray-800/60 border-gray-600/30;
+  }
+
+  /* Interactive Glass Card (clickable cards with hover feedback) */
+  .glass-card-interactive {
+    @apply bg-white/70 backdrop-blur-glass border border-white/20 rounded-2xl shadow-glass
+           transition-all duration-200 cursor-pointer;
+  }
+
+  .glass-card-interactive:hover {
+    @apply shadow-card-hover -translate-y-0.5;
+  }
+
+  .glass-card-interactive:active {
+    @apply scale-[0.99] shadow-glass;
+  }
+
+  .dark .glass-card-interactive {
     @apply bg-gray-800/60 border-gray-600/30;
   }
 
@@ -171,26 +188,7 @@
     @apply text-primary-400;
   }
 
-  /* Toast Notification */
-  .toast {
-    @apply fixed bottom-20 left-1/2 -translate-x-1/2 px-6 py-3
-           bg-gray-800 text-white rounded-xl shadow-lg
-           animate-slide-up z-50;
-  }
-
-  .toast-success {
-    @apply bg-success-dark;
-  }
-
-  .toast-error {
-    @apply bg-error-dark;
-  }
-
-  .toast-warning {
-    @apply bg-warning-dark text-gray-900;
-  }
-
-  /* Google Login Button (Brand Guidelines Compliant) */
+/* Google Login Button (Brand Guidelines Compliant) */
   .btn-google {
     @apply w-full flex items-center justify-center gap-3
            bg-white border border-gray-300 rounded-xl
@@ -570,10 +568,32 @@ html.dark .flatpickr-day.today:not(.selected) {
   animation: none;
 }
 
+/* Scroll-triggered reveal (used with WeGo.anime.onVisible) */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+.scroll-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* CSS fallback: reveal after 3s if JS fails */
+.scroll-reveal {
+  animation: stagger-fallback 0.3s ease-out 3s forwards;
+}
+
+.scroll-reveal.is-visible {
+  animation: none;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .stagger-timeline-item,
-  .stagger-item {
+  .stagger-item,
+  .scroll-reveal {
     opacity: 1 !important;
     transform: none !important;
     animation: none !important;
@@ -593,17 +613,51 @@ html.dark .flatpickr-day.today:not(.selected) {
     transform: none !important;
   }
 
-  /* Disable button press scale and tab slide for reduced motion */
+  /* Disable button press scale and card hover lift for reduced motion */
   .btn-primary,
   .btn-cta,
   .btn-secondary,
   .btn-text,
-  .btn-danger {
+  .btn-danger,
+  .glass-card-interactive {
     transform: none !important;
   }
 
   #main-tab-indicator,
   #chart-tab-indicator {
     transition: none !important;
+  }
+
+  .scroll-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}
+
+/* View Transitions API (Chrome 111+, no effect on unsupported browsers) */
+@supports (view-transition-name: none) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.25s;
+    animation-timing-function: ease-in-out;
+  }
+
+  ::view-transition-old(root) {
+    animation-name: fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: fade-in;
+  }
+
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }

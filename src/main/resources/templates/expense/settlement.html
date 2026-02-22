@@ -60,8 +60,8 @@
                 <div class="text-center">
                     <p class="text-2xl font-bold text-gray-800 dark:text-gray-100"
                        data-count-up="number"
-                       th:data-value="${settlement.expenseCount}"
-                       th:text="${settlement.expenseCount}">0</p>
+                       th:data-value="${settlement.expenseCount != null ? settlement.expenseCount : 0}"
+                       th:text="${settlement.expenseCount != null ? settlement.expenseCount : 0}">0</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">筆交易</p>
                 </div>
             </div>

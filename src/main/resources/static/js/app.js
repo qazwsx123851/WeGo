@@ -1224,6 +1224,13 @@ document.addEventListener('DOMContentLoaded', () => {
         WeGo.anime.staggerIn('.stagger-item');
     }
 
+    // Scroll-triggered reveal for sections
+    if (typeof WeGo !== 'undefined' && WeGo.anime && WeGo.anime.onVisible) {
+        WeGo.anime.onVisible('.scroll-reveal', function(el) {
+            el.classList.add('is-visible');
+        }, { threshold: 0.15 });
+    }
+
     // Expose to global scope for inline handlers
     window.Toast = Toast;
     window.DarkMode = DarkMode;
