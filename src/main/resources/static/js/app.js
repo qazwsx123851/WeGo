@@ -212,31 +212,67 @@ const Loading = {
 // Form Validation Helpers
 const FormValidation = {
     /**
-     * Show error message for an input field
+     * Find the container element for an input (used for error message placement).
+     * Matches the .space-y-1.5 / .space-y-1 wrappers used across all form templates.
      */
-    showError(input, message) {
-        const container = input.closest('.form-group') || input.parentNode;
-        this.clearError(input);
-
-        input.classList.add('border-error', 'focus:ring-error');
-        input.classList.remove('border-gray-200', 'focus:ring-primary-500');
-
-        const errorEl = document.createElement('p');
-        errorEl.className = 'text-caption text-error mt-1 form-error';
-        errorEl.textContent = message;
-        container.appendChild(errorEl);
+    _findContainer(input) {
+        return input.closest('[class*="space-y-1"]') || input.closest('.relative')?.parentNode || input.parentNode;
     },
 
     /**
-     * Clear error message for an input field
+     * Show error message for an input field.
+     * Adds red border, error text below input, and aria attributes for accessibility.
+     */
+    showError(input, message) {
+        const container = this._findContainer(input);
+        this.clearError(input);
+
+        // Save original border classes before replacing (for clean restoration)
+        if (!input.dataset._savedBorderClasses) {
+            var saved = ['border-gray-200', 'dark:border-gray-700',
+                         'focus:ring-primary-500/50', 'focus:border-primary-500',
+                         'focus:ring-primary-500', 'focus:border-transparent']
+                .filter(function(cls) { return input.classList.contains(cls); });
+            input.dataset._savedBorderClasses = JSON.stringify(saved);
+        }
+
+        // Add error border (light + dark mode)
+        input.classList.add('border-error', 'focus:ring-error/50', 'focus:border-error');
+        var savedClasses = JSON.parse(input.dataset._savedBorderClasses || '[]');
+        savedClasses.forEach(function(cls) { input.classList.remove(cls); });
+
+        // Create error message element
+        const errorId = 'error-' + (input.id || input.name || '') + '-' + Math.random().toString(36).slice(2);
+        const errorEl = document.createElement('p');
+        errorEl.className = 'field-error-message form-error';
+        errorEl.id = errorId;
+        errorEl.setAttribute('role', 'status');
+        errorEl.setAttribute('aria-live', 'polite');
+        errorEl.textContent = message;
+        container.appendChild(errorEl);
+
+        // Accessibility attributes on input
+        input.setAttribute('aria-invalid', 'true');
+        input.setAttribute('aria-describedby', errorId);
+    },
+
+    /**
+     * Clear error message for an input field.
+     * Restores normal border and removes aria attributes.
      */
     clearError(input) {
-        const container = input.closest('.form-group') || input.parentNode;
+        const container = this._findContainer(input);
         const errorEl = container.querySelector('.form-error');
         if (errorEl) errorEl.remove();
 
-        input.classList.remove('border-error', 'focus:ring-error');
-        input.classList.add('border-gray-200', 'focus:ring-primary-500');
+        input.classList.remove('border-error', 'focus:ring-error/50', 'focus:border-error');
+        // Restore original border classes saved by showError
+        var saved = JSON.parse(input.dataset._savedBorderClasses || '["border-gray-200","dark:border-gray-700","focus:ring-primary-500/50","focus:border-primary-500"]');
+        saved.forEach(function(cls) { input.classList.add(cls); });
+        delete input.dataset._savedBorderClasses;
+
+        input.removeAttribute('aria-invalid');
+        input.removeAttribute('aria-describedby');
     },
 
     /**
@@ -252,6 +288,208 @@ const FormValidation = {
     isRequired(value) {
         return value !== null && value !== undefined && value.toString().trim() !== '';
     },
+
+    /**
+     * Validate a single input based on its data-validate attributes.
+     * @returns {{ valid: boolean, message: string }}
+     */
+    validateInput(input) {
+        const value = input.value.trim();
+        const rules = (input.dataset.validate || '').split(',').map(function(r) { return r.trim(); }).filter(Boolean);
+        const customMsg = input.dataset.validateMessage;
+
+        for (var i = 0; i < rules.length; i++) {
+            var rule = rules[i];
+            switch (rule) {
+                case 'required':
+                    if (!this.isRequired(value)) {
+                        return { valid: false, message: customMsg || '此欄位為必填' };
+                    }
+                    break;
+                case 'email':
+                    if (value && !this.isValidEmail(value)) {
+                        return { valid: false, message: customMsg || '請輸入有效的電子郵件' };
+                    }
+                    break;
+                case 'min': {
+                    var minVal = parseFloat(input.getAttribute('min'));
+                    var numVal = parseFloat(value);
+                    if (value !== '' && isNaN(numVal)) {
+                        return { valid: false, message: customMsg || '請輸入有效數字' };
+                    }
+                    if (!isNaN(minVal) && value !== '' && numVal < minVal) {
+                        return { valid: false, message: customMsg || '最小值為 ' + minVal };
+                    }
+                    break;
+                }
+                case 'max': {
+                    var maxVal = parseFloat(input.getAttribute('max'));
+                    var numVal2 = parseFloat(value);
+                    if (value !== '' && isNaN(numVal2)) {
+                        return { valid: false, message: customMsg || '請輸入有效數字' };
+                    }
+                    if (!isNaN(maxVal) && value !== '' && numVal2 > maxVal) {
+                        return { valid: false, message: customMsg || '最大值為 ' + maxVal };
+                    }
+                    break;
+                }
+                case 'maxlength': {
+                    var maxLen = parseInt(input.getAttribute('maxlength'), 10);
+                    if (maxLen && value.length > maxLen) {
+                        return { valid: false, message: customMsg || '最多 ' + maxLen + ' 個字' };
+                    }
+                    break;
+                }
+            }
+        }
+        return { valid: true, message: '' };
+    },
+
+    /**
+     * Initialize validation on a form.
+     * Attaches blur validation, input error clearing, and submit interception.
+     */
+    init(form) {
+        if (!form || form.dataset.validationInitialized) return;
+        form.dataset.validationInitialized = 'true';
+        var self = this;
+
+        var inputs = form.querySelectorAll('[data-validate]');
+
+        // Blur: validate on focus out
+        inputs.forEach(function(input) {
+            input.addEventListener('blur', function() {
+                var result = self.validateInput(input);
+                if (!result.valid) {
+                    self.showError(input, result.message);
+                }
+            });
+
+            // Input: clear error when user starts typing
+            input.addEventListener('input', function() {
+                if (input.getAttribute('aria-invalid') === 'true') {
+                    self.clearError(input);
+                }
+            });
+
+            // For select elements, also listen to change
+            if (input.tagName === 'SELECT') {
+                input.addEventListener('change', function() {
+                    if (input.getAttribute('aria-invalid') === 'true') {
+                        self.clearError(input);
+                    }
+                });
+            }
+        });
+
+        // Submit interception (capture phase — runs before preventDoubleSubmit)
+        form.addEventListener('submit', function(e) {
+            if (!self.validateForm(form)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+        }, true);
+    },
+
+    /**
+     * Validate all data-validate inputs in a form.
+     * On failure: shows errors, shakes form, scrolls to first error.
+     * @returns {boolean} true if all valid
+     */
+    validateForm(form) {
+        var inputs = form.querySelectorAll('[data-validate]');
+        var firstError = null;
+        var allValid = true;
+        var self = this;
+
+        inputs.forEach(function(input) {
+            var result = self.validateInput(input);
+            if (!result.valid) {
+                self.showError(input, result.message);
+                if (!firstError) firstError = input;
+                allValid = false;
+            } else {
+                self.clearError(input);
+            }
+        });
+
+        if (!allValid) {
+            self.shakeElement(firstError);
+            self.scrollToFirstError(form);
+        }
+
+        return allValid;
+    },
+
+    /**
+     * Shake animation using anime.js (respects prefers-reduced-motion).
+     * Falls back to CSS animation class.
+     */
+    shakeElement(element) {
+        if (!element) return;
+        var reducedMotion = typeof WeGo !== 'undefined' && WeGo._reducedMotion;
+        if (reducedMotion) return;
+
+        if (typeof anime !== 'undefined' && anime.animate) {
+            anime.animate(element, {
+                translateX: [0, -6, 6, -4, 4, -2, 2, 0],
+                duration: 400,
+                easing: 'easeInOutQuad'
+            });
+        } else {
+            element.classList.add('animate-shake');
+            setTimeout(function() { element.classList.remove('animate-shake'); }, 400);
+        }
+    },
+
+    /**
+     * Scroll to the first invalid input in the form and focus it.
+     */
+    scrollToFirstError(form) {
+        var firstError = form.querySelector('[aria-invalid="true"]');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(function() { firstError.focus({ preventScroll: true }); }, 300);
+        }
+    },
+
+    /**
+     * Scan for server-rendered error messages and apply red border to corresponding inputs.
+     * Detects <p role="alert"> and <p> with text-error class near form inputs.
+     */
+    initServerErrors() {
+        var self = this;
+        var errorEls = document.querySelectorAll('p[role="alert"], p.text-error, p.text-xs.text-error');
+        errorEls.forEach(function(errorP) {
+            if (!errorP.textContent || errorP.textContent.trim() === '') return;
+            var container = errorP.closest('[class*="space-y-1"]') || errorP.parentNode;
+            var input = container.querySelector('input, textarea, select');
+            if (input) {
+                input.classList.add('border-error', 'focus:ring-error/50', 'focus:border-error');
+                input.classList.remove('border-gray-200', 'dark:border-gray-700',
+                                       'focus:ring-primary-500/50', 'focus:border-primary-500');
+                input.setAttribute('aria-invalid', 'true');
+            }
+        });
+
+        // Scroll to first server error
+        var firstError = document.querySelector('[aria-invalid="true"]');
+        if (firstError) {
+            setTimeout(function() { firstError.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+        }
+    },
+
+    /**
+     * Auto-initialize all forms with data-validate-form attribute.
+     * Also processes server-rendered errors on page load.
+     */
+    autoInit() {
+        var self = this;
+        document.querySelectorAll('form[data-validate-form]').forEach(function(form) {
+            self.init(form);
+        });
+        self.initServerErrors();
+    }
 };
 
 // Modal Management
@@ -1230,6 +1468,9 @@ document.addEventListener('DOMContentLoaded', () => {
             el.classList.add('is-visible');
         }, { threshold: 0.15 });
     }
+
+    // Auto-init form validation (must run after DOM is ready)
+    FormValidation.autoInit();
 
     // Expose to global scope for inline handlers
     window.Toast = Toast;

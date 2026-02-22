@@ -285,6 +285,7 @@
 
             <!-- Form -->
             <form id="todo-form" onsubmit="TodoUI.handleSubmit(event)"
+                  data-validate-form
                   class="px-6 py-4 space-y-4 flex-1 overflow-y-auto overscroll-y-contain"
                   style="-webkit-overflow-scrolling: touch;">
                 <input type="hidden" id="todo-id" name="id" value="">
@@ -299,6 +300,8 @@
                            type="text"
                            required
                            maxlength="200"
+                           data-validate="required"
+                           data-validate-message="請輸入待辦事項標題"
                            class="w-full px-4 py-3
                                   bg-white dark:bg-gray-800
                                   border border-gray-200 dark:border-gray-700

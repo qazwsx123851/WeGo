@@ -40,6 +40,7 @@
         <form id="activity-form"
               th:action="${'/trips/' + trip.id + '/activities' + (activity?.id != null ? '/' + activity.id : '')}"
               method="post"
+              data-validate-form
               data-prevent-double-submit
               class="space-y-6">
 
@@ -149,6 +150,8 @@
                                th:value="${activity?.place?.name}"
                                required
                                autocomplete="off"
+                               data-validate="required"
+                               data-validate-message="請輸入地點名稱"
                                placeholder="搜尋或輸入地點名稱"
                                class="w-full px-4 py-3 pr-10
                                       bg-white dark:bg-gray-800
@@ -220,6 +223,8 @@
                     <select id="activityDate"
                             name="activityDate"
                             required
+                            data-validate="required"
+                            data-validate-message="請選擇日期"
                             class="w-full px-4 py-3
                                    bg-white dark:bg-gray-800
                                    border border-gray-200 dark:border-gray-700

@@ -43,6 +43,7 @@
             <form th:action="${isEdit ? '/trips/' + trip.id + '/edit' : '/trips/create'}"
                   method="post"
                   enctype="multipart/form-data"
+                  data-validate-form
                   data-prevent-double-submit
                   class="space-y-6">
                 <!-- CSRF Token -->
@@ -109,6 +110,8 @@
                            name="title"
                            required
                            maxlength="100"
+                           data-validate="required"
+                           data-validate-message="請輸入行程名稱"
                            placeholder="例如：東京五日遊"
                            th:value="${trip?.title}"
                            class="w-full px-4 py-3
@@ -163,6 +166,8 @@
                                id="startDate"
                                name="startDate"
                                required
+                               data-validate="required"
+                               data-validate-message="請選擇開始日期"
                                data-datepicker="trip-start"
                                th:value="${trip?.startDate}"
                                placeholder="選擇開始日期"
@@ -189,6 +194,8 @@
                                id="endDate"
                                name="endDate"
                                required
+                               data-validate="required"
+                               data-validate-message="請選擇結束日期"
                                data-datepicker="trip-end"
                                th:value="${trip?.endDate}"
                                placeholder="選擇結束日期"

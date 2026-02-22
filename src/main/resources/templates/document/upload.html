@@ -47,6 +47,7 @@
                   th:data-redirect-url="@{/trips/{id}/documents(id=${tripId})}"
                   method="POST"
                   enctype="multipart/form-data"
+                  data-validate-form
                   class="space-y-6">
                 <input type="hidden" name="tripId" th:value="${tripId}"/>
                 <input type="hidden" name="_csrf" th:value="${_csrf?.token}"/>
