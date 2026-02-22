@@ -254,6 +254,11 @@ const ActivityList = (() => {
 
     function _animateTimelineItems(items) {
         if (!items || !items.length) return;
+
+        // Mark container so CSS fallback animation is cancelled
+        var parent = items[0].closest('.activity-group-content') || items[0].parentElement;
+        if (parent) parent.classList.add('js-animated');
+
         var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (reducedMotion || typeof anime === 'undefined') {
             items.forEach(function(el) {

@@ -538,8 +538,47 @@ html.dark .flatpickr-day.today:not(.selected) {
   border-color: rgb(156 163 175);
 }
 
+/* ===== Stagger Animation: Initial Hidden State (prevents FOUC) ===== */
+
+/* Elements start hidden; anime.js animates them in */
+.stagger-timeline-item {
+  opacity: 0;
+  transform: translateX(-15px);
+}
+
+.stagger-item {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Safety fallback: if anime.js fails to load, auto-reveal after 2s */
+@keyframes stagger-fallback {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.stagger-timeline-item,
+.stagger-item {
+  animation: stagger-fallback 0.3s ease-out 2s forwards;
+}
+
+/* Once JS takes over animation, cancel CSS fallback */
+.js-animated .stagger-timeline-item,
+.js-animated .stagger-item {
+  animation: none;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
+  .stagger-timeline-item,
+  .stagger-item {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+
   .flatpickr-calendar,
   .flatpickr-calendar * {
     transition: none !important;

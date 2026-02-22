@@ -1220,6 +1220,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Stagger-in animation for card grids
     if (typeof WeGo !== 'undefined' && WeGo.anime) {
+        document.body.classList.add('js-animated');
         WeGo.anime.staggerIn('.stagger-item');
     }
 
