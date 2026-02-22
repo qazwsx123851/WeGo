@@ -463,6 +463,7 @@ const FormValidation = {
         var errorEls = document.querySelectorAll('p[role="alert"], p.text-error, p.text-xs.text-error');
         errorEls.forEach(function(errorP) {
             if (!errorP.textContent || errorP.textContent.trim() === '') return;
+            if (errorP.classList.contains('hidden') || errorP.offsetParent === null) return;
             var container = errorP.closest('[class*="space-y-1"]') || errorP.parentNode;
             var input = container.querySelector('input, textarea, select');
             if (input) {
