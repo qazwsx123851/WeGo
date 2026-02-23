@@ -4,7 +4,9 @@
     Create Trip Page
     Form for creating a new trip with title, description, dates, and cover image.
 -->
+
 <head th:replace="~{fragments/head :: head(title='建立行程')}"></head>
+
 <body class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-3 pointer-events-none"></div>
@@ -15,13 +17,11 @@
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <!-- Back Button -->
-                <a th:href="@{/dashboard}"
-                   class="flex items-center gap-2 text-gray-600 dark:text-gray-300
+                <a th:href="@{/dashboard}" class="flex items-center gap-2 text-gray-600 dark:text-gray-300
                           hover:text-gray-800 dark:hover:text-gray-100
-                          transition-colors duration-200 cursor-pointer min-w-[44px] min-h-[44px]"
-                   aria-label="返回">
+                          transition-colors duration-200 cursor-pointer min-w-[44px] min-h-[44px]" aria-label="返回">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
                     <span class="hidden sm:inline">返回</span>
                 </a>
@@ -40,17 +40,13 @@
     <main id="main-content" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <!-- Form Card -->
         <div class="glass-card p-6 sm:p-8">
-            <form th:action="${isEdit ? '/trips/' + trip.id + '/edit' : '/trips/create'}"
-                  method="post"
-                  enctype="multipart/form-data"
-                  data-validate-form
-                  novalidate
-                  data-prevent-double-submit
-                  class="space-y-6">
+            <form th:action="${isEdit ? '/trips/' + trip.id + '/edit' : '/trips/create'}" method="post"
+                enctype="multipart/form-data" data-validate-form novalidate data-prevent-double-submit
+                class="space-y-6">
                 <!-- CSRF Token -->
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                 <!-- Trip ID for edit mode -->
-                <input th:if="${isEdit}" type="hidden" name="tripId" th:value="${trip.id}"/>
+                <input th:if="${isEdit}" type="hidden" name="tripId" th:value="${trip.id}" />
 
                 <!-- Cover Image Upload -->
                 <div class="space-y-3">
@@ -59,25 +55,21 @@
                     </label>
                     <div class="relative">
                         <!-- Preview Area -->
-                        <div id="cover-preview"
-                             class="aspect-[16/9] w-full rounded-xl border-2 border-dashed
+                        <div id="cover-preview" class="aspect-[16/9] w-full rounded-xl border-2 border-dashed
                                     border-gray-200 dark:border-gray-700
                                     bg-gray-50 dark:bg-gray-800
                                     flex flex-col items-center justify-center
                                     cursor-pointer hover:border-primary-400 dark:hover:border-primary-500
                                     transition-colors duration-200 overflow-hidden">
-                            <img id="preview-image"
-                                 th:src="${trip?.coverImageUrl}"
-                                 th:classappend="${trip?.coverImageUrl != null} ? '' : 'hidden'"
-                                 class="w-full h-full object-cover"
-                                 alt="封面預覽"/>
-                            <div id="upload-placeholder"
-                                 th:classappend="${trip?.coverImageUrl != null} ? 'hidden' : ''"
-                                 class="text-center p-6">
-                                <svg class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-3"
-                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <img id="preview-image" th:src="${trip?.coverImageUrl}"
+                                th:classappend="${trip?.coverImageUrl != null} ? '' : 'hidden'"
+                                class="w-full h-full object-cover" alt="封面預覽" />
+                            <div id="upload-placeholder" th:classappend="${trip?.coverImageUrl != null} ? 'hidden' : ''"
+                                class="text-center p-6">
+                                <svg class="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-3" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 <p class="text-sm text-gray-500 dark:text-gray-400">
                                     點擊上傳封面圖片
@@ -87,62 +79,48 @@
                                 </p>
                             </div>
                         </div>
-                        <input type="file"
-                               id="coverImage"
-                               name="coverImage"
-                               accept="image/jpeg,image/png,image/webp"
-                               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
+                        <input type="file" id="coverImage" name="coverImage" accept="image/jpeg,image/png,image/webp"
+                            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                     </div>
                     <!-- Cover Image Error -->
-                    <p th:if="${coverImageError}"
-                       th:text="${coverImageError}"
-                       class="text-xs text-error mt-2"
-                       role="alert"></p>
+                    <p th:if="${coverImageError}" th:text="${coverImageError}" class="text-xs text-error mt-2"
+                        role="alert"></p>
                 </div>
 
                 <!-- Trip Title -->
-                <div class="space-y-1.5">
+                <div class="space-y-1.5 group">
                     <label for="title"
-                           class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        行程名稱 <span class="text-error">*</span>
+                        class="flex justify-between items-center text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <span>行程名稱 <span class="text-error">*</span></span>
+                        <button type="button" onclick="generateAiTitle()"
+                            class="text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            AI 靈感
+                        </button>
                     </label>
-                    <input type="text"
-                           id="title"
-                           name="title"
-                           required
-                           maxlength="100"
-                           data-validate="required"
-                           data-validate-message="請輸入行程名稱"
-                           placeholder="例如：東京五日遊"
-                           th:value="${trip?.title}"
-                           class="w-full px-4 py-3
+                    <input type="text" id="title" name="title" required maxlength="100" data-validate="required"
+                        data-validate-message="請輸入行程名稱" placeholder="例如：東京五日遊" th:value="${trip?.title}" class="w-full px-4 py-3
                                   bg-white dark:bg-gray-800
                                   border border-gray-200 dark:border-gray-700
                                   rounded-xl
                                   text-gray-800 dark:text-gray-100
                                   placeholder:text-gray-400 dark:placeholder:text-gray-500
                                   focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
-                                  transition-all duration-200"/>
+                                  transition-all duration-200" />
                     <!-- Field errors shown via controller model attribute -->
-                    <p th:if="${titleError}"
-                       th:text="${titleError}"
-                       class="text-xs text-error"
-                       role="alert"></p>
+                    <p th:if="${titleError}" th:text="${titleError}" class="text-xs text-error" role="alert"></p>
                 </div>
 
                 <!-- Trip Description -->
                 <div class="space-y-1.5">
-                    <label for="description"
-                           class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         行程簡介
                     </label>
-                    <textarea id="description"
-                              name="description"
-                              rows="3"
-                              maxlength="500"
-                              placeholder="描述這趟旅程的亮點..."
-                              th:text="${trip?.description}"
-                              class="w-full px-4 py-3
+                    <textarea id="description" name="description" rows="3" maxlength="500" placeholder="描述這趟旅程的亮點..."
+                        th:text="${trip?.description}" class="w-full px-4 py-3
                                      bg-white dark:bg-gray-800
                                      border border-gray-200 dark:border-gray-700
                                      rounded-xl
@@ -159,76 +137,55 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <!-- Start Date -->
                     <div class="space-y-1.5">
-                        <label for="startDate"
-                               class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             開始日期 <span class="text-error">*</span>
                         </label>
-                        <input type="text"
-                               id="startDate"
-                               name="startDate"
-                               required
-                               data-validate="required"
-                               data-validate-message="請選擇開始日期"
-                               data-datepicker="trip-start"
-                               th:value="${trip?.startDate}"
-                               placeholder="選擇開始日期"
-                               class="w-full px-4 py-3
+                        <input type="text" id="startDate" name="startDate" required data-validate="required"
+                            data-validate-message="請選擇開始日期" data-datepicker="trip-start" th:value="${trip?.startDate}"
+                            placeholder="選擇開始日期" class="w-full px-4 py-3
                                       bg-white dark:bg-gray-800
                                       border border-gray-200 dark:border-gray-700
                                       rounded-xl
                                       text-gray-800 dark:text-gray-100
                                       focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
-                                      transition-all duration-200"/>
-                        <p th:if="${startDateError}"
-                           th:text="${startDateError}"
-                           class="text-xs text-error"
-                           role="alert"></p>
+                                      transition-all duration-200" />
+                        <p th:if="${startDateError}" th:text="${startDateError}" class="text-xs text-error"
+                            role="alert"></p>
                     </div>
 
                     <!-- End Date -->
                     <div class="space-y-1.5">
-                        <label for="endDate"
-                               class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label for="endDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             結束日期 <span class="text-error">*</span>
                         </label>
-                        <input type="text"
-                               id="endDate"
-                               name="endDate"
-                               required
-                               data-validate="required"
-                               data-validate-message="請選擇結束日期"
-                               data-datepicker="trip-end"
-                               th:value="${trip?.endDate}"
-                               placeholder="選擇結束日期"
-                               class="w-full px-4 py-3
+                        <input type="text" id="endDate" name="endDate" required data-validate="required"
+                            data-validate-message="請選擇結束日期" data-datepicker="trip-end" th:value="${trip?.endDate}"
+                            placeholder="選擇結束日期" class="w-full px-4 py-3
                                       bg-white dark:bg-gray-800
                                       border border-gray-200 dark:border-gray-700
                                       rounded-xl
                                       text-gray-800 dark:text-gray-100
                                       focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
-                                      transition-all duration-200"/>
-                        <p th:if="${endDateError}"
-                           th:text="${endDateError}"
-                           class="text-xs text-error"
-                           role="alert"></p>
+                                      transition-all duration-200" />
+                        <p th:if="${endDateError}" th:text="${endDateError}" class="text-xs text-error" role="alert">
+                        </p>
                     </div>
                 </div>
 
                 <!-- Date Validation Error -->
-                <div th:if="${dateError}"
-                     class="flex items-center gap-2 p-3 bg-error-light dark:bg-error/10
+                <div th:if="${dateError}" class="flex items-center gap-2 p-3 bg-error-light dark:bg-error/10
                             border border-error/20 rounded-xl">
-                    <svg class="w-5 h-5 text-error flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg class="w-5 h-5 text-error flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span class="text-sm text-error-dark" th:text="${dateError}">結束日期必須在開始日期之後</span>
                 </div>
 
                 <!-- Form Actions -->
                 <div class="flex flex-col sm:flex-row gap-3 pt-4">
-                    <a th:href="@{/dashboard}"
-                       class="min-h-[44px] cursor-pointer rounded-xl border border-gray-200 dark:border-gray-600
+                    <a th:href="@{/dashboard}" class="min-h-[44px] cursor-pointer rounded-xl border border-gray-200 dark:border-gray-600
                               bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700
                               px-6 py-3 font-medium text-gray-700 dark:text-gray-200
                               transition-all duration-200 active:scale-[0.98]
@@ -236,17 +193,16 @@
                               text-center">
                         取消
                     </a>
-                    <button type="submit"
-                            class="btn-cta flex-1 flex items-center justify-center gap-2">
+                    <button type="submit" class="btn-cta flex-1 flex items-center justify-center gap-2">
                         <!-- Create mode icon -->
-                        <svg th:if="${!isEdit}" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M12 4v16m8-8H4"/>
+                        <svg th:if="${!isEdit}" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                         </svg>
                         <!-- Edit mode icon -->
-                        <svg th:if="${isEdit}" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M5 13l4 4L19 7"/>
+                        <svg th:if="${isEdit}" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
                         <span th:text="${isEdit} ? '儲存變更' : '建立行程'">建立行程</span>
                     </button>
@@ -258,73 +214,94 @@
 
     <!-- Scripts -->
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Cover image preview
-        const fileInput = document.getElementById('coverImage');
-        const previewImage = document.getElementById('preview-image');
-        const placeholder = document.getElementById('upload-placeholder');
+        document.addEventListener('DOMContentLoaded', function () {
+            // Cover image preview
+            const fileInput = document.getElementById('coverImage');
+            const previewImage = document.getElementById('preview-image');
+            const placeholder = document.getElementById('upload-placeholder');
 
-        if (fileInput) {
-            fileInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
+            if (fileInput) {
+                fileInput.addEventListener('change', function (e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
 
-                // Validate file size (max 5MB)
-                if (file.size > 5 * 1024 * 1024) {
-                    Toast.error('檔案大小不得超過 5MB');
-                    fileInput.value = '';
-                    return;
-                }
+                    // Validate file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        Toast.error('檔案大小不得超過 5MB');
+                        fileInput.value = '';
+                        return;
+                    }
 
-                if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function(ev) {
-                        previewImage.src = ev.target.result;
-                        previewImage.classList.remove('hidden');
-                        if (placeholder) placeholder.classList.add('hidden');
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-        }
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function (ev) {
+                            previewImage.src = ev.target.result;
+                            previewImage.classList.remove('hidden');
+                            if (placeholder) placeholder.classList.add('hidden');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
 
-        // Date validation
-        const startDateInput = document.getElementById('startDate');
-        const endDateInput = document.getElementById('endDate');
+            // Date validation
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
 
-        function validateDates() {
-            if (startDateInput.value && endDateInput.value) {
-                if (endDateInput.value < startDateInput.value) {
-                    endDateInput.setCustomValidity('結束日期必須在開始日期之後');
+            function validateDates() {
+                if (startDateInput.value && endDateInput.value) {
+                    if (endDateInput.value < startDateInput.value) {
+                        endDateInput.setCustomValidity('結束日期必須在開始日期之後');
+                    } else {
+                        endDateInput.setCustomValidity('');
+                    }
                 } else {
                     endDateInput.setCustomValidity('');
                 }
-            } else {
-                endDateInput.setCustomValidity('');
+                // Set min attribute on endDate
+                if (startDateInput.value) {
+                    endDateInput.min = startDateInput.value;
+                }
             }
-            // Set min attribute on endDate
-            if (startDateInput.value) {
-                endDateInput.min = startDateInput.value;
+
+            if (startDateInput && endDateInput) {
+                startDateInput.addEventListener('change', validateDates);
+                endDateInput.addEventListener('change', validateDates);
+                validateDates(); // Initial validation
             }
-        }
 
-        if (startDateInput && endDateInput) {
-            startDateInput.addEventListener('change', validateDates);
-            endDateInput.addEventListener('change', validateDates);
-            validateDates(); // Initial validation
-        }
+            // Description character count
+            const descInput = document.getElementById('description');
+            const descCounter = document.getElementById('desc-count');
+            if (descInput && descCounter) {
+                descCounter.textContent = descInput.value.length;
+                descInput.addEventListener('input', function () {
+                    descCounter.textContent = this.value.length;
+                });
+            }
+        });
 
-        // Description character count
-        const descInput = document.getElementById('description');
-        const descCounter = document.getElementById('desc-count');
-        if (descInput && descCounter) {
-            descCounter.textContent = descInput.value.length;
-            descInput.addEventListener('input', function() {
-                descCounter.textContent = this.value.length;
-            });
+        // AI Suggestion mock logic
+        function generateAiTitle() {
+            const titleInput = document.getElementById('title');
+            const defaultTitles = ['浪漫京都賞楓之旅', '沖繩五天四夜海岸自駕', '週末曼谷快閃美食行', '東京冬季聖誕散策', '首爾吃貨探店行'];
+            const randomTitle = defaultTitles[Math.floor(Math.random() * defaultTitles.length)];
+
+            titleInput.value = '';
+            titleInput.placeholder = 'AI 思考中...';
+            titleInput.classList.add('animate-pulse');
+
+            setTimeout(() => {
+                titleInput.classList.remove('animate-pulse');
+                titleInput.value = randomTitle;
+                if (window.Toast) {
+                    Toast.success('WeGo AI 已為您產生建議行程名稱');
+                }
+            }, 800);
         }
-    });
     </script>
+    <script th:src="@{/js/theme-engine.js}" defer></script>
     <script th:src="@{/js/app.js}" defer></script>
 </body>
+
 </html>

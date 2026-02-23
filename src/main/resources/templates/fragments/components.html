@@ -14,49 +14,37 @@
      ===================================================== -->
 
 <!-- Primary Button (CTA - Adventure Orange) -->
-<button th:fragment="button-cta(text, type='button', disabled=false)"
-        th:type="${type}"
-        th:disabled="${disabled}"
-        class="btn-cta inline-flex items-center justify-center gap-2">
+<button th:fragment="button-cta(text, type='button', disabled=false)" th:type="${type}" th:disabled="${disabled}"
+    class="btn-cta inline-flex items-center justify-center gap-2">
     <span th:text="${text}">按鈕文字</span>
 </button>
 
 <!-- Primary Button (Sky Blue) -->
-<button th:fragment="button-primary(text, type='button', disabled=false)"
-        th:type="${type}"
-        th:disabled="${disabled}"
-        class="btn-primary inline-flex items-center justify-center gap-2">
+<button th:fragment="button-primary(text, type='button', disabled=false)" th:type="${type}" th:disabled="${disabled}"
+    class="btn-primary inline-flex items-center justify-center gap-2">
     <span th:text="${text}">按鈕文字</span>
 </button>
 
 <!-- Secondary Button (Outlined) -->
-<button th:fragment="button-secondary(text, type='button', disabled=false)"
-        th:type="${type}"
-        th:disabled="${disabled}"
-        class="btn-secondary inline-flex items-center justify-center gap-2">
+<button th:fragment="button-secondary(text, type='button', disabled=false)" th:type="${type}" th:disabled="${disabled}"
+    class="btn-secondary inline-flex items-center justify-center gap-2">
     <span th:text="${text}">按鈕文字</span>
 </button>
 
 <!-- Danger Button -->
-<button th:fragment="button-danger(text, type='button', disabled=false)"
-        th:type="${type}"
-        th:disabled="${disabled}"
-        class="btn-danger inline-flex items-center justify-center gap-2">
+<button th:fragment="button-danger(text, type='button', disabled=false)" th:type="${type}" th:disabled="${disabled}"
+    class="btn-danger inline-flex items-center justify-center gap-2">
     <span th:text="${text}">按鈕文字</span>
 </button>
 
 <!-- Text Button -->
-<button th:fragment="button-text(text, type='button')"
-        th:type="${type}"
-        class="btn-text inline-flex items-center justify-center gap-2">
+<button th:fragment="button-text(text, type='button')" th:type="${type}"
+    class="btn-text inline-flex items-center justify-center gap-2">
     <span th:text="${text}">按鈕文字</span>
 </button>
 
 <!-- Icon Button -->
-<button th:fragment="button-icon(ariaLabel)"
-        th:aria-label="${ariaLabel}"
-        type="button"
-        class="p-2.5 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
+<button th:fragment="button-icon(ariaLabel)" th:aria-label="${ariaLabel}" type="button" class="p-2.5 min-w-[44px] min-h-[44px] rounded-full cursor-pointer
                text-gray-500 hover:text-gray-700 dark:hover:text-gray-200
                hover:bg-gray-100 dark:hover:bg-gray-800
                transition-colors duration-200
@@ -66,101 +54,110 @@
 
 <!-- Dark Mode Toggle Switch (Animated Sun/Moon SVG) -->
 <th:block th:fragment="dark-mode-toggle">
-<input type="checkbox" id="theme-switch" class="theme-toggle-checkbox"
-       role="switch" aria-label="切換深色模式">
-<label for="theme-switch" id="dark-mode-toggle"
-       class="theme-toggle-label">
-    <svg class="theme-toggle-svg" viewBox="0 0 220 110" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs>
-            <!-- Sun gradient -->
-            <linearGradient id="sun-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#FFEA70"/>
-                <stop offset="100%" stop-color="#FF9E00"/>
-            </linearGradient>
-            <!-- Moon gradient -->
-            <linearGradient id="moon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#FFFFFF"/>
-                <stop offset="100%" stop-color="#C4CDD8"/>
-            </linearGradient>
-            <!-- Knob shadow -->
-            <filter id="toggle-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000000" flood-opacity="0.25"/>
-            </filter>
-            <!-- Reusable cloud shape -->
-            <g id="toggle-cloud">
-                <g transform="translate(0, 4)" fill="#44A5D6" opacity="0.3">
-                    <circle cx="20" cy="20" r="15"/>
-                    <circle cx="45" cy="15" r="20"/>
-                    <circle cx="70" cy="20" r="15"/>
-                    <rect x="20" y="15" width="50" height="20" rx="5"/>
-                </g>
-                <g fill="#FFFFFF">
-                    <circle cx="20" cy="20" r="15"/>
-                    <circle cx="45" cy="15" r="20"/>
-                    <circle cx="70" cy="20" r="15"/>
-                    <rect x="20" y="15" width="50" height="20" rx="5"/>
-                </g>
-            </g>
-            <!-- Reusable star shape -->
-            <polygon id="toggle-star-shape" points="0,-8 2,-2 8,0 2,2 0,8 -2,2 -8,0 -2,-2" fill="#FFFFFF"/>
-        </defs>
-
-        <!-- 1. Background track -->
-        <rect class="theme-toggle-bg" x="0" y="0" width="220" height="110" rx="55"/>
-
-        <!-- 2. Day: clouds -->
-        <g class="theme-toggle-clouds">
-            <g class="theme-toggle-cloud-1" transform="translate(15, 25) scale(0.8)"><use href="#toggle-cloud"/></g>
-            <g class="theme-toggle-cloud-2" transform="translate(95, 45) scale(0.55)"><use href="#toggle-cloud"/></g>
-        </g>
-
-        <!-- 3. Night: stars -->
-        <g class="theme-toggle-stars">
-            <g class="theme-toggle-star" transform="translate(60, 30) scale(1)"><use href="#toggle-star-shape"/></g>
-            <g class="theme-toggle-star" transform="translate(100, 65) scale(0.6)"><use href="#toggle-star-shape"/></g>
-            <g class="theme-toggle-star" transform="translate(135, 25) scale(1.2)"><use href="#toggle-star-shape"/></g>
-            <circle cx="35" cy="65" r="1.5" fill="#FFF" opacity="0.6"/>
-            <circle cx="170" cy="70" r="1" fill="#FFF" opacity="0.4"/>
-            <circle cx="110" cy="15" r="1.5" fill="#FFF" opacity="0.8"/>
-        </g>
-
-        <!-- 4. Sliding knob -->
-        <g class="theme-toggle-knob">
-            <!-- Sun aura -->
-            <circle class="theme-toggle-sun theme-toggle-aura" cx="55" cy="55" r="48" fill="#FFD200" opacity="0.2"/>
-
-            <g filter="url(#toggle-shadow)">
-                <!-- Sun layer -->
-                <g class="theme-toggle-sun">
-                    <circle cx="55" cy="55" r="38" fill="url(#sun-grad)"/>
-                    <g fill="#FFD700">
-                        <circle cx="55" cy="6" r="3"/>
-                        <circle cx="55" cy="104" r="3"/>
-                        <circle cx="6" cy="55" r="3"/>
-                        <circle cx="104" cy="55" r="3"/>
-                        <circle cx="19" cy="19" r="2.5"/>
-                        <circle cx="91" cy="91" r="2.5"/>
-                        <circle cx="19" cy="91" r="2.5"/>
-                        <circle cx="91" cy="19" r="2.5"/>
+    <input type="checkbox" id="theme-switch" class="theme-toggle-checkbox" role="switch" aria-label="切換深色模式">
+    <label for="theme-switch" id="dark-mode-toggle" class="theme-toggle-label">
+        <svg class="theme-toggle-svg" viewBox="0 0 220 110" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+                <!-- Sun gradient -->
+                <linearGradient id="sun-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFEA70" />
+                    <stop offset="100%" stop-color="#FF9E00" />
+                </linearGradient>
+                <!-- Moon gradient -->
+                <linearGradient id="moon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFFFF" />
+                    <stop offset="100%" stop-color="#C4CDD8" />
+                </linearGradient>
+                <!-- Knob shadow -->
+                <filter id="toggle-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000000" flood-opacity="0.25" />
+                </filter>
+                <!-- Reusable cloud shape -->
+                <g id="toggle-cloud">
+                    <g transform="translate(0, 4)" fill="#44A5D6" opacity="0.3">
+                        <circle cx="20" cy="20" r="15" />
+                        <circle cx="45" cy="15" r="20" />
+                        <circle cx="70" cy="20" r="15" />
+                        <rect x="20" y="15" width="50" height="20" rx="5" />
+                    </g>
+                    <g fill="#FFFFFF">
+                        <circle cx="20" cy="20" r="15" />
+                        <circle cx="45" cy="15" r="20" />
+                        <circle cx="70" cy="20" r="15" />
+                        <rect x="20" y="15" width="50" height="20" rx="5" />
                     </g>
                 </g>
+                <!-- Reusable star shape -->
+                <polygon id="toggle-star-shape" points="0,-8 2,-2 8,0 2,2 0,8 -2,2 -8,0 -2,-2" fill="#FFFFFF" />
+            </defs>
 
-                <!-- Moon layer -->
-                <g class="theme-toggle-moon">
-                    <circle cx="55" cy="55" r="38" fill="url(#moon-grad)"/>
-                    <g fill="#8B9BB4" opacity="0.4">
-                        <circle cx="40" cy="45" r="8"/>
-                        <circle cx="39" cy="44" r="6" fill="#000" opacity="0.1"/>
-                        <circle cx="70" cy="40" r="5"/>
-                        <circle cx="69" cy="39" r="3" fill="#000" opacity="0.1"/>
-                        <circle cx="55" cy="73" r="10"/>
-                        <circle cx="54" cy="72" r="8" fill="#000" opacity="0.1"/>
+            <!-- 1. Background track -->
+            <rect class="theme-toggle-bg" x="0" y="0" width="220" height="110" rx="55" />
+
+            <!-- 2. Day: clouds -->
+            <g class="theme-toggle-clouds">
+                <g class="theme-toggle-cloud-1" transform="translate(15, 25) scale(0.8)">
+                    <use href="#toggle-cloud" />
+                </g>
+                <g class="theme-toggle-cloud-2" transform="translate(95, 45) scale(0.55)">
+                    <use href="#toggle-cloud" />
+                </g>
+            </g>
+
+            <!-- 3. Night: stars -->
+            <g class="theme-toggle-stars">
+                <g class="theme-toggle-star" transform="translate(60, 30) scale(1)">
+                    <use href="#toggle-star-shape" />
+                </g>
+                <g class="theme-toggle-star" transform="translate(100, 65) scale(0.6)">
+                    <use href="#toggle-star-shape" />
+                </g>
+                <g class="theme-toggle-star" transform="translate(135, 25) scale(1.2)">
+                    <use href="#toggle-star-shape" />
+                </g>
+                <circle cx="35" cy="65" r="1.5" fill="#FFF" opacity="0.6" />
+                <circle cx="170" cy="70" r="1" fill="#FFF" opacity="0.4" />
+                <circle cx="110" cy="15" r="1.5" fill="#FFF" opacity="0.8" />
+            </g>
+
+            <!-- 4. Sliding knob -->
+            <g class="theme-toggle-knob">
+                <!-- Sun aura -->
+                <circle class="theme-toggle-sun theme-toggle-aura" cx="55" cy="55" r="48" fill="#FFD200"
+                    opacity="0.2" />
+
+                <g filter="url(#toggle-shadow)">
+                    <!-- Sun layer -->
+                    <g class="theme-toggle-sun">
+                        <circle cx="55" cy="55" r="38" fill="url(#sun-grad)" />
+                        <g fill="#FFD700">
+                            <circle cx="55" cy="6" r="3" />
+                            <circle cx="55" cy="104" r="3" />
+                            <circle cx="6" cy="55" r="3" />
+                            <circle cx="104" cy="55" r="3" />
+                            <circle cx="19" cy="19" r="2.5" />
+                            <circle cx="91" cy="91" r="2.5" />
+                            <circle cx="19" cy="91" r="2.5" />
+                            <circle cx="91" cy="19" r="2.5" />
+                        </g>
+                    </g>
+
+                    <!-- Moon layer -->
+                    <g class="theme-toggle-moon">
+                        <circle cx="55" cy="55" r="38" fill="url(#moon-grad)" />
+                        <g fill="#8B9BB4" opacity="0.4">
+                            <circle cx="40" cy="45" r="8" />
+                            <circle cx="39" cy="44" r="6" fill="#000" opacity="0.1" />
+                            <circle cx="70" cy="40" r="5" />
+                            <circle cx="69" cy="39" r="3" fill="#000" opacity="0.1" />
+                            <circle cx="55" cy="73" r="10" />
+                            <circle cx="54" cy="72" r="8" fill="#000" opacity="0.1" />
+                        </g>
                     </g>
                 </g>
             </g>
-        </g>
-    </svg>
-</label>
+        </svg>
+    </label>
 </th:block>
 
 
@@ -169,40 +166,36 @@
      ===================================================== -->
 
 <!-- Glass Card -->
-<div th:fragment="card-glass" class="glass-card p-6">
+<div th:fragment="card-glass" class="glass-card-2026 p-6">
     <!-- Content slot -->
 </div>
 
 <!-- Standard Card -->
-<div th:fragment="card"
-     class="bg-white dark:bg-gray-800 rounded-2xl shadow-card hover:shadow-card-hover
+<div th:fragment="card" class="bg-white dark:bg-gray-800 rounded-2xl shadow-card hover:shadow-card-hover
             transition-all duration-300 overflow-hidden cursor-pointer">
     <!-- Content slot -->
 </div>
 
-<!-- Trip Card -->
-<div th:fragment="trip-card(trip)"
-     class="bg-white dark:bg-gray-800 rounded-2xl shadow-card hover:shadow-card-hover
-            transition-all duration-300 overflow-hidden cursor-pointer group">
-    <!-- Cover Image -->
-    <div class="aspect-[16/9] bg-gray-100 dark:bg-gray-700 overflow-hidden">
-        <img th:if="${trip.coverImageUrl}"
-             th:src="${trip.coverImageUrl}"
-             th:alt="${trip.title} + ' 封面'"
-             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-             loading="lazy"/>
-        <div th:unless="${trip.coverImageUrl}"
-             class="w-full h-full flex items-center justify-center text-gray-400">
+<!-- Trip Card (2026 Spatial UI Parallax) -->
+<div th:fragment="trip-card(trip)" class="glass-card-2026-interactive overflow-hidden group">
+    <!-- Cover Image (Layer 1 Background) -->
+    <div class="aspect-[16/9] bg-gray-100 dark:bg-gray-700 overflow-hidden relative">
+        <img th:if="${trip.coverImageUrl}" th:src="${trip.coverImageUrl}" th:alt="${trip.title} + ' 封面'"
+            class="w-full h-full object-cover transform scale-105 group-hover:scale-110 transition-transform duration-700 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
+            loading="lazy" />
+        <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-60"></div>
+        <div th:unless="${trip.coverImageUrl}" class="w-full h-full flex items-center justify-center text-gray-400">
             <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
         </div>
     </div>
 
-    <!-- Content -->
-    <div class="p-4 space-y-3">
-        <h3 class="text-base font-semibold text-gray-800 dark:text-gray-100" th:text="${trip.title}">
+    <!-- Content (Layer 2 Foreground) -->
+    <div
+        class="p-4 space-y-3 relative z-10 bg-white/40 dark:bg-gray-900/40 backdrop-blur-sm -mt-4 transform -translate-y-2 group-hover:translate-y-0 transition-transform duration-500 rounded-t-[1.5rem] shadow-sm">
+        <h3 class="text-base font-bold text-gray-900 dark:text-gray-100 drop-shadow-sm" th:text="${trip.title}">
             行程名稱
         </h3>
         <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -216,8 +209,7 @@
             <span class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30
                          flex items-center justify-center text-xs font-medium
                          text-primary-600 dark:text-primary-400
-                         ring-2 ring-white dark:ring-gray-800"
-                  th:text="${(trip?.memberCount ?: 0)} + ' 人'">
+                         ring-2 ring-white dark:ring-gray-800" th:text="${(trip?.memberCount ?: 0)} + ' 人'">
                 5 人
             </span>
         </div>
@@ -230,42 +222,27 @@
      ===================================================== -->
 
 <!-- Input Field -->
-<div th:fragment="input(id, label, type='text', placeholder='', required=false)"
-     class="space-y-1.5">
-    <label th:for="${id}"
-           class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-           th:text="${label}">
+<div th:fragment="input(id, label, type='text', placeholder='', required=false)" class="space-y-1.5">
+    <label th:for="${id}" class="block text-sm font-medium text-gray-700 dark:text-gray-300" th:text="${label}">
         標籤
     </label>
-    <input th:id="${id}"
-           th:name="${id}"
-           th:type="${type}"
-           th:placeholder="${placeholder}"
-           th:required="${required}"
-           autocomplete="off"
-           class="w-full px-4 py-3
+    <input th:id="${id}" th:name="${id}" th:type="${type}" th:placeholder="${placeholder}" th:required="${required}"
+        autocomplete="off" class="w-full px-4 py-3
                   bg-white dark:bg-gray-800
                   border border-gray-200 dark:border-gray-700
                   rounded-xl
                   text-gray-800 dark:text-gray-100
                   placeholder:text-gray-400 dark:placeholder:text-gray-500
                   focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
-                  transition-all duration-200"/>
+                  transition-all duration-200" />
 </div>
 
 <!-- Textarea -->
-<div th:fragment="textarea(id, label, placeholder='', rows=4)"
-     class="space-y-1.5">
-    <label th:for="${id}"
-           class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-           th:text="${label}">
+<div th:fragment="textarea(id, label, placeholder='', rows=4)" class="space-y-1.5">
+    <label th:for="${id}" class="block text-sm font-medium text-gray-700 dark:text-gray-300" th:text="${label}">
         標籤
     </label>
-    <textarea th:id="${id}"
-              th:name="${id}"
-              th:placeholder="${placeholder}"
-              th:rows="${rows}"
-              class="w-full px-4 py-3
+    <textarea th:id="${id}" th:name="${id}" th:placeholder="${placeholder}" th:rows="${rows}" class="w-full px-4 py-3
                      bg-white dark:bg-gray-800
                      border border-gray-200 dark:border-gray-700
                      rounded-xl
@@ -276,16 +253,11 @@
 </div>
 
 <!-- Select Dropdown -->
-<div th:fragment="select(id, label)"
-     class="space-y-1.5">
-    <label th:for="${id}"
-           class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-           th:text="${label}">
+<div th:fragment="select(id, label)" class="space-y-1.5">
+    <label th:for="${id}" class="block text-sm font-medium text-gray-700 dark:text-gray-300" th:text="${label}">
         標籤
     </label>
-    <select th:id="${id}"
-            th:name="${id}"
-            class="w-full px-4 py-3
+    <select th:id="${id}" th:name="${id}" class="w-full px-4 py-3
                    bg-white dark:bg-gray-800
                    border border-gray-200 dark:border-gray-700
                    rounded-xl
@@ -303,91 +275,88 @@
 
 <!-- Toast Container (includes skip-to-content for accessibility) -->
 <th:block th:fragment="toast-container">
-<a href="#main-content"
-   class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999]
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999]
           focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg
           focus:shadow-lg focus:outline-none">
-    跳至主要內容
-</a>
-<div id="toast-container"
-     role="status"
-     aria-live="polite"
-     class="fixed top-4 right-4 z-50 space-y-3">
-    <!-- Toast messages will be inserted here dynamically -->
-</div>
+        跳至主要內容
+    </a>
+    <div id="toast-container" role="status" aria-live="polite" class="fixed top-4 right-4 z-50 space-y-3">
+        <!-- Toast messages will be inserted here dynamically -->
+    </div>
 </th:block>
 
 <!-- Success Toast -->
-<div th:fragment="toast-success(title, message)"
-     class="flex items-center gap-3
-            bg-white dark:bg-gray-800
-            rounded-xl shadow-lg
-            border-l-4 border-success
+<div th:fragment="toast-success(title, message)" class="flex items-center gap-3
+            bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl
+            rounded-2xl shadow-glass-ambient
+            border border-success/30
             px-4 py-3
             min-w-[280px]
-            animate-slide-in">
-    <svg class="w-5 h-5 text-success flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-    </svg>
+            animate-bounce-spring">
+    <div class="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0 animate-scale-in">
+        <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"
+                class="animate-[stroke-dasharray_0.3s_ease-out]" />
+        </svg>
+    </div>
     <div class="flex-1">
-        <p class="font-medium text-gray-800 dark:text-gray-100" th:text="${title}">成功</p>
+        <p class="font-bold text-gray-900 dark:text-gray-100" th:text="${title}">成功</p>
         <p th:if="${message}" class="text-sm text-gray-500 dark:text-gray-400" th:text="${message}">訊息</p>
     </div>
-    <button aria-label="關閉通知"
-            onclick="this.parentElement.remove()"
-            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 cursor-pointer">
+    <button aria-label="關閉通知" onclick="this.parentElement.remove()"
+        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 cursor-pointer hover:bg-black/5 rounded-full transition-colors duration-200">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
     </button>
 </div>
 
 <!-- Error Toast -->
-<div th:fragment="toast-error(title, message)"
-     class="flex items-center gap-3
+<div th:fragment="toast-error(title, message)" class="flex items-center gap-3
             bg-white dark:bg-gray-800
             rounded-xl shadow-lg
             border-l-4 border-error
             px-4 py-3
             min-w-[280px]
             animate-slide-in">
-    <svg class="w-5 h-5 text-error flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    <svg class="w-5 h-5 text-error flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
     <div class="flex-1">
         <p class="font-medium text-gray-800 dark:text-gray-100" th:text="${title}">錯誤</p>
         <p th:if="${message}" class="text-sm text-gray-500 dark:text-gray-400" th:text="${message}">訊息</p>
     </div>
-    <button aria-label="關閉通知"
-            onclick="this.parentElement.remove()"
-            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 cursor-pointer">
+    <button aria-label="關閉通知" onclick="this.parentElement.remove()"
+        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 cursor-pointer">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
     </button>
 </div>
 
 <!-- Warning Toast -->
-<div th:fragment="toast-warning(title, message)"
-     class="flex items-center gap-3
+<div th:fragment="toast-warning(title, message)" class="flex items-center gap-3
             bg-white dark:bg-gray-800
             rounded-xl shadow-lg
             border-l-4 border-warning
             px-4 py-3
             min-w-[280px]
             animate-slide-in">
-    <svg class="w-5 h-5 text-warning flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+    <svg class="w-5 h-5 text-warning flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
     </svg>
     <div class="flex-1">
         <p class="font-medium text-gray-800 dark:text-gray-100" th:text="${title}">警告</p>
         <p th:if="${message}" class="text-sm text-gray-500 dark:text-gray-400" th:text="${message}">訊息</p>
     </div>
-    <button aria-label="關閉通知"
-            onclick="this.parentElement.remove()"
-            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 cursor-pointer">
+    <button aria-label="關閉通知" onclick="this.parentElement.remove()"
+        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 cursor-pointer">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
     </button>
 </div>
@@ -398,8 +367,7 @@
      ===================================================== -->
 
 <!-- Header -->
-<header th:fragment="header(title)"
-        class="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl
+<header th:fragment="header(title)" class="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl
                border-b border-gray-100 dark:border-gray-800">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
@@ -418,49 +386,44 @@
 </header>
 
 <!-- Bottom Navigation -->
-<nav th:fragment="bottom-nav"
-     class="bottom-nav">
+<nav th:fragment="bottom-nav" class="bottom-nav">
     <div class="flex justify-around max-w-md mx-auto">
         <!-- Dashboard -->
-        <a th:href="@{/dashboard}"
-           th:classappend="${#strings.startsWith(currentPath, '/dashboard') ? 'active' : ''}"
-           class="bottom-nav-item">
+        <a th:href="@{/dashboard}" th:classappend="${#strings.startsWith(currentPath, '/dashboard') ? 'active' : ''}"
+            class="bottom-nav-item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
             <span class="text-xs mt-1">行程</span>
         </a>
 
         <!-- Expenses -->
-        <a th:href="@{/expenses}"
-           th:classappend="${#strings.startsWith(currentPath, '/expenses') ? 'active' : ''}"
-           class="bottom-nav-item">
+        <a th:href="@{/expenses}" th:classappend="${#strings.startsWith(currentPath, '/expenses') ? 'active' : ''}"
+            class="bottom-nav-item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             <span class="text-xs mt-1">分帳</span>
         </a>
 
         <!-- Documents -->
-        <a th:href="@{/documents}"
-           th:classappend="${#strings.startsWith(currentPath, '/documents') ? 'active' : ''}"
-           class="bottom-nav-item">
+        <a th:href="@{/documents}" th:classappend="${#strings.startsWith(currentPath, '/documents') ? 'active' : ''}"
+            class="bottom-nav-item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span class="text-xs mt-1">檔案</span>
         </a>
 
         <!-- Profile -->
-        <a th:href="@{/profile}"
-           th:classappend="${#strings.startsWith(currentPath, '/profile') ? 'active' : ''}"
-           class="bottom-nav-item">
+        <a th:href="@{/profile}" th:classappend="${#strings.startsWith(currentPath, '/profile') ? 'active' : ''}"
+            class="bottom-nav-item">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             <span class="text-xs mt-1">我的</span>
         </a>
@@ -472,26 +435,28 @@
      LOADING STATES
      ===================================================== -->
 
-<!-- Skeleton Card -->
+<!-- Text-based AI Loading State -->
 <div th:fragment="skeleton-card"
-     class="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden animate-pulse">
-    <div class="aspect-[16/9] bg-gray-200 dark:bg-gray-700"></div>
-    <div class="p-4 space-y-3">
-        <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-        <div class="flex gap-2">
-            <div class="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-            <div class="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-        </div>
+    class="glass-card-2026 flex flex-col items-center justify-center p-8 min-h-[240px] text-center animate-pulse-slow">
+    <div class="mb-4 relative">
+        <div class="absolute inset-0 bg-primary-400 blur-xl opacity-30 rounded-full"></div>
+        <svg class="w-10 h-10 text-primary-500 relative z-10 animate-spin" style="animation-duration: 3s;" fill="none"
+            viewBox="0 0 24 24">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+        </svg>
     </div>
+    <h3 class="text-h4 font-heading font-bold text-gray-800 dark:text-gray-100 mb-2">WeGo AI 正在為您準備...</h3>
+    <p class="text-body-sm text-gray-500 dark:text-gray-400 max-w-[200px]">正在整理行程資料與最佳推薦，請稍候片刻</p>
 </div>
 
 <!-- Loading Spinner -->
-<div th:fragment="spinner"
-     class="flex items-center justify-center p-4">
+<div th:fragment="spinner" class="flex items-center justify-center p-4">
     <svg class="animate-spin h-8 w-8 text-primary-500" fill="none" viewBox="0 0 24 24" aria-hidden="true">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        <path class="opacity-75" fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+        </path>
     </svg>
     <span class="sr-only">載入中...</span>
 </div>
@@ -503,12 +468,11 @@
 
 <!-- Empty State -->
 <!-- Basic empty state (no CTA) -->
-<div th:fragment="empty-state(title, description)"
-     class="glass-card p-8 text-center animate-fade-in">
+<div th:fragment="empty-state(title, description)" class="glass-card p-8 text-center animate-fade-in">
     <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
         <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
     </div>
     <h3 class="text-h4 text-gray-700 dark:text-gray-200 mb-2 font-heading" th:text="${title}">
@@ -521,11 +485,11 @@
 
 <!-- Empty state with CTA button -->
 <div th:fragment="empty-state-cta(title, description, ctaText, ctaHref)"
-     class="glass-card p-8 text-center animate-fade-in">
+    class="glass-card p-8 text-center animate-fade-in">
     <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
         <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
     </div>
     <h3 class="text-h4 text-gray-700 dark:text-gray-200 mb-2 font-heading" th:text="${title}">

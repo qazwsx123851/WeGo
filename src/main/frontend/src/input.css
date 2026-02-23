@@ -4,8 +4,32 @@
 
 /* Google Fonts: loaded via <link> in head.html (not @import) to avoid render-blocking */
 
-/* CSS Variables for Glassmorphism */
+/* CSS Variables for Glassmorphism & Themes */
 :root {
+  /* Default Primary (Sky Blue) RGB values */
+  --color-primary-50: 240 249 255;
+  --color-primary-100: 224 242 254;
+  --color-primary-200: 186 230 253;
+  --color-primary-300: 125 211 252;
+  --color-primary-400: 56 189 248;
+  --color-primary-500: 14 165 233;
+  --color-primary-600: 2 132 199;
+  --color-primary-700: 3 105 161;
+  --color-primary-800: 7 89 133;
+  --color-primary-900: 12 74 110;
+
+  /* Default Adventure (Orange) RGB values */
+  --color-adventure-50: 255 247 237;
+  --color-adventure-100: 255 237 213;
+  --color-adventure-200: 254 215 170;
+  --color-adventure-300: 253 186 116;
+  --color-adventure-400: 251 146 60;
+  --color-adventure-500: 249 115 22;
+  --color-adventure-600: 234 88 12;
+  --color-adventure-700: 194 65 12;
+  --color-adventure-800: 154 52 18;
+  --color-adventure-900: 124 45 18;
+
   --glass-bg-light: rgba(255, 255, 255, 0.7);
   --glass-bg-dark: rgba(31, 41, 55, 0.6);
   --glass-blur: 12px;
@@ -65,6 +89,43 @@
 
   .dark .glass-card-interactive {
     @apply bg-gray-800/60 border-gray-600/30;
+  }
+
+  /* 2026 Ambient Glass Card */
+  .glass-card-2026 {
+    @apply relative overflow-hidden bg-white/70 backdrop-blur-[24px] border border-white/40 rounded-[2rem] shadow-glass-ambient
+           transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)];
+  }
+
+  .dark .glass-card-2026 {
+    @apply bg-gray-900/60 border-white/10 shadow-glass-ambient;
+  }
+
+  /* 2026 Interactive Glass Card */
+  .glass-card-2026-interactive {
+    @apply glass-card-2026 cursor-pointer;
+    transform-style: preserve-3d;
+  }
+
+  .glass-card-2026-interactive:hover {
+    @apply shadow-2xl;
+    transform: translateY(-8px) scale(1.02);
+  }
+
+  /* Mesh Gradient Backgrounds */
+  .mesh-gradient-bg {
+    background-image: 
+      radial-gradient(at 40% 20%, rgba(var(--color-primary-300) / 0.15) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, rgba(var(--color-adventure-300) / 0.15) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, rgba(var(--color-primary-200) / 0.1) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+  
+  .dark .mesh-gradient-bg {
+    background-image: 
+      radial-gradient(at 40% 20%, rgba(var(--color-primary-900) / 0.2) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, rgba(var(--color-adventure-900) / 0.2) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, rgba(var(--color-primary-800) / 0.15) 0px, transparent 50%);
   }
 
   /* Soft UI Card */

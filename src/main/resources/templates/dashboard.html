@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
 <head th:replace="~{fragments/head :: head(title='我的行程')}"></head>
-<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20 mesh-gradient-bg">
     <!-- Toast Container (with skip-to-content a11y link) -->
     <th:block th:replace="~{fragments/components :: toast-container}"></th:block>
 
@@ -21,15 +22,14 @@
                     <!-- Dark Mode Toggle -->
                     <div th:replace="~{fragments/components :: dark-mode-toggle}"></div>
 
-                    <a th:href="@{/profile}"
-                       class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30
+                    <a th:href="@{/profile}" class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30
                               flex items-center justify-center
                               text-primary-600 dark:text-primary-400 font-medium
                               hover:ring-2 hover:ring-primary-500/50
                               transition-all duration-200 cursor-pointer overflow-hidden">
                         <img th:if="${picture}" th:src="${picture}" alt="Profile" class="w-full h-full object-cover">
                         <span th:unless="${picture}"
-                              th:text="${name != null ? #strings.substring(name, 0, 1) : 'U'}">U</span>
+                            th:text="${name != null ? #strings.substring(name, 0, 1) : 'U'}">U</span>
                     </a>
                 </div>
             </div>
@@ -48,10 +48,9 @@
 
         <!-- Quick Actions -->
         <section class="mb-8">
-            <a th:href="@{/trips/create}" class="btn-cta inline-flex items-center gap-2"
-               aria-label="建立新行程">
+            <a th:href="@{/trips/create}" class="btn-cta inline-flex items-center gap-2" aria-label="建立新行程">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
                 建立新行程
             </a>
@@ -62,43 +61,50 @@
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">即將出發</h2>
             </div>
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <a th:each="trip : ${upcomingTrips}" th:href="@{/trips/{id}(id=${trip.id})}"
-                   class="stagger-item glass-card group hover:shadow-card-hover hover:scale-[1.02] transition-all duration-200 cursor-pointer overflow-hidden">
+            <div class="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 grid-flow-row-dense">
+                <a th:each="trip, iterStat : ${upcomingTrips}" th:href="@{/trips/{id}(id=${trip.id})}"
+                    th:classappend="${iterStat.index == 0}? 'sm:col-span-2 sm:row-span-2' : ''"
+                    class="stagger-item glass-card-2026-interactive group overflow-hidden block">
                     <!-- Cover Image -->
-                    <div class="relative h-40 bg-gradient-to-br from-primary-400 to-primary-600">
+                    <div th:classappend="${iterStat.index == 0}? 'h-64 sm:h-80' : 'h-40'"
+                        class="relative bg-gradient-to-br from-primary-400 to-primary-600 overflow-hidden">
                         <img th:if="${trip.coverImageUrl}" th:src="${trip.coverImageUrl}"
-                             th:alt="${trip.title + ' 封面圖片'}" class="w-full h-full object-cover" loading="lazy">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                            th:alt="${trip.title + ' 封面圖片'}"
+                            class="w-full h-full object-cover transform scale-105 group-hover:scale-110 transition-transform duration-700 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
+                            loading="lazy">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
                         <!-- Days Until -->
                         <div th:if="${daysUntilMap?.get(trip.id) != null}"
-                             class="absolute top-3 right-3 bg-white/90 dark:bg-gray-800/90 rounded-lg px-2 py-1 text-caption font-medium">
+                            class="absolute top-4 right-4 bg-white/90 dark:bg-gray-900/90 rounded-xl px-3 py-1.5 text-sm font-bold shadow-sm backdrop-blur-md">
                             <span th:if="${daysUntilMap?.get(trip.id) == 0}" class="text-adventure-500">今天出發!</span>
                             <span th:if="${daysUntilMap?.get(trip.id) == 1}" class="text-adventure-500">明天出發</span>
-                            <span th:if="${daysUntilMap?.get(trip.id) > 1}" th:text="'還有 ' + ${daysUntilMap?.get(trip.id)} + ' 天'"
-                                  class="text-gray-700 dark:text-gray-200"></span>
+                            <span th:if="${daysUntilMap?.get(trip.id) > 1}"
+                                th:text="'還有 ' + ${daysUntilMap?.get(trip.id)} + ' 天'"
+                                class="text-gray-800 dark:text-gray-100"></span>
                         </div>
                     </div>
                     <!-- Info -->
-                    <div class="p-4">
-                        <h3 class="text-body font-semibold text-gray-800 dark:text-gray-100 mb-1 group-hover:text-primary-600 transition-colors"
+                    <div
+                        class="p-5 space-y-3 relative z-10 bg-white/40 dark:bg-gray-900/40 backdrop-blur-sm -mt-4 transform -translate-y-2 group-hover:translate-y-0 transition-transform duration-500 rounded-t-[1.5rem] shadow-sm">
+                        <h3 th:classappend="${iterStat.index == 0}? 'text-h3' : 'text-base'"
+                            class="font-bold text-gray-900 dark:text-gray-100 drop-shadow-sm transition-colors"
                             th:text="${trip.title}">行程名稱</h3>
-                        <p class="text-body-sm text-gray-500 dark:text-gray-400"
-                           th:text="${#temporals.format(trip.startDate, 'M/d')} + ' - ' + ${#temporals.format(trip.endDate, 'M/d')}">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-300"
+                            th:text="${#temporals.format(trip.startDate, 'M/d')} + ' - ' + ${#temporals.format(trip.endDate, 'M/d')}">
                             1/15 - 1/20
                         </p>
                         <!-- Members -->
-                        <div class="flex items-center gap-2 mt-3">
+                        <div class="flex items-center gap-2 mt-4 pt-1">
                             <div class="flex -space-x-2">
-                                <span th:each="member, iterStat : ${trip.members}" th:if="${iterStat.index < 3}"
-                                      class="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30
-                                             flex items-center justify-center text-caption text-primary-600
-                                             dark:text-primary-400 border-2 border-white dark:border-gray-800"
-                                      th:text="${member.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : 'U'}">M</span>
+                                <span th:each="member, iterStatMember : ${trip.members}"
+                                    th:if="${iterStatMember.index < 3}"
+                                    class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                             flex items-center justify-center text-xs font-bold text-primary-600
+                                             dark:text-primary-400 border-2 border-white dark:border-gray-800 shadow-sm"
+                                    th:text="${member.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : 'U'}">M</span>
                             </div>
-                            <span th:if="${#lists.size(trip.members) > 3}"
-                                  class="text-caption text-gray-400"
-                                  th:text="'+' + (${#lists.size(trip.members)} - 3)">+2</span>
+                            <span th:if="${#lists.size(trip.members) > 3}" class="text-xs font-medium text-gray-500"
+                                th:text="'+' + (${#lists.size(trip.members)} - 3)">+2</span>
                         </div>
                     </div>
                 </a>
@@ -113,20 +119,23 @@
                     查看全部
                 </a>
             </div>
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:grid-flow-row-dense">
                 <a th:each="trip : ${trips}" th:href="@{/trips/{id}(id=${trip.id})}"
-                   class="stagger-item glass-card group hover:shadow-card-hover hover:scale-[1.02] transition-all duration-200 cursor-pointer overflow-hidden">
+                    class="stagger-item glass-card-2026-interactive group overflow-hidden block">
                     <!-- Cover Image -->
-                    <div class="relative h-32 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700">
+                    <div class="relative h-32 bg-gray-300 dark:bg-gray-700 overflow-hidden">
                         <img th:if="${trip.coverImageUrl}" th:src="${trip.coverImageUrl}"
-                             th:alt="${trip.title + ' 封面圖片'}" class="w-full h-full object-cover" loading="lazy">
+                            th:alt="${trip.title + ' 封面圖片'}"
+                            class="w-full h-full object-cover transform scale-105 group-hover:scale-110 transition-transform duration-700 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]"
+                            loading="lazy">
                     </div>
                     <!-- Info -->
-                    <div class="p-4">
-                        <h3 class="text-body font-semibold text-gray-800 dark:text-gray-100 mb-1 group-hover:text-primary-600 transition-colors"
+                    <div
+                        class="p-4 space-y-2 relative z-10 bg-white/40 dark:bg-gray-900/40 backdrop-blur-sm -mt-3 transform -translate-y-2 group-hover:translate-y-0 transition-transform duration-500 rounded-t-[1.5rem] shadow-sm">
+                        <h3 class="text-base font-bold text-gray-900 dark:text-gray-100 drop-shadow-sm"
                             th:text="${trip.title}">行程名稱</h3>
-                        <p class="text-body-sm text-gray-500 dark:text-gray-400"
-                           th:text="${#temporals.format(trip.startDate, 'yyyy/M/d')} + ' - ' + ${#temporals.format(trip.endDate, 'M/d')}">
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400"
+                            th:text="${#temporals.format(trip.startDate, 'yyyy/M/d')} + ' - ' + ${#temporals.format(trip.endDate, 'M/d')}">
                             2024/1/15 - 1/20
                         </p>
                     </div>
@@ -136,7 +145,9 @@
 
         <!-- Empty State -->
         <section th:if="${trips == null or trips.isEmpty()}">
-            <div th:replace="~{fragments/components :: empty-state-cta(title='還沒有任何行程', description='建立您的第一個行程，開始規劃下一次冒險！', ctaText='開始規劃', ctaHref=@{/trips/create})}"></div>
+            <div
+                th:replace="~{fragments/components :: empty-state-cta(title='還沒有任何行程', description='建立您的第一個行程，開始規劃下一次冒險！', ctaText='開始規劃', ctaHref=@{/trips/create})}">
+            </div>
         </section>
     </main>
 
@@ -144,10 +155,10 @@
     <nav th:replace="~{fragments/components :: bottom-nav}"></nav>
 
     <!-- Onboarding Tooltip (first-time users only) -->
-    <div id="onboarding-overlay" class="hidden fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm" aria-hidden="true"></div>
-    <div id="onboarding-tooltip"
-         class="hidden fixed z-[61] glass-card p-5 max-w-xs shadow-lg animate-scale-in"
-         role="dialog" aria-label="歡迎導覽">
+    <div id="onboarding-overlay" class="hidden fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm" aria-hidden="true">
+    </div>
+    <div id="onboarding-tooltip" class="hidden fixed z-[61] glass-card p-5 max-w-xs shadow-lg animate-scale-in"
+        role="dialog" aria-label="歡迎導覽">
         <div id="onboarding-content">
             <h3 id="onboarding-title" class="text-body font-semibold text-gray-800 dark:text-gray-100 mb-2"></h3>
             <p id="onboarding-desc" class="text-body-sm text-gray-500 dark:text-gray-400 mb-4"></p>
@@ -162,69 +173,71 @@
     </div>
 
     <!-- Scripts -->
+    <script th:src="@{/js/theme-engine.js}" defer></script>
     <script th:src="@{/js/app.js}" defer></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        if (localStorage.getItem('wego_onboarded')) return;
+        document.addEventListener('DOMContentLoaded', function () {
+            if (localStorage.getItem('wego_onboarded')) return;
 
-        var steps = [
-            { title: '歡迎來到 WeGo!', desc: '這裡是您的行程總覽，所有旅程一目瞭然。', target: null },
-            { title: '建立新行程', desc: '點擊這裡開始規劃您的下一趟冒險旅程。', target: '.btn-cta' },
-            { title: '探索功能', desc: '使用底部導覽列快速切換分帳、檔案和個人設定。', target: '.bottom-nav' }
-        ];
-        var current = 0;
-        var overlay = document.getElementById('onboarding-overlay');
-        var tooltip = document.getElementById('onboarding-tooltip');
-        var titleEl = document.getElementById('onboarding-title');
-        var descEl = document.getElementById('onboarding-desc');
-        var stepEl = document.getElementById('onboarding-step');
+            var steps = [
+                { title: '歡迎來到 WeGo!', desc: '這裡是您的行程總覽，所有旅程一目瞭然。', target: null },
+                { title: '建立新行程', desc: '點擊這裡開始規劃您的下一趟冒險旅程。', target: '.btn-cta' },
+                { title: '探索功能', desc: '使用底部導覽列快速切換分帳、檔案和個人設定。', target: '.bottom-nav' }
+            ];
+            var current = 0;
+            var overlay = document.getElementById('onboarding-overlay');
+            var tooltip = document.getElementById('onboarding-tooltip');
+            var titleEl = document.getElementById('onboarding-title');
+            var descEl = document.getElementById('onboarding-desc');
+            var stepEl = document.getElementById('onboarding-step');
 
-        function show(idx) {
-            var step = steps[idx];
-            titleEl.textContent = step.title;
-            descEl.textContent = step.desc;
-            stepEl.textContent = (idx + 1) + ' / ' + steps.length;
-            document.getElementById('onboarding-next').textContent = idx === steps.length - 1 ? '開始使用' : '下一步';
+            function show(idx) {
+                var step = steps[idx];
+                titleEl.textContent = step.title;
+                descEl.textContent = step.desc;
+                stepEl.textContent = (idx + 1) + ' / ' + steps.length;
+                document.getElementById('onboarding-next').textContent = idx === steps.length - 1 ? '開始使用' : '下一步';
 
-            overlay.classList.remove('hidden');
-            tooltip.classList.remove('hidden');
+                overlay.classList.remove('hidden');
+                tooltip.classList.remove('hidden');
 
-            if (step.target) {
-                var el = document.querySelector(step.target);
-                if (el) {
-                    var rect = el.getBoundingClientRect();
-                    var tooltipRect = tooltip.getBoundingClientRect();
-                    var top = rect.top - tooltipRect.height - 12;
-                    if (top < 8) top = rect.bottom + 12;
-                    var left = Math.max(8, Math.min(rect.left, window.innerWidth - 320));
-                    tooltip.style.top = top + 'px';
-                    tooltip.style.left = left + 'px';
-                    return;
+                if (step.target) {
+                    var el = document.querySelector(step.target);
+                    if (el) {
+                        var rect = el.getBoundingClientRect();
+                        var tooltipRect = tooltip.getBoundingClientRect();
+                        var top = rect.top - tooltipRect.height - 12;
+                        if (top < 8) top = rect.bottom + 12;
+                        var left = Math.max(8, Math.min(rect.left, window.innerWidth - 320));
+                        tooltip.style.top = top + 'px';
+                        tooltip.style.left = left + 'px';
+                        return;
+                    }
                 }
+                tooltip.style.top = '50%';
+                tooltip.style.left = '50%';
+                tooltip.style.transform = 'translate(-50%, -50%)';
             }
-            tooltip.style.top = '50%';
-            tooltip.style.left = '50%';
-            tooltip.style.transform = 'translate(-50%, -50%)';
-        }
 
-        function close() {
-            localStorage.setItem('wego_onboarded', '1');
-            overlay.classList.add('hidden');
-            tooltip.classList.add('hidden');
-        }
+            function close() {
+                localStorage.setItem('wego_onboarded', '1');
+                overlay.classList.add('hidden');
+                tooltip.classList.add('hidden');
+            }
 
-        document.getElementById('onboarding-next').addEventListener('click', function() {
-            current++;
-            if (current >= steps.length) { close(); return; }
-            tooltip.style.transform = '';
-            show(current);
+            document.getElementById('onboarding-next').addEventListener('click', function () {
+                current++;
+                if (current >= steps.length) { close(); return; }
+                tooltip.style.transform = '';
+                show(current);
+            });
+
+            document.getElementById('onboarding-skip').addEventListener('click', close);
+            overlay.addEventListener('click', close);
+
+            show(0);
         });
-
-        document.getElementById('onboarding-skip').addEventListener('click', close);
-        overlay.addEventListener('click', close);
-
-        show(0);
-    });
     </script>
 </body>
+
 </html>

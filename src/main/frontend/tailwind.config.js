@@ -10,29 +10,29 @@ module.exports = {
       colors: {
         // Primary - Sky Blue (Travel, Exploration, Freedom)
         primary: {
-          50: '#F0F9FF',
-          100: '#E0F2FE',
-          200: '#BAE6FD',
-          300: '#7DD3FC',
-          400: '#38BDF8',
-          500: '#0EA5E9',
-          600: '#0284C7',
-          700: '#0369A1',
-          800: '#075985',
-          900: '#0C4A6E',
+          50: 'rgb(var(--color-primary-50) / <alpha-value>)',
+          100: 'rgb(var(--color-primary-100) / <alpha-value>)',
+          200: 'rgb(var(--color-primary-200) / <alpha-value>)',
+          300: 'rgb(var(--color-primary-300) / <alpha-value>)',
+          400: 'rgb(var(--color-primary-400) / <alpha-value>)',
+          500: 'rgb(var(--color-primary-500) / <alpha-value>)',
+          600: 'rgb(var(--color-primary-600) / <alpha-value>)',
+          700: 'rgb(var(--color-primary-700) / <alpha-value>)',
+          800: 'rgb(var(--color-primary-800) / <alpha-value>)',
+          900: 'rgb(var(--color-primary-900) / <alpha-value>)',
         },
         // Secondary - Adventure Orange (Passion, Energy, CTA)
         adventure: {
-          50: '#FFF7ED',
-          100: '#FFEDD5',
-          200: '#FED7AA',
-          300: '#FDBA74',
-          400: '#FB923C',
-          500: '#F97316',
-          600: '#EA580C',
-          700: '#C2410C',
-          800: '#9A3412',
-          900: '#7C2D12',
+          50: 'rgb(var(--color-adventure-50) / <alpha-value>)',
+          100: 'rgb(var(--color-adventure-100) / <alpha-value>)',
+          200: 'rgb(var(--color-adventure-200) / <alpha-value>)',
+          300: 'rgb(var(--color-adventure-300) / <alpha-value>)',
+          400: 'rgb(var(--color-adventure-400) / <alpha-value>)',
+          500: 'rgb(var(--color-adventure-500) / <alpha-value>)',
+          600: 'rgb(var(--color-adventure-600) / <alpha-value>)',
+          700: 'rgb(var(--color-adventure-700) / <alpha-value>)',
+          800: 'rgb(var(--color-adventure-800) / <alpha-value>)',
+          900: 'rgb(var(--color-adventure-900) / <alpha-value>)',
         },
         // Semantic Colors
         success: {
@@ -83,6 +83,7 @@ module.exports = {
       },
       boxShadow: {
         'glass': '0 8px 32px rgba(0, 0, 0, 0.1)',
+        'glass-ambient': '0 8px 32px 0 rgba(var(--color-primary-500) / 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.8)',
         'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
         'card-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
         'soft': '4px 4px 8px rgba(0, 0, 0, 0.08), -4px -4px 8px rgba(255, 255, 255, 0.8)',
@@ -98,8 +99,14 @@ module.exports = {
         'slide-out': 'slideOut 0.3s ease-in forwards',
         'scale-in': 'scaleIn 0.2s ease-out',
         'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'bounce-spring': 'bounceSpring 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
       },
       keyframes: {
+        bounceSpring: {
+          '0%': { transform: 'scale(0.95)' },
+          '50%': { transform: 'scale(1.02)' },
+          '100%': { transform: 'scale(1)' },
+        },
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
