@@ -86,9 +86,9 @@ const ExpenseList = (() => {
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
 
-        // Hide bottom nav to prevent overlap with modal footer
-        const bottomNav = document.querySelector('.bottom-nav');
-        if (bottomNav) bottomNav.classList.add('hidden');
+        // Hide pill bar to prevent overlap with modal footer
+        const pillBar = document.querySelector('#global-pill-bar, #dynamic-pill-bar');
+        if (pillBar) pillBar.classList.add('hidden');
 
         // Animate in
         requestAnimationFrame(() => {
@@ -293,9 +293,9 @@ const ExpenseList = (() => {
             currentExpenseId = null;
             currentExpenseData = null;
 
-            // Restore bottom nav
-            const bottomNav = document.querySelector('.bottom-nav');
-            if (bottomNav) bottomNav.classList.remove('hidden');
+            // Restore pill bar
+            const pillBar = document.querySelector('#global-pill-bar, #dynamic-pill-bar');
+            if (pillBar) pillBar.classList.remove('hidden');
         }, 200);
     }
 

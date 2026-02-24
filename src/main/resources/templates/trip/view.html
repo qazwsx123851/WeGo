@@ -450,60 +450,8 @@
         </svg>
     </a>
 
-    <!-- iOS Dynamic Pill Floating Action Bar -->
-    <div id="dynamic-pill-bar" class="fixed left-1/2 -translate-x-1/2 bottom-6 z-[51] 
-                                      glass-card-2026 rounded-full px-1.5 py-1.5 
-                                      flex items-center gap-1 shadow-glass-ambient
-                                      transition-all duration-500 ease-out hover:scale-[1.02]">
-        <a th:href="@{/trips/{id}/activities(id=${trip.id})}"
-            class="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors text-primary-600 dark:text-primary-400 group">
-            <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 group-hover:block transition-transform animate-bounce-spring"
-                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span
-                class="text-sm font-medium transition-all duration-300 max-w-[4rem] pill-text whitespace-nowrap overflow-hidden">景點</span>
-        </a>
-        <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
-        <a th:href="@{/trips/{id}/expenses(id=${trip.id})}"
-            class="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors text-adventure-600 dark:text-adventure-400 group">
-            <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none"
-                stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <span
-                class="text-sm font-medium transition-all duration-300 max-w-[4rem] pill-text whitespace-nowrap overflow-hidden">分帳</span>
-        </a>
-        <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
-        <a th:href="@{/trips/{id}/documents(id=${trip.id})}"
-            class="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors text-success dark:text-success-400 group">
-            <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none"
-                stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span
-                class="text-sm font-medium transition-all duration-300 max-w-[4rem] pill-text whitespace-nowrap overflow-hidden">檔案</span>
-        </a>
-        <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
-        <a th:href="@{/trips/{id}/todos(id=${trip.id})}"
-            class="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors text-warning-dark dark:text-warning group">
-            <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none"
-                stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            <span
-                class="text-sm font-medium transition-all duration-300 max-w-[4rem] pill-text whitespace-nowrap overflow-hidden">代辦</span>
-        </a>
-    </div>
-
-    <!-- Bottom Navigation (Hidden on this page because of Pill Bar) -->
-    <!-- <nav th:replace="~{fragments/components :: bottom-nav}"></nav> -->
+    <!-- Dynamic Pill Bar -->
+    <div th:replace="~{fragments/components :: trip-pill-bar(tripId=${trip.id})}"></div>
 
     <!-- AI Chat Widget -->
     <div th:replace="~{fragments/chat-widget :: chat-widget(tripId=${trip.id})}"></div>
