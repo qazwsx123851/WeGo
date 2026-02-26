@@ -4,6 +4,8 @@ import com.wego.domain.TripConstants;
 import com.wego.domain.permission.PermissionChecker;
 import com.wego.entity.ExpenseSplit;
 import com.wego.entity.GhostMember;
+import com.wego.entity.Role;
+import com.wego.entity.TripMember;
 import com.wego.exception.BusinessException;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
@@ -196,8 +198,10 @@ public class GhostMemberService {
             throw new BusinessException("GHOST_ALREADY_MERGED", "此虛擬成員已被合併");
         }
 
-        if (!tripMemberRepository.existsByTripIdAndUserId(tripId, targetUserId)) {
-            throw new ValidationException("TARGET_NOT_MEMBER", "目標用戶不是行程成員");
+        TripMember targetMember = tripMemberRepository.findByTripIdAndUserId(tripId, targetUserId)
+                .orElseThrow(() -> new ValidationException("TARGET_NOT_MEMBER", "目標用戶不是行程成員"));
+        if (targetMember.getRole() == Role.OWNER) {
+            throw new ValidationException("CANNOT_MERGE_TO_OWNER", "不能將虛擬成員合併給行程擁有者");
         }
 
         // 1. Bulk update Expense.paidBy

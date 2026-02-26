@@ -436,7 +436,7 @@
                                transition-all duration-200 cursor-pointer">
                     <option value="">選擇成員</option>
                     <th:block th:each="member : ${members}">
-                        <option th:if="${!member.isGhost()}"
+                        <option th:if="${!member.isGhost() and member.role?.name() != 'OWNER'}"
                                 th:value="${member.userId}"
                                 th:text="${member.nickname}">成員名稱</option>
                     </th:block>
