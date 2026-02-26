@@ -204,11 +204,6 @@ class TripViewHelperTest {
         @Test
         @DisplayName("should return todo preview with counts")
         void getTodoPreview_withTodos_shouldReturnPreview() {
-            Map<TodoStatus, Long> stats = Map.of(
-                    TodoStatus.PENDING, 3L,
-                    TodoStatus.IN_PROGRESS, 2L,
-                    TodoStatus.COMPLETED, 5L);
-
             TodoResponse pending1 = TodoResponse.builder()
                     .id(UUID.randomUUID()).status(TodoStatus.PENDING).build();
             TodoResponse inProgress1 = TodoResponse.builder()
@@ -216,21 +211,19 @@ class TripViewHelperTest {
             TodoResponse completed1 = TodoResponse.builder()
                     .id(UUID.randomUUID()).status(TodoStatus.COMPLETED).build();
 
-            when(todoService.getTodoStats(tripId, userId)).thenReturn(stats);
             when(todoService.getTodosByTrip(tripId, userId))
                     .thenReturn(List.of(pending1, inProgress1, completed1));
 
             TripViewHelper.TodoPreview result = tripViewHelper.getTodoPreview(tripId, userId);
 
-            assertThat(result.totalCount()).isEqualTo(10L);
-            assertThat(result.completedCount()).isEqualTo(5L);
+            assertThat(result.totalCount()).isEqualTo(3L);
+            assertThat(result.completedCount()).isEqualTo(1L);
             assertThat(result.upcomingTodos()).hasSize(2); // only PENDING and IN_PROGRESS
         }
 
         @Test
         @DisplayName("should limit upcoming todos to 3")
         void getTodoPreview_manyTodos_shouldLimitToThree() {
-            Map<TodoStatus, Long> stats = Map.of(TodoStatus.PENDING, 5L);
             List<TodoResponse> todos = List.of(
                     TodoResponse.builder().id(UUID.randomUUID()).status(TodoStatus.PENDING).build(),
                     TodoResponse.builder().id(UUID.randomUUID()).status(TodoStatus.PENDING).build(),
@@ -238,7 +231,6 @@ class TripViewHelperTest {
                     TodoResponse.builder().id(UUID.randomUUID()).status(TodoStatus.PENDING).build(),
                     TodoResponse.builder().id(UUID.randomUUID()).status(TodoStatus.PENDING).build());
 
-            when(todoService.getTodoStats(tripId, userId)).thenReturn(stats);
             when(todoService.getTodosByTrip(tripId, userId)).thenReturn(todos);
 
             TripViewHelper.TodoPreview result = tripViewHelper.getTodoPreview(tripId, userId);
@@ -249,7 +241,7 @@ class TripViewHelperTest {
         @Test
         @DisplayName("should return empty preview on exception")
         void getTodoPreview_onException_shouldReturnEmpty() {
-            when(todoService.getTodoStats(tripId, userId))
+            when(todoService.getTodosByTrip(tripId, userId))
                     .thenThrow(new RuntimeException("Service error"));
 
             TripViewHelper.TodoPreview result = tripViewHelper.getTodoPreview(tripId, userId);

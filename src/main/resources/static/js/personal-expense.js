@@ -18,7 +18,7 @@ const PersonalExpense = (() => {
     let budgetTriggerEl = null;
     let categoryChart = null;
     let dailyChart = null;
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const prefersReducedMotion = WeGo._reducedMotion;
 
     // =====================
     // Tab Switching (C1: dynamic header CTA href)

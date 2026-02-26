@@ -100,11 +100,6 @@ class TodoWebControllerTest {
     void listTodos_authenticated_shouldReturnListView() throws Exception {
         when(tripService.getTrip(tripId, userId)).thenReturn(testTrip);
         when(todoService.getTodosByTrip(tripId, userId)).thenReturn(Collections.emptyList());
-        when(todoService.getTodoStats(tripId, userId)).thenReturn(Map.of(
-                TodoStatus.PENDING, 2L,
-                TodoStatus.COMPLETED, 1L,
-                TodoStatus.IN_PROGRESS, 1L
-        ));
 
         mockMvc.perform(get("/trips/{tripId}/todos", tripId).with(oidcLogin()))
                 .andExpect(status().isOk())
@@ -113,8 +108,8 @@ class TodoWebControllerTest {
                         "totalTodos", "completedTodos", "pendingTodos",
                         "inProgressTodos", "canEdit", "name", "picture"))
                 .andExpect(model().attribute("canEdit", true))
-                .andExpect(model().attribute("totalTodos", 4L))
-                .andExpect(model().attribute("completedTodos", 1L));
+                .andExpect(model().attribute("totalTodos", 0L))
+                .andExpect(model().attribute("completedTodos", 0L));
     }
 
     @Test

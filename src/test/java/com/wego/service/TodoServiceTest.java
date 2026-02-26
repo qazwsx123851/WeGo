@@ -131,7 +131,7 @@ class TodoServiceTest {
 
             when(permissionChecker.canEdit(tripId, userId)).thenReturn(true);
             when(tripRepository.existsById(tripId)).thenReturn(true);
-            when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+            when(userRepository.findAllById(List.of(userId))).thenReturn(List.of(testUser));
             when(todoRepository.save(any(Todo.class))).thenAnswer(invocation -> {
                 Todo todo = invocation.getArgument(0);
                 todo.setId(todoId);
@@ -163,8 +163,7 @@ class TodoServiceTest {
             when(permissionChecker.canEdit(tripId, userId)).thenReturn(true);
             when(tripRepository.existsById(tripId)).thenReturn(true);
             when(tripMemberRepository.existsByTripIdAndUserId(tripId, assigneeId)).thenReturn(true);
-            when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-            when(userRepository.findById(assigneeId)).thenReturn(Optional.of(assigneeUser));
+            when(userRepository.findAllById(any())).thenReturn(List.of(testUser, assigneeUser));
             when(todoRepository.save(any(Todo.class))).thenAnswer(invocation -> {
                 Todo todo = invocation.getArgument(0);
                 todo.setId(todoId);
@@ -636,9 +635,11 @@ class TodoServiceTest {
         void getTodoStats_withValidPermission_shouldReturnStats() {
             // Given
             when(permissionChecker.canView(tripId, userId)).thenReturn(true);
-            when(todoRepository.countByTripIdAndStatus(tripId, TodoStatus.PENDING)).thenReturn(5L);
-            when(todoRepository.countByTripIdAndStatus(tripId, TodoStatus.IN_PROGRESS)).thenReturn(3L);
-            when(todoRepository.countByTripIdAndStatus(tripId, TodoStatus.COMPLETED)).thenReturn(10L);
+            when(todoRepository.countByTripIdGroupedByStatus(tripId)).thenReturn(List.of(
+                    new Object[]{TodoStatus.PENDING, 5L},
+                    new Object[]{TodoStatus.IN_PROGRESS, 3L},
+                    new Object[]{TodoStatus.COMPLETED, 10L}
+            ));
 
             // When
             Map<TodoStatus, Long> stats = todoService.getTodoStats(tripId, userId);
@@ -666,9 +667,7 @@ class TodoServiceTest {
         void getTodoStats_withNoTodos_shouldReturnZeros() {
             // Given
             when(permissionChecker.canView(tripId, userId)).thenReturn(true);
-            when(todoRepository.countByTripIdAndStatus(tripId, TodoStatus.PENDING)).thenReturn(0L);
-            when(todoRepository.countByTripIdAndStatus(tripId, TodoStatus.IN_PROGRESS)).thenReturn(0L);
-            when(todoRepository.countByTripIdAndStatus(tripId, TodoStatus.COMPLETED)).thenReturn(0L);
+            when(todoRepository.countByTripIdGroupedByStatus(tripId)).thenReturn(List.of());
 
             // When
             Map<TodoStatus, Long> stats = todoService.getTodoStats(tripId, userId);

@@ -125,19 +125,15 @@ public class PersonalExpenseWebController {
         String baseCurrency = personalExpenseService.getBaseCurrency(tripId, userId);
         TripDateRange dateRange = personalExpenseService.getTripDateRange(tripId, userId);
 
-        var expense = personalExpenseService.getPersonalExpenses(userId, tripId)
-                .stream()
-                .filter(e -> id.equals(e.getId()))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("PersonalExpense", id.toString()));
+        var entity = personalExpenseService.getPersonalExpenseById(id, userId, tripId);
 
         UpdatePersonalExpenseRequest updateRequest = UpdatePersonalExpenseRequest.builder()
-                .description(expense.getDescription())
-                .amount(expense.getOriginalAmount())
-                .currency(expense.getOriginalCurrency())
-                .exchangeRate(expense.getExchangeRate())
-                .category(expense.getCategory())
-                .expenseDate(expense.getExpenseDate())
+                .description(entity.getDescription())
+                .amount(entity.getAmount())
+                .currency(entity.getCurrency())
+                .exchangeRate(entity.getExchangeRate())
+                .category(entity.getCategory())
+                .expenseDate(entity.getExpenseDate())
                 .build();
 
         model.addAttribute("tripId", tripId);

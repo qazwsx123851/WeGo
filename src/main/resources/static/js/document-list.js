@@ -158,7 +158,7 @@ const DocumentList = (() => {
         overlay.classList.remove('opacity-0', 'pointer-events-none');
         overlay.classList.add('opacity-100');
 
-        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const prefersReducedMotion = WeGo._reducedMotion;
 
         if (prefersReducedMotion) {
             const lottieEl = document.getElementById('success-lottie');

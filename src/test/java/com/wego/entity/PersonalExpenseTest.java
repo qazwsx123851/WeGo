@@ -135,9 +135,9 @@ class PersonalExpenseTest {
                     .exchangeRate(new BigDecimal("4.500000"))
                     .build();
 
-            // 33.33 * 4.5 = 149.985000
+            // 33.33 * 4.5 = 149.985000, rounded to 2 decimal places = 149.99
             BigDecimal result = expense.getAmountInBaseCurrency();
-            assertEquals(0, new BigDecimal("149.985000").compareTo(result));
+            assertEquals(0, new BigDecimal("149.99").compareTo(result));
         }
     }
 

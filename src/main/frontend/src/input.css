@@ -771,6 +771,15 @@ html.dark .flatpickr-day.today:not(.selected) {
   animation: none;
 }
 
+/* Landing Page Scene Animation Container */
+#animation-stage {
+  transition: opacity 0.4s ease;
+}
+
+.scene-dot {
+  @apply w-2 h-2 rounded-full transition-colors duration-300;
+}
+
 /* Scroll-triggered reveal (used with WeGo.anime.onVisible) */
 .scroll-reveal {
   opacity: 0;

@@ -149,7 +149,7 @@ public class Todo {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return getClass().hashCode();
     }
 
     @Override

@@ -70,9 +70,11 @@ const ExpenseForm = {
     bindEvents() {
         // Amount change triggers recalculation and rate preview
         if (this.amountInput) {
+            let rateDebounceTimer = null;
             this.amountInput.addEventListener('input', () => {
                 this.calculateSplitAmounts();
-                this.updateRatePreview();
+                clearTimeout(rateDebounceTimer);
+                rateDebounceTimer = setTimeout(() => this.updateRatePreview(), 400);
             });
         }
 

@@ -96,6 +96,20 @@ public class PersonalExpenseService {
     }
 
     /**
+     * Gets a single personal expense by ID with ownership validation.
+     *
+     * @param id The personal expense ID
+     * @param userId The user ID (owner)
+     * @param tripId The trip ID
+     * @return The personal expense entity
+     * @throws ResourceNotFoundException if not found
+     */
+    public PersonalExpense getPersonalExpenseById(UUID id, UUID userId, UUID tripId) {
+        return personalExpenseRepository.findByIdAndUserIdAndTripId(id, userId, tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("PersonalExpense", id.toString()));
+    }
+
+    /**
      * Returns a summary of personal expenses including totals, daily breakdown, and budget status.
      *
      * @contract

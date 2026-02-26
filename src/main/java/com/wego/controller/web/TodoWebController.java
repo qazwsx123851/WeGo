@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.List;
-import java.util.Map;
+
 import java.util.UUID;
 
 /**
@@ -66,15 +66,12 @@ public class TodoWebController extends BaseWebController {
             return "redirect:/dashboard?error=trip_not_found";
         }
 
-        // Get todos
+        // Get todos and compute stats from the list (avoids separate stats query)
         List<TodoResponse> todos = todoService.getTodosByTrip(tripId, user.getId());
-
-        // Get stats
-        Map<TodoStatus, Long> stats = todoService.getTodoStats(tripId, user.getId());
-        long totalTodos = stats.values().stream().mapToLong(Long::longValue).sum();
-        long completedTodos = stats.getOrDefault(TodoStatus.COMPLETED, 0L);
-        long pendingTodos = stats.getOrDefault(TodoStatus.PENDING, 0L);
-        long inProgressTodos = stats.getOrDefault(TodoStatus.IN_PROGRESS, 0L);
+        long totalTodos = todos.size();
+        long completedTodos = todos.stream().filter(t -> t.getStatus() == TodoStatus.COMPLETED).count();
+        long pendingTodos = todos.stream().filter(t -> t.getStatus() == TodoStatus.PENDING).count();
+        long inProgressTodos = todos.stream().filter(t -> t.getStatus() == TodoStatus.IN_PROGRESS).count();
 
         // Find current member's role
         TripResponse.MemberSummary currentMember = findCurrentMember(trip, user.getId());

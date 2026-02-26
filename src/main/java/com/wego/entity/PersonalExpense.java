@@ -39,7 +39,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "personal_expenses", indexes = {
     @Index(name = "idx_personal_expense_user_id", columnList = "user_id"),
-    @Index(name = "idx_personal_expense_user_trip", columnList = "user_id, trip_id")
+    @Index(name = "idx_personal_expense_user_trip", columnList = "user_id, trip_id"),
+    @Index(name = "idx_personal_expense_trip_id", columnList = "trip_id")
 })
 @Getter
 @Setter
@@ -105,7 +106,7 @@ public class PersonalExpense {
         if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) == 0) {
             return amount;
         }
-        return amount.multiply(exchangeRate);
+        return amount.multiply(exchangeRate).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     /**
@@ -121,7 +122,7 @@ public class PersonalExpense {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return getClass().hashCode();
     }
 
     @Override

@@ -17,11 +17,12 @@
      * @param {string} text - The text to escape
      * @returns {string} The escaped text
      */
+    var _escapeDiv = null;
     WeGo.escapeHtml = function(text) {
         if (text == null) return '';
-        var div = document.createElement('div');
-        div.textContent = String(text);
-        return div.innerHTML;
+        if (!_escapeDiv) _escapeDiv = document.createElement('div');
+        _escapeDiv.textContent = String(text);
+        return _escapeDiv.innerHTML;
     };
 
     /**
@@ -32,12 +33,16 @@
      * @returns {string} CSRF token value
      * @throws {Error} if CSRF meta tag is not found
      */
+    var _csrfToken = null;
+    var _csrfHeader = null;
     WeGo.getCsrfToken = function() {
+        if (_csrfToken !== null) return _csrfToken;
         var meta = document.querySelector('meta[name="_csrf"]');
         if (!meta || !meta.getAttribute('content')) {
             throw new Error('CSRF token not found');
         }
-        return meta.getAttribute('content');
+        _csrfToken = meta.getAttribute('content');
+        return _csrfToken;
     };
 
     /**
@@ -48,8 +53,10 @@
      * @returns {string} CSRF header name (default: 'X-CSRF-TOKEN')
      */
     WeGo.getCsrfHeader = function() {
+        if (_csrfHeader !== null) return _csrfHeader;
         var meta = document.querySelector('meta[name="_csrf_header"]');
-        return meta ? meta.getAttribute('content') : 'X-CSRF-TOKEN';
+        _csrfHeader = meta ? meta.getAttribute('content') : 'X-CSRF-TOKEN';
+        return _csrfHeader;
     };
 
     /**

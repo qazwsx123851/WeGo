@@ -93,7 +93,7 @@ public class ExpenseService {
         var trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip", tripId.toString()));
 
-        // Validate paidBy is a trip member or active ghost member
+        // Validate paidBy is a trip member or active ghost member (computed once, reused in split validation)
         Set<UUID> validParticipantIds = getAllValidParticipantIds(tripId);
         if (!validParticipantIds.contains(request.getPaidBy())) {
             throw new ValidationException("INVALID_PAYER", "付款人不是行程成員");
@@ -121,8 +121,8 @@ public class ExpenseService {
 
         expense = expenseRepository.save(expense);
 
-        // Create expense splits
-        List<ExpenseSplit> splits = createExpenseSplits(expense, request, tripId);
+        // Create expense splits (reuse pre-computed validParticipantIds)
+        List<ExpenseSplit> splits = createExpenseSplits(expense, request, tripId, validParticipantIds);
         expenseSplitRepository.saveAll(splits);
 
         log.info("Created expense {} for trip {}", expense.getId(), tripId);
@@ -380,11 +380,15 @@ public class ExpenseService {
      *   - throws: ValidationException if validation fails
      */
     private List<ExpenseSplit> createExpenseSplits(Expense expense, CreateExpenseRequest request, UUID tripId) {
+        return createExpenseSplits(expense, request, tripId, getAllValidParticipantIds(tripId));
+    }
+
+    private List<ExpenseSplit> createExpenseSplits(Expense expense, CreateExpenseRequest request, UUID tripId, Set<UUID> validParticipantIds) {
         List<ExpenseSplit> splits = new ArrayList<>();
 
         // Validate splits for CUSTOM and PERCENTAGE types
         if (request.getSplits() != null && !request.getSplits().isEmpty()) {
-            validateSplitUserIds(request.getSplits(), tripId);
+            validateSplitUserIds(request.getSplits(), validParticipantIds);
 
             if (expense.getSplitType() == SplitType.CUSTOM) {
                 validateCustomSplitAmounts(request.getSplits(), expense.getAmount());
@@ -501,8 +505,10 @@ public class ExpenseService {
      *   - throws: ValidationException if any userId is not a trip member
      */
     private void validateSplitUserIds(List<CreateExpenseRequest.SplitRequest> splitRequests, UUID tripId) {
-        Set<UUID> validIds = getAllValidParticipantIds(tripId);
+        validateSplitUserIds(splitRequests, getAllValidParticipantIds(tripId));
+    }
 
+    private void validateSplitUserIds(List<CreateExpenseRequest.SplitRequest> splitRequests, Set<UUID> validIds) {
         for (CreateExpenseRequest.SplitRequest split : splitRequests) {
             if (split.getUserId() != null && !validIds.contains(split.getUserId())) {
                 throw new ValidationException("INVALID_SPLIT_USER",

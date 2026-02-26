@@ -18,7 +18,7 @@ const ActivityList = (() => {
 
         const chevron = header.querySelector('.chevron-icon');
         const isCollapsed = content.classList.contains('max-h-0');
-        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const prefersReducedMotion = WeGo._reducedMotion;
 
         if (content._cleanupTimer) clearTimeout(content._cleanupTimer);
         if (content._cleanup) {
@@ -170,7 +170,7 @@ const ActivityList = (() => {
             if (loadingAnimation) loadingAnimation.stop();
         }
 
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches && loadingAnimation) {
+        if (WeGo._reducedMotion && loadingAnimation) {
             loadingAnimation.setSpeed(0.5);
         }
 
@@ -259,7 +259,7 @@ const ActivityList = (() => {
         var parent = items[0].closest('.activity-group-content') || items[0].parentElement;
         if (parent) parent.classList.add('js-animated');
 
-        var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var reducedMotion = WeGo._reducedMotion;
         if (reducedMotion || typeof anime === 'undefined') {
             items.forEach(function(el) {
                 el.style.opacity = '1';

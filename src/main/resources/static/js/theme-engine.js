@@ -22,7 +22,7 @@ class ThemeEngine {
         this.root.style.setProperty('--color-primary-500', rgbValue);
         this.root.style.setProperty('--color-primary-400', this.adjustLuminance(rgbValue, 0.2));
         this.root.style.setProperty('--color-primary-600', this.adjustLuminance(rgbValue, -0.2));
-        console.log(`[ThemeEngine] Dynamic Context Color Applied: ${rgbValue}`);
+
     }
 
     adjustLuminance(rgb, percent) {

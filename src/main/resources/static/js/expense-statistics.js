@@ -9,7 +9,7 @@ const ExpenseStatistics = {
     /** Trip ID */
     tripId: '',
     /** Respect prefers-reduced-motion */
-    prefersReducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    prefersReducedMotion: (typeof WeGo !== 'undefined') ? WeGo._reducedMotion : false,
     /** Chart instances */
     charts: {
         category: null,
@@ -539,7 +539,7 @@ const ExpenseStatistics = {
         if (!listEl) return;
 
         var canStagger = typeof WeGo !== 'undefined' && WeGo.anime && WeGo.anime.staggerIn
-            && typeof anime !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            && typeof anime !== 'undefined' && !WeGo._reducedMotion;
         var staggerStyle = canStagger ? ' style="opacity:0;transform:translateY(20px)"' : '';
 
         listEl.innerHTML = members.map(member => {

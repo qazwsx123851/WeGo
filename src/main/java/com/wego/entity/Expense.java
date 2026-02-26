@@ -119,7 +119,7 @@ public class Expense {
         if (exchangeRate == null || exchangeRate.compareTo(BigDecimal.ZERO) == 0) {
             return amount;
         }
-        return amount.multiply(exchangeRate);
+        return amount.multiply(exchangeRate).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     /**
@@ -135,7 +135,7 @@ public class Expense {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return getClass().hashCode();
     }
 
     @Override

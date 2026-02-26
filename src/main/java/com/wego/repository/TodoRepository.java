@@ -108,6 +108,15 @@ public interface TodoRepository extends JpaRepository<Todo, UUID> {
     long countByTripIdAndStatus(UUID tripId, TodoStatus status);
 
     /**
+     * Counts todos grouped by status in a single query.
+     *
+     * @param tripId The trip ID
+     * @return List of [TodoStatus, count] pairs
+     */
+    @Query("SELECT t.status, COUNT(t) FROM Todo t WHERE t.tripId = :tripId GROUP BY t.status")
+    List<Object[]> countByTripIdGroupedByStatus(@Param("tripId") UUID tripId);
+
+    /**
      * Counts all todos in a trip.
      *
      * @param tripId The trip ID

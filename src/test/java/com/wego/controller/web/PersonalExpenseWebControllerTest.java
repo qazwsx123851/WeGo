@@ -1,6 +1,7 @@
 package com.wego.controller.web;
 
 import com.wego.dto.response.PersonalExpenseItemResponse;
+import com.wego.entity.PersonalExpense;
 import com.wego.entity.User;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
@@ -179,19 +180,18 @@ class PersonalExpenseWebControllerTest {
         void showEditForm_shouldReturnView() throws Exception {
             UUID expenseId = UUID.randomUUID();
 
-            PersonalExpenseItemResponse item = PersonalExpenseItemResponse.builder()
-                    .source(PersonalExpenseItemResponse.Source.MANUAL)
+            PersonalExpense entity = PersonalExpense.builder()
                     .id(expenseId)
                     .description("Taxi")
                     .amount(new BigDecimal("300"))
-                    .originalAmount(new BigDecimal("300"))
-                    .originalCurrency("TWD")
+                    .currency("TWD")
+                    .exchangeRate(null)
                     .category("Transport")
                     .expenseDate(LocalDate.of(2024, 3, 10))
                     .build();
 
-            when(personalExpenseService.getPersonalExpenses(any(), eq(tripId)))
-                    .thenReturn(List.of(item));
+            when(personalExpenseService.getPersonalExpenseById(eq(expenseId), any(), eq(tripId)))
+                    .thenReturn(entity);
 
             mockMvc.perform(get("/trips/{tripId}/personal-expenses/{id}/edit", tripId, expenseId)
                     .with(SecurityMockMvcRequestPostProcessors.oauth2Login()
@@ -210,8 +210,8 @@ class PersonalExpenseWebControllerTest {
         void showEditForm_notFound_shouldThrow() throws Exception {
             UUID expenseId = UUID.randomUUID();
 
-            when(personalExpenseService.getPersonalExpenses(any(), eq(tripId)))
-                    .thenReturn(List.of());
+            when(personalExpenseService.getPersonalExpenseById(eq(expenseId), any(), eq(tripId)))
+                    .thenThrow(new ResourceNotFoundException("PersonalExpense", expenseId.toString()));
 
             mockMvc.perform(get("/trips/{tripId}/personal-expenses/{id}/edit", tripId, expenseId)
                     .with(SecurityMockMvcRequestPostProcessors.oauth2Login()

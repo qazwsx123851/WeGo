@@ -31,7 +31,7 @@ const ExpenseList = (() => {
 
         const chevron = header.querySelector('.chevron-icon');
         const isCollapsed = content.classList.contains('max-h-0');
-        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const prefersReducedMotion = WeGo._reducedMotion;
 
         if (isCollapsed) {
             // Expand
@@ -107,24 +107,22 @@ const ExpenseList = (() => {
 
     function fetchExpenseDetail(expenseId) {
         const tripId = getTripId();
-        WeGo.fetchWithTimeout('/api/trips/' + tripId + '/expenses')
+        WeGo.fetchWithTimeout('/api/trips/' + tripId + '/expenses/' + expenseId)
             .then(function(response) {
                 if (response.ok) {
                     return response.json().then(function(result) {
                         if (result.success && result.data) {
-                            const expense = result.data.find(function(e) { return e.id === expenseId; });
-                            if (expense) {
-                                currentExpenseData = expense;
-                                renderExpenseDetail(expense);
-                            } else {
-                                Toast.error('找不到支出記錄');
-                                closeExpenseModal();
-                            }
+                            currentExpenseData = result.data;
+                            renderExpenseDetail(result.data);
+                        } else {
+                            Toast.error('找不到支出記錄');
+                            closeExpenseModal();
                         }
                     });
+                } else {
+                    // Use cached data from card
+                    renderExpenseDetail(currentExpenseData);
                 }
-                // Use cached data from card
-                renderExpenseDetail(currentExpenseData);
             })
             .catch(function() {
                 // Use cached data from card

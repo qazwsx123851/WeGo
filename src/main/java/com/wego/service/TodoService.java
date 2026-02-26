@@ -308,15 +308,16 @@ public class TodoService {
             throw new ForbiddenException("No permission to view this trip");
         }
 
-        long pending = todoRepository.countByTripIdAndStatus(tripId, TodoStatus.PENDING);
-        long inProgress = todoRepository.countByTripIdAndStatus(tripId, TodoStatus.IN_PROGRESS);
-        long completed = todoRepository.countByTripIdAndStatus(tripId, TodoStatus.COMPLETED);
+        List<Object[]> grouped = todoRepository.countByTripIdGroupedByStatus(tripId);
+        Map<TodoStatus, Long> stats = new java.util.EnumMap<>(TodoStatus.class);
+        stats.put(TodoStatus.PENDING, 0L);
+        stats.put(TodoStatus.IN_PROGRESS, 0L);
+        stats.put(TodoStatus.COMPLETED, 0L);
+        for (Object[] row : grouped) {
+            stats.put((TodoStatus) row[0], (Long) row[1]);
+        }
 
-        return Map.of(
-                TodoStatus.PENDING, pending,
-                TodoStatus.IN_PROGRESS, inProgress,
-                TodoStatus.COMPLETED, completed
-        );
+        return stats;
     }
 
     /**
@@ -334,22 +335,7 @@ public class TodoService {
      * Builds a TodoResponse from a Todo entity with user details.
      */
     private TodoResponse buildTodoResponse(Todo todo) {
-        TodoResponse response = TodoResponse.fromEntity(todo);
-
-        // Get assignee info
-        if (todo.getAssigneeId() != null) {
-            userRepository.findById(todo.getAssigneeId()).ifPresent(user -> {
-                response.setAssigneeName(user.getNickname());
-                response.setAssigneeAvatarUrl(user.getAvatarUrl());
-            });
-        }
-
-        // Get creator info
-        userRepository.findById(todo.getCreatedBy()).ifPresent(user -> {
-            response.setCreatedByName(user.getNickname());
-        });
-
-        return response;
+        return buildTodoResponses(List.of(todo)).get(0);
     }
 
     /**

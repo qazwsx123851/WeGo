@@ -95,11 +95,12 @@ public class TripViewHelper {
      */
     public TodoPreview getTodoPreview(UUID tripId, UUID userId) {
         try {
-            Map<TodoStatus, Long> stats = todoService.getTodoStats(tripId, userId);
-            long totalTodos = stats.values().stream().mapToLong(Long::longValue).sum();
-            long completedTodos = stats.getOrDefault(TodoStatus.COMPLETED, 0L);
-
             List<TodoResponse> allTodos = todoService.getTodosByTrip(tripId, userId);
+            long totalTodos = allTodos.size();
+            long completedTodos = allTodos.stream()
+                    .filter(t -> t.getStatus() == TodoStatus.COMPLETED)
+                    .count();
+
             List<TodoResponse> upcomingTodos = allTodos.stream()
                     .filter(t -> t.getStatus() == TodoStatus.PENDING || t.getStatus() == TodoStatus.IN_PROGRESS)
                     .limit(3)
