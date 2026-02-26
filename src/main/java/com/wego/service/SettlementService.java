@@ -7,13 +7,11 @@ import com.wego.domain.settlement.Settlement;
 import com.wego.dto.response.SettlementResponse;
 import com.wego.entity.Expense;
 import com.wego.entity.ExpenseSplit;
-import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
 import com.wego.repository.TripRepository;
-import com.wego.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
@@ -29,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -53,7 +50,7 @@ public class SettlementService {
     private final ExpenseRepository expenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
     private final TripRepository tripRepository;
-    private final UserRepository userRepository;
+    private final ParticipantResolver participantResolver;
     private final PermissionChecker permissionChecker;
     private final DebtSimplifier debtSimplifier;
     private final ExchangeRateService exchangeRateService;
@@ -70,7 +67,7 @@ public class SettlementService {
      * @param expenseRepository Expense repository
      * @param expenseSplitRepository ExpenseSplit repository
      * @param tripRepository Trip repository
-     * @param userRepository User repository
+     * @param participantResolver Participant resolver for User + GhostMember name lookup
      * @param permissionChecker Permission checker
      * @param debtSimplifier Debt simplifier algorithm
      * @param exchangeRateService Exchange rate service (optional, can be null)
@@ -81,7 +78,7 @@ public class SettlementService {
             ExpenseRepository expenseRepository,
             ExpenseSplitRepository expenseSplitRepository,
             TripRepository tripRepository,
-            UserRepository userRepository,
+            ParticipantResolver participantResolver,
             PermissionChecker permissionChecker,
             DebtSimplifier debtSimplifier,
             @Nullable ExchangeRateService exchangeRateService,
@@ -90,7 +87,7 @@ public class SettlementService {
         this.expenseRepository = expenseRepository;
         this.expenseSplitRepository = expenseSplitRepository;
         this.tripRepository = tripRepository;
-        this.userRepository = userRepository;
+        this.participantResolver = participantResolver;
         this.permissionChecker = permissionChecker;
         this.debtSimplifier = debtSimplifier;
         this.exchangeRateService = exchangeRateService;
@@ -148,27 +145,29 @@ public class SettlementService {
         // Calculate total expenses (converted to base currency)
         BigDecimal totalExpenses = calculateTotalInBaseCurrency(expenses, baseCurrency, conversionWarnings);
 
-        // Get user info for settlements
-        List<UUID> userIds = settlements.stream()
+        // Get participant info for settlements (resolves both User and GhostMember)
+        Set<UUID> participantIds = settlements.stream()
                 .flatMap(s -> java.util.stream.Stream.of(s.getFromUserId(), s.getToUserId()))
-                .distinct()
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
 
-        Map<UUID, User> userMap = getUserMap(userIds);
+        Map<UUID, ParticipantResolver.ParticipantInfo> participantMap =
+                participantResolver.resolveAll(participantIds);
 
         // Build response
         List<SettlementResponse.SettlementItemResponse> settlementItems = settlements.stream()
                 .map(settlement -> {
-                    User fromUser = userMap.get(settlement.getFromUserId());
-                    User toUser = userMap.get(settlement.getToUserId());
+                    ParticipantResolver.ParticipantInfo fromInfo = participantMap.get(settlement.getFromUserId());
+                    ParticipantResolver.ParticipantInfo toInfo = participantMap.get(settlement.getToUserId());
 
                     return SettlementResponse.SettlementItemResponse.builder()
                             .fromUserId(settlement.getFromUserId())
-                            .fromUserName(fromUser != null ? fromUser.getNickname() : TripConstants.UNKNOWN_USER_NAME)
-                            .fromUserAvatarUrl(fromUser != null ? fromUser.getAvatarUrl() : null)
+                            .fromUserName(fromInfo != null ? fromInfo.nickname() : TripConstants.UNKNOWN_USER_NAME)
+                            .fromUserAvatarUrl(fromInfo != null ? fromInfo.avatarUrl() : null)
+                            .fromIsGhost(fromInfo != null && fromInfo.isGhost())
                             .toUserId(settlement.getToUserId())
-                            .toUserName(toUser != null ? toUser.getNickname() : TripConstants.UNKNOWN_USER_NAME)
-                            .toUserAvatarUrl(toUser != null ? toUser.getAvatarUrl() : null)
+                            .toUserName(toInfo != null ? toInfo.nickname() : TripConstants.UNKNOWN_USER_NAME)
+                            .toUserAvatarUrl(toInfo != null ? toInfo.avatarUrl() : null)
+                            .toIsGhost(toInfo != null && toInfo.isGhost())
                             .amount(settlement.getAmount())
                             .build();
                 })
@@ -494,14 +493,4 @@ public class SettlementService {
                 ));
     }
 
-    /**
-     * Gets a map of user IDs to User entities.
-     */
-    private Map<UUID, User> getUserMap(List<UUID> userIds) {
-        if (userIds.isEmpty()) {
-            return Map.of();
-        }
-        return userRepository.findAllById(userIds).stream()
-                .collect(Collectors.toMap(User::getId, Function.identity()));
-    }
 }

@@ -7,15 +7,16 @@ import com.wego.dto.response.ExpenseResponse;
 import com.wego.dto.response.ExpenseSplitResponse;
 import com.wego.entity.Expense;
 import com.wego.entity.ExpenseSplit;
+import com.wego.entity.GhostMember;
 import com.wego.entity.SplitType;
 import com.wego.entity.TripMember;
-import com.wego.entity.User;
 import com.wego.exception.BusinessException;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
 import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
+import com.wego.repository.GhostMemberRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
@@ -33,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -57,6 +57,8 @@ public class ExpenseService {
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
     private final UserRepository userRepository;
+    private final GhostMemberRepository ghostMemberRepository;
+    private final ParticipantResolver participantResolver;
     private final PermissionChecker permissionChecker;
     private final SettlementService settlementService;
 
@@ -91,12 +93,9 @@ public class ExpenseService {
         var trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip", tripId.toString()));
 
-        // Validate paidBy is a trip member
-        List<TripMember> members = tripMemberRepository.findByTripId(tripId);
-        Set<UUID> memberUserIds = members.stream()
-                .map(TripMember::getUserId)
-                .collect(Collectors.toSet());
-        if (!memberUserIds.contains(request.getPaidBy())) {
+        // Validate paidBy is a trip member or active ghost member
+        Set<UUID> validParticipantIds = getAllValidParticipantIds(tripId);
+        if (!validParticipantIds.contains(request.getPaidBy())) {
             throw new ValidationException("INVALID_PAYER", "付款人不是行程成員");
         }
 
@@ -225,6 +224,11 @@ public class ExpenseService {
             expense.setCurrency(request.getCurrency());
         }
         if (request.getPaidBy() != null) {
+            // Validate paidBy is a trip member or active ghost member (CRITICAL: prevent cross-trip ghost injection)
+            Set<UUID> validParticipantIds = getAllValidParticipantIds(expense.getTripId());
+            if (!validParticipantIds.contains(request.getPaidBy())) {
+                throw new ValidationException("INVALID_PAYER", "付款人不是行程成員");
+            }
             expense.setPaidBy(request.getPaidBy());
         }
         if (request.getCategory() != null) {
@@ -398,9 +402,15 @@ public class ExpenseService {
                             .map(CreateExpenseRequest.SplitRequest::getUserId)
                             .toList();
                 } else {
-                    participantUserIds = tripMemberRepository.findByTripId(tripId).stream()
+                    // Include both real members and active ghost members
+                    List<UUID> memberIds = tripMemberRepository.findByTripId(tripId).stream()
                             .map(TripMember::getUserId)
                             .toList();
+                    List<UUID> ghostIds = ghostMemberRepository.findByTripIdAndMergedToUserIdIsNull(tripId).stream()
+                            .map(GhostMember::getId)
+                            .toList();
+                    participantUserIds = new ArrayList<>(memberIds);
+                    participantUserIds.addAll(ghostIds);
                 }
 
                 if (participantUserIds.isEmpty()) {
@@ -491,16 +501,30 @@ public class ExpenseService {
      *   - throws: ValidationException if any userId is not a trip member
      */
     private void validateSplitUserIds(List<CreateExpenseRequest.SplitRequest> splitRequests, UUID tripId) {
-        Set<UUID> memberIds = tripMemberRepository.findByTripId(tripId).stream()
-                .map(TripMember::getUserId)
-                .collect(Collectors.toSet());
+        Set<UUID> validIds = getAllValidParticipantIds(tripId);
 
         for (CreateExpenseRequest.SplitRequest split : splitRequests) {
-            if (split.getUserId() != null && !memberIds.contains(split.getUserId())) {
+            if (split.getUserId() != null && !validIds.contains(split.getUserId())) {
                 throw new ValidationException("INVALID_SPLIT_USER",
                         "分帳用戶不是行程成員: " + split.getUserId());
             }
         }
+    }
+
+    /**
+     * Gets all valid participant IDs for a trip (real members + active ghost members).
+     * Used for payer and split member validation.
+     *
+     * @contract
+     *   - post: Returns Set containing User.id from TripMembers AND GhostMember.id (active only)
+     */
+    private Set<UUID> getAllValidParticipantIds(UUID tripId) {
+        Set<UUID> validIds = tripMemberRepository.findByTripId(tripId).stream()
+                .map(TripMember::getUserId)
+                .collect(Collectors.toSet());
+        ghostMemberRepository.findByTripIdAndMergedToUserIdIsNull(tripId)
+                .forEach(g -> validIds.add(g.getId()));
+        return validIds;
     }
 
     /**
@@ -554,28 +578,31 @@ public class ExpenseService {
         // 1 query: get splits
         List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expense.getId());
 
-        // Collect ALL user IDs (payer + split participants) for single batch query
-        Set<UUID> allUserIds = new HashSet<>();
-        allUserIds.add(expense.getPaidBy());
-        splits.forEach(s -> allUserIds.add(s.getUserId()));
+        // Collect ALL participant IDs (payer + split participants) for batch resolve
+        Set<UUID> allParticipantIds = new HashSet<>();
+        allParticipantIds.add(expense.getPaidBy());
+        splits.forEach(s -> allParticipantIds.add(s.getUserId()));
 
-        // 1 query: batch load all users
-        Map<UUID, User> userMap = getUserMap(new ArrayList<>(allUserIds));
+        // Max 2 queries: batch resolve from User + GhostMember tables
+        Map<UUID, ParticipantResolver.ParticipantInfo> participantMap =
+                participantResolver.resolveAll(allParticipantIds);
 
-        // Set payer info from map (no separate query)
-        User payer = userMap.get(expense.getPaidBy());
+        // Set payer info
+        ParticipantResolver.ParticipantInfo payer = participantMap.get(expense.getPaidBy());
         if (payer != null) {
-            response.setPaidByName(payer.getNickname());
-            response.setPaidByAvatarUrl(payer.getAvatarUrl());
+            response.setPaidByName(payer.nickname());
+            response.setPaidByAvatarUrl(payer.avatarUrl());
+            response.setPaidByIsGhost(payer.isGhost());
         }
 
         List<ExpenseSplitResponse> splitResponses = splits.stream()
                 .map(split -> {
                     ExpenseSplitResponse splitResponse = ExpenseSplitResponse.fromEntity(split);
-                    User user = userMap.get(split.getUserId());
-                    if (user != null) {
-                        splitResponse.setUserNickname(user.getNickname());
-                        splitResponse.setUserAvatarUrl(user.getAvatarUrl());
+                    ParticipantResolver.ParticipantInfo info = participantMap.get(split.getUserId());
+                    if (info != null) {
+                        splitResponse.setUserNickname(info.nickname());
+                        splitResponse.setUserAvatarUrl(info.avatarUrl());
+                        splitResponse.setGhost(info.isGhost());
                     }
                     return splitResponse;
                 })
@@ -600,33 +627,36 @@ public class ExpenseService {
         Map<UUID, List<ExpenseSplit>> splitsByExpenseId = allSplits.stream()
                 .collect(Collectors.groupingBy(ExpenseSplit::getExpenseId));
 
-        // Collect all user IDs (payers + split participants)
-        Set<UUID> allUserIds = new HashSet<>();
-        expenses.forEach(e -> allUserIds.add(e.getPaidBy()));
-        allSplits.forEach(s -> allUserIds.add(s.getUserId()));
+        // Collect all participant IDs (payers + split participants)
+        Set<UUID> allParticipantIds = new HashSet<>();
+        expenses.forEach(e -> allParticipantIds.add(e.getPaidBy()));
+        allSplits.forEach(s -> allParticipantIds.add(s.getUserId()));
 
-        // 1 query: batch load all users
-        Map<UUID, User> userMap = getUserMap(new ArrayList<>(allUserIds));
+        // Max 2 queries: batch resolve from User + GhostMember tables
+        Map<UUID, ParticipantResolver.ParticipantInfo> participantMap =
+                participantResolver.resolveAll(allParticipantIds);
 
         // Map in memory — no additional DB queries
         return expenses.stream()
                 .map(expense -> {
                     ExpenseResponse response = ExpenseResponse.fromEntity(expense);
 
-                    User payer = userMap.get(expense.getPaidBy());
+                    ParticipantResolver.ParticipantInfo payer = participantMap.get(expense.getPaidBy());
                     if (payer != null) {
-                        response.setPaidByName(payer.getNickname());
-                        response.setPaidByAvatarUrl(payer.getAvatarUrl());
+                        response.setPaidByName(payer.nickname());
+                        response.setPaidByAvatarUrl(payer.avatarUrl());
+                        response.setPaidByIsGhost(payer.isGhost());
                     }
 
                     List<ExpenseSplit> splits = splitsByExpenseId.getOrDefault(expense.getId(), List.of());
                     List<ExpenseSplitResponse> splitResponses = splits.stream()
                             .map(split -> {
                                 ExpenseSplitResponse splitResponse = ExpenseSplitResponse.fromEntity(split);
-                                User user = userMap.get(split.getUserId());
-                                if (user != null) {
-                                    splitResponse.setUserNickname(user.getNickname());
-                                    splitResponse.setUserAvatarUrl(user.getAvatarUrl());
+                                ParticipantResolver.ParticipantInfo info = participantMap.get(split.getUserId());
+                                if (info != null) {
+                                    splitResponse.setUserNickname(info.nickname());
+                                    splitResponse.setUserAvatarUrl(info.avatarUrl());
+                                    splitResponse.setGhost(info.isGhost());
                                 }
                                 return splitResponse;
                             })
@@ -636,14 +666,6 @@ public class ExpenseService {
                     return response;
                 })
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Gets a map of user IDs to User entities.
-     */
-    private Map<UUID, User> getUserMap(List<UUID> userIds) {
-        return userRepository.findAllById(userIds).stream()
-                .collect(Collectors.toMap(User::getId, Function.identity()));
     }
 
     /**

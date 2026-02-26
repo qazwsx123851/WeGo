@@ -282,4 +282,69 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID
         java.time.LocalDate getExpenseDate();
         UUID getPaidBy();
     }
+
+    // ========== Ghost Member Methods ==========
+
+    /**
+     * Checks if any expense split in a trip involves a specific participant.
+     * Used to prevent removal of ghost members with existing splits.
+     *
+     * @contract
+     *   - pre: userId != null, tripId != null
+     *   - post: Returns true if any split exists for this user in the trip
+     *   - calledBy: GhostMemberService#removeGhostMember
+     *
+     * @param userId The participant UUID (User.id or GhostMember.id)
+     * @param tripId The trip ID
+     * @return true if splits exist
+     */
+    @Query("SELECT COUNT(es) > 0 FROM ExpenseSplit es JOIN Expense e ON es.expenseId = e.id " +
+           "WHERE es.userId = :userId AND e.tripId = :tripId")
+    boolean existsByUserIdAndTripId(@Param("userId") UUID userId, @Param("tripId") UUID tripId);
+
+    /**
+     * Bulk updates userId for all splits in a trip's expenses.
+     * Used during ghost member merge to transfer split identity.
+     *
+     * @contract
+     *   - pre: Must be called within a @Transactional context
+     *   - post: All matching splits have userId updated
+     *   - calledBy: GhostMemberService#mergeGhostToUser
+     *
+     * @param tripId The trip ID
+     * @param oldUserId The UUID to replace (ghost member)
+     * @param newUserId The UUID to set (real user)
+     * @return Number of updated rows
+     */
+    @Modifying
+    @Query("UPDATE ExpenseSplit es SET es.userId = :newUserId " +
+           "WHERE es.userId = :oldUserId AND es.expenseId IN " +
+           "(SELECT e.id FROM Expense e WHERE e.tripId = :tripId)")
+    int updateUserIdForTrip(@Param("tripId") UUID tripId,
+                            @Param("oldUserId") UUID oldUserId,
+                            @Param("newUserId") UUID newUserId);
+
+    /**
+     * Finds duplicate splits (same expenseId + userId) that may result from a merge.
+     * After a merge, the same expense may have two splits for the same user.
+     *
+     * @contract
+     *   - pre: Must be called after updateUserIdForTrip within the same transaction
+     *   - post: Returns splits grouped by expenseId where userId appears more than once
+     *   - calledBy: GhostMemberService#mergeGhostToUser
+     *
+     * @param userId The merged user's UUID
+     * @param tripId The trip ID
+     * @return List of splits that have duplicates
+     */
+    @Query("SELECT es FROM ExpenseSplit es JOIN Expense e ON es.expenseId = e.id " +
+           "WHERE es.userId = :userId AND e.tripId = :tripId " +
+           "AND es.expenseId IN (" +
+           "  SELECT es2.expenseId FROM ExpenseSplit es2 " +
+           "  JOIN Expense e2 ON es2.expenseId = e2.id " +
+           "  WHERE es2.userId = :userId AND e2.tripId = :tripId " +
+           "  GROUP BY es2.expenseId HAVING COUNT(es2) > 1" +
+           ") ORDER BY es.expenseId, es.createdAt")
+    List<ExpenseSplit> findDuplicateSplitsByUserIdAndTripId(@Param("userId") UUID userId,
+                                                             @Param("tripId") UUID tripId);
 }

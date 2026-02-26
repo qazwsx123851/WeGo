@@ -38,6 +38,7 @@ public class ExpenseResponse {
     private UUID paidBy;
     private String paidByName;
     private String paidByAvatarUrl;
+    private boolean paidByIsGhost;
     private SplitType splitType;
     private List<ExpenseSplitResponse> splits;
     private String category;

@@ -16,6 +16,7 @@ import com.wego.repository.ActivityRepository;
 import com.wego.repository.DocumentRepository;
 import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
+import com.wego.repository.GhostMemberRepository;
 import com.wego.repository.InviteLinkRepository;
 import com.wego.repository.TodoRepository;
 import com.wego.repository.TripMemberRepository;
@@ -78,6 +79,9 @@ class TripServiceTest {
 
     @Mock
     private InviteLinkRepository inviteLinkRepository;
+
+    @Mock
+    private GhostMemberRepository ghostMemberRepository;
 
     @Mock
     private PermissionChecker permissionChecker;

@@ -10,6 +10,7 @@ import com.wego.entity.Trip;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.exception.ValidationException;
+import com.wego.repository.GhostMemberRepository;
 import com.wego.repository.InviteLinkRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
@@ -48,6 +49,7 @@ public class InviteLinkService {
     private final InviteLinkRepository inviteLinkRepository;
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
+    private final GhostMemberRepository ghostMemberRepository;
     private final TripService tripService;
     private final PermissionChecker permissionChecker;
 
@@ -135,9 +137,10 @@ public class InviteLinkService {
             throw new ValidationException("DUPLICATE_MEMBER", "已是行程成員");
         }
 
-        // Check member limit
-        long memberCount = tripMemberRepository.countByTripId(tripId);
-        if (memberCount >= MAX_MEMBERS_PER_TRIP) {
+        // Check member limit (real + ghost members)
+        long realCount = tripMemberRepository.countByTripId(tripId);
+        long ghostCount = ghostMemberRepository.countByTripIdAndMergedToUserIdIsNull(tripId);
+        if (realCount + ghostCount >= MAX_MEMBERS_PER_TRIP) {
             throw new ValidationException("MEMBER_LIMIT_EXCEEDED", "行程成員已達上限");
         }
 
@@ -254,7 +257,8 @@ public class InviteLinkService {
                     .build();
         }
 
-        long memberCount = tripMemberRepository.countByTripId(trip.getId());
+        long memberCount = tripMemberRepository.countByTripId(trip.getId())
+                + ghostMemberRepository.countByTripIdAndMergedToUserIdIsNull(trip.getId());
         boolean expiresWithin24h = link.getExpiresAt().isBefore(Instant.now().plus(24, ChronoUnit.HOURS));
 
         return InvitePageData.builder()

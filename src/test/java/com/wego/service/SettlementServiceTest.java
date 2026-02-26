@@ -9,7 +9,6 @@ import com.wego.entity.ExpenseSplit;
 import com.wego.entity.Role;
 import com.wego.entity.SplitType;
 import com.wego.entity.Trip;
-import com.wego.entity.TripMember;
 import com.wego.entity.User;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
@@ -17,7 +16,7 @@ import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
-import com.wego.repository.UserRepository;
+import com.wego.service.ParticipantResolver.ParticipantInfo;
 import com.wego.dto.response.ExchangeRateResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -67,10 +66,7 @@ class SettlementServiceTest {
     private TripRepository tripRepository;
 
     @Mock
-    private TripMemberRepository tripMemberRepository;
-
-    @Mock
-    private UserRepository userRepository;
+    private ParticipantResolver participantResolver;
 
     @Mock
     private PermissionChecker permissionChecker;
@@ -135,7 +131,7 @@ class SettlementServiceTest {
                 expenseRepository,
                 expenseSplitRepository,
                 tripRepository,
-                userRepository,
+                participantResolver,
                 permissionChecker,
                 debtSimplifier,
                 exchangeRateService,
@@ -193,7 +189,9 @@ class SettlementServiceTest {
             when(expenseSplitRepository.findByTripId(tripId))
                     .thenReturn(Arrays.asList(split1, split2));
             when(debtSimplifier.simplify(anyMap())).thenReturn(Collections.singletonList(settlement));
-            when(userRepository.findAllById(any())).thenReturn(Arrays.asList(testUser, testUser2));
+            when(participantResolver.resolveAll(any())).thenReturn(Map.of(
+                    userId, new ParticipantInfo(userId, "User 1", null, false),
+                    user2Id, new ParticipantInfo(user2Id, "User 2", null, false)));
 
             // When
             SettlementResponse response = settlementService.calculateSettlement(tripId, userId);
@@ -321,7 +319,9 @@ class SettlementServiceTest {
             when(expenseSplitRepository.findByTripId(tripId))
                     .thenReturn(Arrays.asList(split1_1, split1_2, split1_3, split2_1, split2_2, split2_3));
             when(debtSimplifier.simplify(anyMap())).thenReturn(Collections.singletonList(settlement1));
-            when(userRepository.findAllById(any())).thenReturn(Arrays.asList(testUser, testUser3));
+            when(participantResolver.resolveAll(any())).thenReturn(Map.of(
+                    userId, new ParticipantInfo(userId, "User 1", null, false),
+                    user3Id, new ParticipantInfo(user3Id, "User 3", null, false)));
 
             // When
             SettlementResponse response = settlementService.calculateSettlement(tripId, userId);
@@ -412,7 +412,9 @@ class SettlementServiceTest {
                     .build();
 
             when(debtSimplifier.simplify(anyMap())).thenReturn(Collections.singletonList(settlement));
-            when(userRepository.findAllById(any())).thenReturn(Arrays.asList(testUser, testUser2));
+            when(participantResolver.resolveAll(any())).thenReturn(Map.of(
+                    userId, new ParticipantInfo(userId, "User 1", null, false),
+                    user2Id, new ParticipantInfo(user2Id, "User 2", null, false)));
 
             // When
             SettlementResponse response = settlementService.calculateSettlement(tripId, userId);
@@ -541,7 +543,9 @@ class SettlementServiceTest {
             ArgumentCaptor<Map<UUID, BigDecimal>> balancesCaptor = ArgumentCaptor.forClass(Map.class);
             when(debtSimplifier.simplify(balancesCaptor.capture()))
                     .thenReturn(Collections.singletonList(expectedSettlement));
-            when(userRepository.findAllById(any())).thenReturn(Arrays.asList(testUser, testUser3));
+            when(participantResolver.resolveAll(any())).thenReturn(Map.of(
+                    userId, new ParticipantInfo(userId, "User 1", null, false),
+                    user3Id, new ParticipantInfo(user3Id, "User 3", null, false)));
 
             // When
             settlementService.calculateSettlement(tripId, userId);
@@ -695,7 +699,9 @@ class SettlementServiceTest {
                     .build();
 
             when(debtSimplifier.simplify(anyMap())).thenReturn(Collections.singletonList(settlement));
-            when(userRepository.findAllById(any())).thenReturn(Arrays.asList(testUser, testUser2));
+            when(participantResolver.resolveAll(any())).thenReturn(Map.of(
+                    userId, new ParticipantInfo(userId, "User 1", null, false),
+                    user2Id, new ParticipantInfo(user2Id, "User 2", null, false)));
 
             // When
             SettlementResponse response = settlementService.calculateSettlement(tripId, userId);

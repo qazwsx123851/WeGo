@@ -48,6 +48,7 @@ public class TripResponse {
         private String nickname;
         private String avatarUrl;
         private Role role;
+        private boolean isGhost;
     }
 
     /**

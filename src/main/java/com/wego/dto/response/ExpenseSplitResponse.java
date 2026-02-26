@@ -30,6 +30,7 @@ public class ExpenseSplitResponse {
     private UUID userId;
     private String userNickname;
     private String userAvatarUrl;
+    private boolean isGhost;
     private BigDecimal amount;
     private boolean isSettled;
     private Instant settledAt;

@@ -139,13 +139,20 @@
                                      class="w-full h-full object-cover"
                                      referrerpolicy="no-referrer">
                             </div>
-                            <div th:unless="${item.fromUserAvatarUrl != null}"
+                            <div th:if="${item.fromUserAvatarUrl == null and !item.fromIsGhost}"
                                  class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0 ring-2 ring-red-200 dark:ring-red-800">
                                 <span class="text-sm font-semibold text-red-600 dark:text-red-400"
                                       th:text="${item?.fromUserName?.length() > 0 ? #strings.substring(item.fromUserName, 0, 1) : '?'}">A</span>
                             </div>
+                            <div th:if="${item.fromUserAvatarUrl == null and item.fromIsGhost}"
+                                 class="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                                <span class="text-sm font-semibold text-gray-400 dark:text-gray-500"
+                                      th:text="${item?.fromUserName?.length() > 0 ? #strings.substring(item.fromUserName, 0, 1) : '?'}">A</span>
+                            </div>
                             <span class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate hidden sm:inline"
                                   th:text="${item.fromUserName}">付款人</span>
+                            <span th:if="${item.fromIsGhost}"
+                                  class="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400">虛擬</span>
                         </div>
 
                         <!-- Arrow with Amount -->
@@ -161,6 +168,8 @@
 
                         <!-- To User -->
                         <div class="flex items-center gap-2 min-w-0">
+                            <span th:if="${item.toIsGhost}"
+                                  class="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400">虛擬</span>
                             <span class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate hidden sm:inline"
                                   th:text="${item.toUserName}">收款人</span>
                             <div th:if="${item.toUserAvatarUrl != null}"
@@ -170,9 +179,14 @@
                                      class="w-full h-full object-cover"
                                      referrerpolicy="no-referrer">
                             </div>
-                            <div th:unless="${item.toUserAvatarUrl != null}"
+                            <div th:if="${item.toUserAvatarUrl == null and !item.toIsGhost}"
                                  class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 ring-2 ring-green-200 dark:ring-green-800">
                                 <span class="text-sm font-semibold text-green-600 dark:text-green-400"
+                                      th:text="${item?.toUserName?.length() > 0 ? #strings.substring(item.toUserName, 0, 1) : '?'}">B</span>
+                            </div>
+                            <div th:if="${item.toUserAvatarUrl == null and item.toIsGhost}"
+                                 class="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                                <span class="text-sm font-semibold text-gray-400 dark:text-gray-500"
                                       th:text="${item?.toUserName?.length() > 0 ? #strings.substring(item.toUserName, 0, 1) : '?'}">B</span>
                             </div>
                         </div>

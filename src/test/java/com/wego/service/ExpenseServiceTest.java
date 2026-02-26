@@ -16,6 +16,7 @@ import com.wego.exception.ForbiddenException;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
+import com.wego.repository.GhostMemberRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
 import com.wego.repository.UserRepository;
@@ -36,7 +37,9 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,6 +77,12 @@ class ExpenseServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private GhostMemberRepository ghostMemberRepository;
+
+    @Mock
+    private ParticipantResolver participantResolver;
 
     @Mock
     private PermissionChecker permissionChecker;
@@ -135,6 +144,20 @@ class ExpenseServiceTest {
                 .splitType(SplitType.EQUAL)
                 .createdBy(userId)
                 .build();
+
+        // Default stubs for new dependencies
+        when(ghostMemberRepository.findByTripIdAndMergedToUserIdIsNull(any())).thenReturn(List.of());
+        when(participantResolver.resolveAll(any())).thenAnswer(invocation -> {
+            Set<UUID> ids = invocation.getArgument(0);
+            Map<UUID, ParticipantResolver.ParticipantInfo> map = new java.util.HashMap<>();
+            if (ids.contains(userId)) {
+                map.put(userId, new ParticipantResolver.ParticipantInfo(userId, "Test User", null, false));
+            }
+            if (ids.contains(testUser2.getId())) {
+                map.put(testUser2.getId(), new ParticipantResolver.ParticipantInfo(testUser2.getId(), "Test User 2", null, false));
+            }
+            return map;
+        });
     }
 
     @Nested
@@ -348,6 +371,8 @@ class ExpenseServiceTest {
             when(permissionChecker.canView(tripId, userId)).thenReturn(true);
             when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId))
                     .thenReturn(Collections.singletonList(testExpense));
+            when(expenseSplitRepository.findByTripId(tripId))
+                    .thenReturn(Collections.singletonList(split));
             when(expenseSplitRepository.findByExpenseId(expenseId))
                     .thenReturn(Collections.singletonList(split));
             when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));

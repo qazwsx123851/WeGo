@@ -121,7 +121,7 @@
             </div>
         </section>
 
-        <!-- Member List -->
+        <!-- Real Member List -->
         <section>
             <h3 class="text-base font-semibold text-gray-800 dark:text-gray-100 mb-4">
                 成員列表
@@ -150,51 +150,70 @@
             <!-- Member Cards -->
             <div th:unless="${#lists.isEmpty(members)}" class="space-y-3">
                 <div th:each="member : ${members}"
+                     th:classappend="${member.isGhost() ? 'border-l-2 border-dashed border-gray-300 dark:border-gray-600' : ''}"
                      class="glass-card p-4 flex items-center gap-4">
-                    <!-- Avatar -->
-                    <img th:if="${member.avatarUrl}"
+                    <!-- Avatar: Real member -->
+                    <img th:if="${member.avatarUrl != null and !member.isGhost()}"
                          th:src="${member.avatarUrl}"
                          th:alt="${member.nickname}"
                          class="w-12 h-12 rounded-full object-cover flex-shrink-0"/>
-                    <div th:unless="${member.avatarUrl}"
+                    <!-- Avatar: Real member without avatar -->
+                    <div th:if="${member.avatarUrl == null and !member.isGhost()}"
                          class="w-12 h-12 rounded-full flex-shrink-0
                                 bg-primary-100 dark:bg-primary-900/30
                                 flex items-center justify-center
                                 text-primary-600 dark:text-primary-400 font-semibold"
                          th:text="${member.nickname != null ? #strings.substring(member.nickname, 0, 1) : 'U'}">M</div>
+                    <!-- Avatar: Ghost member (dashed border + gray) -->
+                    <div th:if="${member.isGhost()}"
+                         class="w-12 h-12 rounded-full flex-shrink-0
+                                border-2 border-dashed border-gray-300 dark:border-gray-600
+                                bg-gray-100 dark:bg-gray-800
+                                flex items-center justify-center
+                                text-gray-400 dark:text-gray-500 font-semibold"
+                         th:text="${member.nickname != null ? #strings.substring(member.nickname, 0, 1) : '?'}">G</div>
 
                     <!-- Member Info -->
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2">
                             <h4 class="font-medium text-gray-800 dark:text-gray-100 truncate"
                                 th:text="${member.nickname}">王小明</h4>
-                            <!-- Role Badge -->
-                            <span th:if="${member.role.name() == 'OWNER'}"
+                            <!-- Ghost Badge -->
+                            <span th:if="${member.isGhost()}"
+                                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                         bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400
+                                         border border-dashed border-gray-300 dark:border-gray-600">
+                                虛擬
+                            </span>
+                            <!-- Role Badge (real members only) -->
+                            <span th:if="${!member.isGhost() and member.role != null and member.role.name() == 'OWNER'}"
                                   class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                                          bg-adventure-100 dark:bg-adventure-900/30
                                          text-adventure-700 dark:text-adventure-400">
                                 建立者
                             </span>
-                            <span th:if="${member.role.name() == 'EDITOR'}"
+                            <span th:if="${!member.isGhost() and member.role != null and member.role.name() == 'EDITOR'}"
                                   class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                                          bg-primary-100 dark:bg-primary-900/30
                                          text-primary-700 dark:text-primary-400">
                                 編輯者
                             </span>
-                            <span th:if="${member.role.name() == 'VIEWER'}"
+                            <span th:if="${!member.isGhost() and member.role != null and member.role.name() == 'VIEWER'}"
                                   class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                                          bg-gray-100 dark:bg-gray-800
                                          text-gray-600 dark:text-gray-400">
                                 檢視者
                             </span>
                         </div>
-                        <!-- Email field removed - MemberSummary doesn't include email for privacy -->
-                        <p class="text-sm text-gray-500 dark:text-gray-400"
-                           th:text="${member.role.name()}">EDITOR</p>
+                        <p th:if="${!member.isGhost()}"
+                           class="text-sm text-gray-500 dark:text-gray-400"
+                           th:text="${member.role != null ? member.role.name() : ''}">EDITOR</p>
+                        <p th:if="${member.isGhost()}"
+                           class="text-sm text-gray-400 dark:text-gray-500">虛擬成員</p>
                     </div>
 
-                    <!-- Actions (Owner only, cannot remove self) -->
-                    <div th:if="${isOwner && member.userId != currentUserId}" class="flex items-center gap-2">
+                    <!-- Actions for real members (Owner only, cannot remove self) -->
+                    <div th:if="${isOwner && !member.isGhost() && member.userId != currentUserId}" class="flex items-center gap-2">
                         <!-- Change Role Dropdown -->
                         <div class="relative">
                             <button type="button"
@@ -259,11 +278,80 @@
                         </button>
                     </div>
 
+                    <!-- Actions for ghost members (Owner only) -->
+                    <div th:if="${isOwner && member.isGhost()}" class="flex items-center gap-2">
+                        <!-- Merge Ghost -->
+                        <button type="button"
+                                data-action="open-merge-modal"
+                                th:data-ghost-id="${member.userId}"
+                                th:data-ghost-name="${member.nickname}"
+                                class="px-3 py-1.5 rounded-lg text-xs font-medium
+                                       text-primary-600 dark:text-primary-400
+                                       bg-primary-50 dark:bg-primary-900/20
+                                       hover:bg-primary-100 dark:hover:bg-primary-900/40
+                                       transition-colors duration-200 cursor-pointer"
+                                aria-label="合併成員">
+                            合併
+                        </button>
+                        <!-- Remove Ghost -->
+                        <button type="button"
+                                data-action="confirm-remove-ghost"
+                                th:data-ghost-id="${member.userId}"
+                                th:data-ghost-name="${member.nickname}"
+                                class="p-2 rounded-lg text-gray-500 dark:text-gray-400
+                                       hover:bg-error-light dark:hover:bg-error/10 hover:text-error
+                                       transition-colors duration-200 cursor-pointer"
+                                aria-label="移除虛擬成員">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+
                     <!-- Current User Badge -->
-                    <span th:if="${member.userId == currentUserId}"
+                    <span th:if="${!member.isGhost() && member.userId == currentUserId}"
                           class="text-xs text-gray-400 dark:text-gray-500">
                         (你)
                     </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Add Ghost Member Section (Owner only) -->
+        <section th:if="${isOwner}" class="mt-8">
+            <h3 class="text-base font-semibold text-gray-800 dark:text-gray-100 mb-4">新增虛擬成員</h3>
+            <div class="glass-card p-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                    為未註冊的旅伴建立虛擬成員，讓他們也能參與分帳
+                </p>
+                <div class="flex gap-3">
+                    <input type="text"
+                           id="ghostName"
+                           placeholder="輸入名稱"
+                           maxlength="50"
+                           class="flex-1 px-4 py-3 bg-white dark:bg-gray-800
+                                  border border-gray-200 dark:border-gray-700
+                                  rounded-xl text-gray-800 dark:text-gray-100
+                                  text-sm placeholder-gray-400
+                                  focus:outline-none focus:ring-2 focus:ring-primary-500/50
+                                  focus:border-primary-500 transition-all duration-200"/>
+                    <input type="text"
+                           id="ghostNote"
+                           placeholder="備註（選填）"
+                           maxlength="200"
+                           class="flex-1 px-4 py-3 bg-white dark:bg-gray-800
+                                  border border-gray-200 dark:border-gray-700
+                                  rounded-xl text-gray-800 dark:text-gray-100
+                                  text-sm placeholder-gray-400
+                                  focus:outline-none focus:ring-2 focus:ring-primary-500/50
+                                  focus:border-primary-500 transition-all duration-200
+                                  hidden sm:block"/>
+                    <button type="button"
+                            data-action="create-ghost"
+                            class="btn-primary whitespace-nowrap cursor-pointer">
+                        新增
+                    </button>
                 </div>
             </div>
         </section>
@@ -283,6 +371,104 @@
             </button>
         </div>
     </main>
+
+    <!-- Remove Ghost Confirmation Dialog -->
+    <div id="removeGhostDialog"
+         class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50
+                flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+             role="alertdialog" aria-modal="true" aria-labelledby="ghost-remove-title">
+            <div class="px-6 pt-6 pb-4">
+                <h3 id="ghost-remove-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                    確定要移除虛擬成員？
+                </h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    移除 <span id="ghostRemoveName" class="font-medium text-gray-700 dark:text-gray-300">成員名稱</span> 後，其分帳記錄也將移除。
+                </p>
+                <p class="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                    若此成員已有分帳記錄，需先刪除相關支出或合併到真實成員
+                </p>
+            </div>
+            <div class="px-6 pb-6 flex gap-3">
+                <button type="button"
+                        data-action="close-ghost-remove-dialog"
+                        class="flex-1 px-4 py-2.5 rounded-xl
+                               border border-gray-200 dark:border-gray-600
+                               text-gray-700 dark:text-gray-200 font-medium
+                               hover:bg-gray-50 dark:hover:bg-gray-700
+                               transition-colors duration-200 cursor-pointer">
+                    取消
+                </button>
+                <button type="button"
+                        data-action="remove-ghost"
+                        class="flex-1 px-4 py-2.5 rounded-xl
+                               bg-error hover:bg-red-600
+                               text-white font-medium
+                               transition-colors duration-200 cursor-pointer">
+                    移除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Merge Ghost Modal -->
+    <div id="mergeGhostModal"
+         class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50
+                flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+             role="dialog" aria-modal="true" aria-labelledby="merge-title">
+            <div class="px-6 pt-6 pb-4">
+                <h3 id="merge-title" class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                    合併虛擬成員
+                </h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    將「<span id="mergeGhostName" class="font-medium text-gray-700 dark:text-gray-300">虛擬成員</span>」的所有分帳記錄轉移給以下真實成員：
+                </p>
+                <select id="mergeTargetUser"
+                        class="w-full mt-4 px-4 py-3 bg-white dark:bg-gray-700
+                               border border-gray-200 dark:border-gray-600
+                               rounded-xl text-gray-800 dark:text-gray-100
+                               text-sm focus:outline-none focus:ring-2
+                               focus:ring-primary-500/50 focus:border-primary-500
+                               transition-all duration-200 cursor-pointer">
+                    <option value="">選擇成員</option>
+                    <th:block th:each="member : ${members}">
+                        <option th:if="${!member.isGhost()}"
+                                th:value="${member.userId}"
+                                th:text="${member.nickname}">成員名稱</option>
+                    </th:block>
+                </select>
+                <p class="text-xs text-amber-600 dark:text-amber-400 mt-3 flex items-center gap-1">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                    此操作無法復原
+                </p>
+            </div>
+            <div class="px-6 pb-6 flex gap-3">
+                <button type="button"
+                        data-action="close-merge-modal"
+                        class="flex-1 px-4 py-2.5 rounded-xl
+                               border border-gray-200 dark:border-gray-600
+                               text-gray-700 dark:text-gray-200 font-medium
+                               hover:bg-gray-50 dark:hover:bg-gray-700
+                               transition-colors duration-200 cursor-pointer">
+                    取消
+                </button>
+                <button type="button"
+                        data-action="confirm-merge"
+                        class="flex-1 px-4 py-2.5 rounded-xl
+                               bg-error hover:bg-red-600
+                               text-white font-medium
+                               transition-colors duration-200 cursor-pointer">
+                    確認合併
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Remove Member Confirmation Dialog -->
     <div id="removeMemberDialog"
@@ -362,6 +548,7 @@
     <!-- Scripts -->
     <script th:src="@{/js/app.js}" defer></script>
     <script th:src="@{/js/member-management.js}" defer></script>
+    <script th:src="@{/js/ghost-member.js}" defer></script>
 
 </body>
 </html>

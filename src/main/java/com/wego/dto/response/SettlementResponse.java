@@ -64,9 +64,11 @@ public class SettlementResponse {
         private UUID fromUserId;
         private String fromUserName;
         private String fromUserAvatarUrl;
+        private boolean fromIsGhost;
         private UUID toUserId;
         private String toUserName;
         private String toUserAvatarUrl;
+        private boolean toIsGhost;
         private BigDecimal amount;
     }
 }

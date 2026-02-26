@@ -18,6 +18,7 @@ import com.wego.repository.ActivityRepository;
 import com.wego.repository.DocumentRepository;
 import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
+import com.wego.repository.GhostMemberRepository;
 import com.wego.repository.InviteLinkRepository;
 import com.wego.repository.TodoRepository;
 import com.wego.repository.TripMemberRepository;
@@ -77,6 +78,7 @@ public class TripService {
     private final DocumentRepository documentRepository;
     private final TodoRepository todoRepository;
     private final InviteLinkRepository inviteLinkRepository;
+    private final GhostMemberRepository ghostMemberRepository;
     private final PermissionChecker permissionChecker;
     private final StorageClient storageClient;
     private final SupabaseProperties supabaseProperties;
@@ -332,6 +334,9 @@ public class TripService {
         // 6. InviteLinks (depends on Trip)
         inviteLinkRepository.deleteByTripId(tripId);
 
+        // 6.5 GhostMembers (depends on Trip)
+        ghostMemberRepository.deleteByTripId(tripId);
+
         // 7. TripMembers (depends on Trip)
         tripMemberRepository.deleteByTripId(tripId);
 
@@ -500,7 +505,8 @@ public class TripService {
             throw new ValidationException("DUPLICATE_MEMBER", "已是行程成員");
         }
 
-        long currentCount = tripMemberRepository.countByTripId(tripId);
+        long currentCount = tripMemberRepository.countByTripId(tripId)
+                + ghostMemberRepository.countByTripIdAndMergedToUserIdIsNull(tripId);
         if (currentCount >= MAX_MEMBERS_PER_TRIP) {
             throw new ValidationException("MEMBER_LIMIT_EXCEEDED", "行程成員已達上限（" + MAX_MEMBERS_PER_TRIP + "人）");
         }
@@ -523,7 +529,9 @@ public class TripService {
      * @return The number of members
      */
     public int getMemberCount(UUID tripId) {
-        return (int) tripMemberRepository.countByTripId(tripId);
+        long real = tripMemberRepository.countByTripId(tripId);
+        long ghost = ghostMemberRepository.countByTripIdAndMergedToUserIdIsNull(tripId);
+        return (int) (real + ghost);
     }
 
     // Private helper methods
@@ -549,7 +557,7 @@ public class TripService {
         Map<UUID, User> userMap = userRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getId, java.util.function.Function.identity()));
 
-        return members.stream()
+        List<TripResponse.MemberSummary> summaries = members.stream()
                 .map(member -> {
                     User user = userMap.get(member.getUserId());
                     return TripResponse.MemberSummary.builder()
@@ -557,9 +565,22 @@ public class TripService {
                             .nickname(user != null ? user.getNickname() : TripConstants.UNKNOWN_USER_NAME)
                             .avatarUrl(user != null ? user.getAvatarUrl() : null)
                             .role(member.getRole())
+                            .isGhost(false)
                             .build();
                 })
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        // Append active ghost members
+        ghostMemberRepository.findByTripIdAndMergedToUserIdIsNull(tripId)
+                .forEach(ghost -> summaries.add(TripResponse.MemberSummary.builder()
+                        .userId(ghost.getId())
+                        .nickname(ghost.getDisplayName())
+                        .avatarUrl(null)
+                        .role(null)
+                        .isGhost(true)
+                        .build()));
+
+        return summaries;
     }
 
     // ===== Cover Image Upload Methods =====

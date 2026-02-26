@@ -4,6 +4,7 @@ import com.wego.entity.Expense;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -140,4 +141,42 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
      * @return Number of expenses created
      */
     long countByCreatedBy(UUID createdBy);
+
+    // ========== Ghost Member Methods ==========
+
+    /**
+     * Checks if any expense in a trip was paid by a specific participant.
+     * Used to prevent removal of ghost members with existing expenses.
+     *
+     * @contract
+     *   - pre: tripId != null, paidBy != null
+     *   - post: Returns true if any expense exists
+     *   - calledBy: GhostMemberService#removeGhostMember
+     *
+     * @param tripId The trip ID
+     * @param paidBy The participant UUID (User.id or GhostMember.id)
+     * @return true if expenses exist
+     */
+    boolean existsByTripIdAndPaidBy(UUID tripId, UUID paidBy);
+
+    /**
+     * Bulk updates paidBy for all expenses in a trip.
+     * Used during ghost member merge to transfer payer identity.
+     *
+     * @contract
+     *   - pre: Must be called within a @Transactional context
+     *   - post: All matching expenses have paidBy updated, updatedAt refreshed
+     *   - calledBy: GhostMemberService#mergeGhostToUser
+     *
+     * @param tripId The trip ID
+     * @param oldUserId The UUID to replace (ghost member)
+     * @param newUserId The UUID to set (real user)
+     * @return Number of updated rows
+     */
+    @Modifying
+    @Query("UPDATE Expense e SET e.paidBy = :newUserId " +
+           "WHERE e.tripId = :tripId AND e.paidBy = :oldUserId")
+    int updatePaidByForTrip(@Param("tripId") UUID tripId,
+                            @Param("oldUserId") UUID oldUserId,
+                            @Param("newUserId") UUID newUserId);
 }

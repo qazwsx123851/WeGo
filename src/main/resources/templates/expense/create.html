@@ -244,7 +244,7 @@
                         <option value="">請選擇付款人</option>
                         <option th:each="member : ${members}"
                                 th:value="${member.userId}"
-                                th:text="${member.nickname}"
+                                th:text="${member.nickname + (member.isGhost() ? ' (虛擬)' : '')}"
                                 th:selected="${expense?.paidBy == member.userId or (expense?.paidBy == null and member.userId == currentUserId)}">
                             成員名稱
                         </option>
@@ -286,19 +286,29 @@
 
                     <!-- Equal Split -->
                     <div id="split-equal" class="split-content space-y-2">
-                        <div th:each="member : ${members}" class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <div th:each="member : ${members}"
+                             th:classappend="${member.isGhost() ? 'border-l-2 border-dashed border-gray-300 dark:border-gray-600' : ''}"
+                             class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                             <label class="flex items-center gap-3 flex-1 cursor-pointer">
                                 <input type="checkbox"
                                        th:name="'participantIds'"
                                        th:value="${member.userId}"
                                        checked
                                        class="participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer">
-                                <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                <div th:if="${!member.isGhost()}"
+                                     class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
                                           th:text="${member?.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : '?'}">A</span>
                                 </div>
+                                <div th:if="${member.isGhost()}"
+                                     class="w-8 h-8 rounded-full border border-dashed border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                    <span class="text-sm font-medium text-gray-400 dark:text-gray-500"
+                                          th:text="${member?.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : '?'}">G</span>
+                                </div>
                                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
                                       th:text="${member.nickname}">成員名稱</span>
+                                <span th:if="${member.isGhost()}"
+                                      class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400">虛擬</span>
                             </label>
                             <span class="text-sm text-gray-500 dark:text-gray-400 font-mono equal-amount">$0</span>
                         </div>
@@ -306,18 +316,28 @@
 
                     <!-- Percentage Split -->
                     <div id="split-percentage" class="split-content space-y-2 hidden">
-                        <div th:each="member : ${members}" class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <div th:each="member : ${members}"
+                             th:classappend="${member.isGhost() ? 'border-l-2 border-dashed border-gray-300 dark:border-gray-600' : ''}"
+                             class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                             <label class="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox"
                                        th:data-user-id="${member.userId}"
                                        class="percentage-participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer"
                                        checked>
-                                <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                <div th:if="${!member.isGhost()}"
+                                     class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
                                           th:text="${member?.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : '?'}">A</span>
                                 </div>
+                                <div th:if="${member.isGhost()}"
+                                     class="w-8 h-8 rounded-full border border-dashed border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                    <span class="text-sm font-medium text-gray-400 dark:text-gray-500"
+                                          th:text="${member?.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : '?'}">G</span>
+                                </div>
                                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
                                       th:text="${member.nickname}">成員名稱</span>
+                                <span th:if="${member.isGhost()}"
+                                      class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400">虛擬</span>
                             </label>
                             <div class="flex-1"></div>
                             <div class="flex items-center gap-2">
@@ -342,18 +362,28 @@
 
                     <!-- Custom Split -->
                     <div id="split-custom" class="split-content space-y-2 hidden">
-                        <div th:each="member : ${members}" class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <div th:each="member : ${members}"
+                             th:classappend="${member.isGhost() ? 'border-l-2 border-dashed border-gray-300 dark:border-gray-600' : ''}"
+                             class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                             <label class="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox"
                                        th:data-user-id="${member.userId}"
                                        class="custom-participant-checkbox w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 cursor-pointer"
                                        checked>
-                                <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                <div th:if="${!member.isGhost()}"
+                                     class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                                     <span class="text-sm font-medium text-primary-600 dark:text-primary-400"
                                           th:text="${member?.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : '?'}">A</span>
                                 </div>
+                                <div th:if="${member.isGhost()}"
+                                     class="w-8 h-8 rounded-full border border-dashed border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                    <span class="text-sm font-medium text-gray-400 dark:text-gray-500"
+                                          th:text="${member?.nickname?.length() > 0 ? #strings.substring(member.nickname, 0, 1) : '?'}">G</span>
+                                </div>
                                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
                                       th:text="${member.nickname}">成員名稱</span>
+                                <span th:if="${member.isGhost()}"
+                                      class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400">虛擬</span>
                             </label>
                             <div class="flex-1"></div>
                             <div class="flex items-center gap-2">

@@ -7,6 +7,7 @@ import com.wego.entity.InviteLink;
 import com.wego.entity.Role;
 import com.wego.exception.ForbiddenException;
 import com.wego.exception.ValidationException;
+import com.wego.repository.GhostMemberRepository;
 import com.wego.repository.InviteLinkRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
@@ -48,6 +49,9 @@ class InviteLinkServiceTest {
 
     @Mock
     private TripMemberRepository tripMemberRepository;
+
+    @Mock
+    private GhostMemberRepository ghostMemberRepository;
 
     @Mock
     private TripService tripService;
@@ -169,6 +173,7 @@ class InviteLinkServiceTest {
             when(inviteLinkRepository.findByToken(token)).thenReturn(Optional.of(link));
             when(tripMemberRepository.existsByTripIdAndUserId(tripId, userId)).thenReturn(false);
             when(tripMemberRepository.countByTripId(tripId)).thenReturn(5L);
+            when(ghostMemberRepository.countByTripIdAndMergedToUserIdIsNull(tripId)).thenReturn(0L);
             when(inviteLinkRepository.save(any(InviteLink.class))).thenReturn(link);
 
             UUID result = inviteLinkService.acceptInvite(token, userId);
@@ -237,6 +242,7 @@ class InviteLinkServiceTest {
             when(inviteLinkRepository.findByToken(token)).thenReturn(Optional.of(link));
             when(tripMemberRepository.existsByTripIdAndUserId(tripId, userId)).thenReturn(false);
             when(tripMemberRepository.countByTripId(tripId)).thenReturn(10L);
+            when(ghostMemberRepository.countByTripIdAndMergedToUserIdIsNull(tripId)).thenReturn(0L);
 
             ValidationException exception = assertThrows(ValidationException.class,
                     () -> inviteLinkService.acceptInvite(token, userId));
