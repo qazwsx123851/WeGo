@@ -27,8 +27,9 @@
         red:        '#EF4444'
     };
 
-    var SCENE_DURATION = 6000; // ms per scene
-    var FADE_DURATION  = 400;  // ms for scene transitions
+    var SCENE_DURATION    = 6000; // ms per scene
+    var FADE_DURATION     = 400;  // ms for scene transitions
+    var MOBILE_BREAKPOINT = 640;  // matches Tailwind's sm: breakpoint
     var _timer = null;
     var _currentScene = -1;
     var _stage = null;
@@ -155,6 +156,10 @@
         return document.documentElement.classList.contains('dark');
     }
 
+    function isMobile() {
+        return window.innerWidth < MOBILE_BREAKPOINT;
+    }
+
     function animateEl(targets, props) {
         if (isReduced() || typeof anime === 'undefined') {
             // Immediately set final state
@@ -172,15 +177,16 @@
 
     // ── Narration Header ──────────────────────────────────────────
     function buildNarration(container, text) {
+        var mobile = isMobile();
         var narr = el('div', {
             className: 'scene-narration',
             style: {
-                fontSize: '18px',
+                fontSize: mobile ? '16px' : '18px',
                 fontWeight: '700',
                 color: isDark() ? C.cream : C.charcoal,
                 textAlign: 'center',
                 minHeight: '28px',
-                marginBottom: '20px',
+                marginBottom: mobile ? '14px' : '20px',
                 lineHeight: '1.4',
                 fontFamily: "'Plus Jakarta Sans', 'Noto Sans TC', sans-serif"
             }
@@ -205,6 +211,7 @@
         if (opts && opts.padding) style.padding = opts.padding;
         if (opts && opts.display) style.display = opts.display;
         if (opts && opts.gap) style.gap = opts.gap;
+        if (opts && opts.flexDirection) style.flexDirection = opts.flexDirection;
         return el('div', { className: 'scene-panel', style: style });
     }
 
@@ -307,12 +314,18 @@
     function buildExpenseScene(container) {
         buildNarration(container, 'Split bills instantly. Multiple currencies, zero math.');
 
-        var panel = buildPanel({ padding: '20px', display: 'flex', gap: '20px' });
+        var mobile = isMobile();
+        var panel = buildPanel({
+            padding: mobile ? '14px' : '20px',
+            display: 'flex',
+            gap: mobile ? '12px' : '20px',
+            flexDirection: mobile ? 'column' : 'row'
+        });
         container.appendChild(panel);
 
         // Left: Donut chart
         var leftCol = el('div', { style: {
-            flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
+            flex: mobile ? 'none' : '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
         }});
         panel.appendChild(leftCol);
 
@@ -324,7 +337,7 @@
             { name: 'Other', pct: 5, color: C.amber }
         ];
 
-        var svgSize = 160;
+        var svgSize = mobile ? 120 : 160;
         var svg = svgEl('svg', { width: svgSize, height: svgSize, viewBox: '0 0 160 160' });
         leftCol.appendChild(svg);
 
@@ -640,11 +653,17 @@
     function buildCollabScene(container) {
         buildNarration(container, 'Everyone contributes. No one gets left behind.');
 
-        var panel = buildPanel({ padding: '20px', display: 'flex', gap: '16px' });
+        var mobile = isMobile();
+        var panel = buildPanel({
+            padding: mobile ? '14px' : '20px',
+            display: 'flex',
+            gap: mobile ? '12px' : '16px',
+            flexDirection: mobile ? 'column' : 'row'
+        });
         container.appendChild(panel);
 
         // Left: Team Members
-        var leftCol = el('div', { style: { flex: '1', display: 'flex', flexDirection: 'column', gap: '8px' } });
+        var leftCol = el('div', { style: { flex: mobile ? 'none' : '1', display: 'flex', flexDirection: 'column', gap: '8px' } });
         panel.appendChild(leftCol);
 
         leftCol.appendChild(el('div', { style: {
@@ -703,13 +722,19 @@
         });
         leftCol.appendChild(typingEl);
 
-        // Divider
-        panel.appendChild(el('div', { style: {
-            width: '1px', backgroundColor: C.warmBorder, alignSelf: 'stretch'
-        }}));
+        // Divider (hidden on mobile, vertical line on desktop)
+        if (!mobile) {
+            panel.appendChild(el('div', { style: {
+                width: '1px', backgroundColor: C.warmBorder, alignSelf: 'stretch'
+            }}));
+        } else {
+            panel.appendChild(el('div', { style: {
+                height: '1px', backgroundColor: C.warmBorder, width: '100%'
+            }}));
+        }
 
         // Right: Todo list
-        var rightCol = el('div', { style: { flex: '1', display: 'flex', flexDirection: 'column', gap: '8px' } });
+        var rightCol = el('div', { style: { flex: mobile ? 'none' : '1', display: 'flex', flexDirection: 'column', gap: '8px' } });
         panel.appendChild(rightCol);
 
         rightCol.appendChild(el('div', { style: {
