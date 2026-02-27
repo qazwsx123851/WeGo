@@ -1,6 +1,6 @@
 /**
- * WeGo Landing Page — Feature Demo Animations
- * Cycles through 4 animated scenes showcasing core features.
+ * WeGo Landing Page — Feature Demo Animations (Dark Theme)
+ * Cycles through 4 animated scenes matching production UI.
  *
  * Depends on: anime.js v4 (global `anime`), WeGo._reducedMotion
  *
@@ -9,14 +9,15 @@
 (function() {
     'use strict';
 
-    // ── Colors (from Remotion constants) ──────────────────────────
+    // ── Colors (matching production dark theme) ─────────────────
     var C = {
-        cream:      '#F0EAE0',
-        creamDark:  '#E5DDD2',
-        charcoal:   '#2D2A26',
-        warmGray:   '#6B6560',
-        warmGrayLt: '#9B9590',
-        warmBorder: '#D9D0C5',
+        bgDark:     '#111827',
+        cardDark:   '#1F2937',
+        cardInner:  '#374151',
+        borderDark: '#374151',
+        textPrimary:'#F3F4F6',
+        textSecond: '#9CA3AF',
+        textMuted:  '#6B7280',
         white:      '#FFFFFF',
         skyBlue:    '#0EA5E9',
         skyBlueLt:  '#38BDF8',
@@ -24,26 +25,27 @@
         green:      '#22C55E',
         purple:     '#A855F7',
         amber:      '#F59E0B',
-        red:        '#EF4444'
+        red:        '#EF4444',
+        pink:       '#EC4899'
     };
 
-    var SCENE_DURATION    = 6000; // ms per scene
-    var FADE_DURATION     = 400;  // ms for scene transitions
-    var MOBILE_BREAKPOINT = 640;  // matches Tailwind's sm: breakpoint
+    var SCENE_DURATION    = 6000;
+    var FADE_DURATION     = 400;
+    var MOBILE_BREAKPOINT = 640;
     var _timer = null;
     var _currentScene = -1;
     var _stage = null;
-    var _intervals = [];  // track setIntervals for cleanup
+    var _intervals = [];
 
-    // ── Scene Definitions ─────────────────────────────────────────
+    // ── Scene Definitions ───────────────────────────────────────
     var SCENES = [
-        { title: 'Shared Itinerary',   build: buildItineraryScene },
-        { title: 'Expense Splitting',  build: buildExpenseScene },
-        { title: 'AI Assistant',       build: buildAIScene },
-        { title: 'Team Collaboration', build: buildCollabScene }
+        { title: '行程景點',    build: buildItineraryScene },
+        { title: '分帳記帳',    build: buildExpenseScene },
+        { title: 'AI 旅遊助手', build: buildAIScene },
+        { title: '待辦事項',    build: buildTodoScene }
     ];
 
-    // ── Public API ────────────────────────────────────────────────
+    // ── Public API ──────────────────────────────────────────────
     function init(stageId) {
         _stage = document.getElementById(stageId);
         if (!_stage) return;
@@ -57,7 +59,7 @@
         _currentScene = -1;
     }
 
-    // ── Scene Lifecycle ───────────────────────────────────────────
+    // ── Scene Lifecycle ─────────────────────────────────────────
     function playScene(index) {
         clearTimeout(_timer);
         _intervals.forEach(function(id) { clearInterval(id); });
@@ -66,21 +68,23 @@
         _currentScene = index;
         var scene = SCENES[index];
 
-        // Fade out → rebuild → fade in
         _stage.style.opacity = '0';
 
-        setTimeout(function() {
+        var fadeId = setTimeout(function() {
+            if (!_stage) return;
             _stage.innerHTML = '';
+            _stage.style.display = 'flex';
+            _stage.style.flexDirection = 'column';
             scene.build(_stage);
             _stage.style.opacity = '1';
 
-            // Schedule next scene
             var next = (index + 1) % SCENES.length;
             _timer = setTimeout(function() { playScene(next); }, SCENE_DURATION);
         }, FADE_DURATION);
+        _intervals.push(fadeId);
     }
 
-    // ── Utility: Element Creation ─────────────────────────────────
+    // ── Utility: Element Creation ───────────────────────────────
     function el(tag, attrs, children) {
         var e = document.createElement(tag);
         if (attrs) {
@@ -91,6 +95,8 @@
                     e.className = attrs[k];
                 } else if (k === 'textContent') {
                     e.textContent = attrs[k];
+                } else if (k === 'innerHTML') {
+                    e.innerHTML = attrs[k];
                 } else {
                     e.setAttribute(k, attrs[k]);
                 }
@@ -118,10 +124,10 @@
         return e;
     }
 
-    // ── Utility: Typewriter ───────────────────────────────────────
+    // ── Utility: Typewriter ─────────────────────────────────────
     function typeWriter(element, text, opts) {
         var o = opts || {};
-        var mode = o.mode || 'word'; // 'word' or 'char'
+        var mode = o.mode || 'char';
         var speed = o.speed || (mode === 'word' ? 200 : 40);
         var delay = o.delay || 0;
         var units = mode === 'word' ? text.split(' ') : text.split('');
@@ -147,22 +153,24 @@
         _intervals.push(timeoutId);
     }
 
-    // ── Utility: Reduced motion check ─────────────────────────────
+    // ── Utility: Helpers ────────────────────────────────────────
     function isReduced() {
         return window.WeGo && WeGo._reducedMotion;
-    }
-
-    function isDark() {
-        return document.documentElement.classList.contains('dark');
     }
 
     function isMobile() {
         return window.innerWidth < MOBILE_BREAKPOINT;
     }
 
+    function stagger(val, opts) {
+        if (typeof anime !== 'undefined' && anime.stagger) {
+            return anime.stagger(val, opts);
+        }
+        return (opts && opts.start) ? opts.start : 0;
+    }
+
     function animateEl(targets, props) {
         if (isReduced() || typeof anime === 'undefined') {
-            // Immediately set final state
             var els = typeof targets === 'string'
                 ? document.querySelectorAll(targets) : [].concat(targets);
             els.forEach(function(e) {
@@ -175,38 +183,43 @@
         return anime.animate(targets, props);
     }
 
-    // ── Narration Header ──────────────────────────────────────────
+    // ── Narration Header ────────────────────────────────────────
     function buildNarration(container, text) {
         var mobile = isMobile();
         var narr = el('div', {
             className: 'scene-narration',
             style: {
-                fontSize: mobile ? '16px' : '18px',
+                fontSize: mobile ? '15px' : '17px',
                 fontWeight: '700',
-                color: isDark() ? C.cream : C.charcoal,
+                color: C.textPrimary,
                 textAlign: 'center',
-                minHeight: '28px',
-                marginBottom: mobile ? '14px' : '20px',
-                lineHeight: '1.4',
+                minHeight: '26px',
+                marginBottom: mobile ? '12px' : '18px',
+                lineHeight: '1.5',
                 fontFamily: "'Plus Jakarta Sans', 'Noto Sans TC', sans-serif"
             }
         });
         container.appendChild(narr);
-        typeWriter(narr, text, { mode: 'word', speed: 180, delay: 300 });
+        typeWriter(narr, text, { mode: 'char', speed: 80, delay: 300 });
         return narr;
     }
 
-    // ── UI Panel Wrapper ──────────────────────────────────────────
+    // ── Dark Panel Wrapper ──────────────────────────────────────
     function buildPanel(opts) {
         var style = {
-            background: C.white,
-            borderRadius: '16px',
-            border: '1px solid ' + C.warmBorder,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            background: C.cardDark,
+            borderRadius: '20px',
+            border: '1px solid ' + C.borderDark,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             overflow: 'hidden',
             width: '100%',
+            flex: '1',
+            minHeight: '0',
+            display: 'flex',
+            flexDirection: 'column',
             opacity: '0',
-            transform: 'translateY(20px)'
+            transform: 'translateY(20px)',
+            position: 'relative'
         };
         if (opts && opts.padding) style.padding = opts.padding;
         if (opts && opts.display) style.display = opts.display;
@@ -215,134 +228,376 @@
         return el('div', { className: 'scene-panel', style: style });
     }
 
-    // ── Scene 1: Itinerary ────────────────────────────────────────
+    // ── Shared: Header Bar ──────────────────────────────────────
+    function buildHeaderBar(panel, title, opts) {
+        var o = opts || {};
+        var header = el('div', { style: {
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', borderBottom: '1px solid ' + C.borderDark
+        }}, [
+            el('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } }, [
+                el('span', { style: { fontSize: '16px', color: C.textSecond }, textContent: '\u2039' }),
+                el('div', {}, [
+                    el('div', { style: {
+                        fontSize: '15px', fontWeight: '700', color: C.textPrimary,
+                        fontFamily: "'Plus Jakarta Sans', 'Noto Sans TC', sans-serif"
+                    }, textContent: title }),
+                    o.subtitle ? el('div', { style: {
+                        fontSize: '11px', color: C.textMuted, marginTop: '1px'
+                    }, textContent: o.subtitle }) : null
+                ].filter(Boolean))
+            ]),
+            o.showAdd ? el('div', { style: {
+                width: '32px', height: '32px', borderRadius: '10px',
+                backgroundColor: C.orange, display: 'flex',
+                justifyContent: 'center', alignItems: 'center',
+                fontSize: '18px', color: C.white, fontWeight: '300'
+            }, textContent: '+' }) : null
+        ].filter(Boolean));
+        panel.appendChild(header);
+        return header;
+    }
+
+    // ── Shared: Bottom Pill Bar ─────────────────────────────────
+    var PILL_ICONS = {
+        mapPin: function(color) {
+            var s = svgEl('svg', { width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none' });
+            var p = svgEl('path', {
+                d: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z',
+                fill: color
+            });
+            s.appendChild(p);
+            return s;
+        },
+        dollar: function(color) {
+            var s = svgEl('svg', { width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none' });
+            var p = svgEl('path', {
+                d: 'M12 2a10 10 0 100 20 10 10 0 000-20zm1 14.93V18h-2v-1.07A4 4 0 018 13h2a2 2 0 002 2 2 2 0 002-2c0-1.1-.9-2-2-2a4 4 0 01-1-7.93V2h2v1.07A4 4 0 0116 7h-2a2 2 0 00-2-2 2 2 0 00-2 2c0 1.1.9 2 2 2a4 4 0 011 7.93z',
+                fill: color
+            });
+            s.appendChild(p);
+            return s;
+        },
+        file: function(color) {
+            var s = svgEl('svg', { width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none' });
+            var p = svgEl('path', {
+                d: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z',
+                fill: color
+            });
+            s.appendChild(p);
+            return s;
+        },
+        check: function(color) {
+            var s = svgEl('svg', { width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none' });
+            var p = svgEl('path', {
+                d: 'M12 2a10 10 0 100 20 10 10 0 000-20zm-1 15l-4-4 1.41-1.41L11 14.17l5.59-5.59L18 10l-7 7z',
+                fill: color
+            });
+            s.appendChild(p);
+            return s;
+        }
+    };
+
+    function buildPillBar(panel, activeIndex) {
+        var items = [
+            { iconFn: PILL_ICONS.mapPin, label: '景點' },
+            { iconFn: PILL_ICONS.dollar, label: '分帳' },
+            { iconFn: PILL_ICONS.file,   label: '檔案' },
+            { iconFn: PILL_ICONS.check,  label: '代辦' }
+        ];
+        var bar = el('div', {
+            className: 'scene-pill-bar',
+            style: {
+                display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+                padding: '10px 8px 12px',
+                backgroundColor: 'rgba(17,24,39,0.92)',
+                backdropFilter: 'blur(10px)',
+                borderTop: '1px solid ' + C.borderDark,
+                opacity: '0', transform: 'translateY(8px)'
+            }
+        });
+
+        // Push pill bar to bottom of flex panel
+        bar.style.marginTop = 'auto';
+
+        items.forEach(function(item, i) {
+            var isActive = i === activeIndex;
+            var iconColor = isActive ? C.skyBlue : C.textMuted;
+            var wrapper = el('div', { style: {
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                padding: '6px 14px', borderRadius: '12px',
+                backgroundColor: isActive ? 'rgba(14,165,233,0.12)' : 'transparent',
+                transition: 'background-color 0.2s ease'
+            }}, [
+                item.iconFn(iconColor),
+                el('span', { style: {
+                    fontSize: '11px', fontWeight: isActive ? '700' : '500',
+                    color: isActive ? C.skyBlue : C.textMuted,
+                    letterSpacing: '0.02em'
+                }, textContent: item.label })
+            ]);
+            bar.appendChild(wrapper);
+        });
+        panel.appendChild(bar);
+        return bar;
+    }
+
+    // ── Scene 1: Itinerary ──────────────────────────────────────
     function buildItineraryScene(container) {
-        buildNarration(container, 'One shared itinerary. Everyone sees the plan.');
+        buildNarration(container, '共享行程，所有人同步看到最新計畫');
 
         var panel = buildPanel();
         container.appendChild(panel);
 
-        // Header
-        var header = el('div', { style: {
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '14px 20px', borderBottom: '1px solid ' + C.warmBorder
-        }}, [
-            el('div', { style: {
-                width: '18px', height: '18px', borderRadius: '3px',
-                border: '2px solid ' + C.skyBlue, flexShrink: '0'
-            }}),
-            el('span', { style: {
-                fontSize: '15px', fontWeight: '700', color: C.charcoal,
-                fontFamily: "Inter, 'Noto Sans TC', sans-serif"
-            }, textContent: 'Tokyo Trip — March 2025' })
-        ]);
-        panel.appendChild(header);
+        buildHeaderBar(panel, '2026 WBC', { subtitle: '03/04 - 03/09' });
 
-        var content = el('div', { style: { padding: '16px 20px' } });
-        panel.appendChild(content);
-
-        var DAYS = [
-            { day: 1, city: 'Tokyo', acts: 'Senso-ji Temple, Shibuya Crossing, Akihabara', color: C.skyBlue },
-            { day: 2, city: 'Kyoto', acts: 'Fushimi Inari, Arashiyama, Tea ceremony', color: C.orange },
-            { day: 3, city: 'Osaka', acts: 'Dotonbori, Osaka Castle, Street food tour', color: C.purple }
+        // Day tab bar
+        var tabBar = el('div', { style: {
+            display: 'flex', gap: '8px', padding: '12px 16px',
+            overflowX: 'auto', borderBottom: '1px solid ' + C.borderDark
+        }});
+        var TABS = [
+            { day: '週三', date: '3/4', active: true },
+            { day: '週四', date: '3/5', active: false },
+            { day: '週五', date: '3/6', active: false },
+            { day: '週六', date: '3/7', active: false }
         ];
-        var TRANSPORTS = ['🚅 Shinkansen · 2h 15min', '🚅 Shinkansen · 15min'];
-
-        DAYS.forEach(function(day, i) {
-            var card = el('div', {
-                className: 'scene-day-card',
+        TABS.forEach(function(tab) {
+            tabBar.appendChild(el('div', {
+                className: 'scene-day-tab',
                 style: {
-                    borderLeft: '3px solid ' + day.color,
-                    borderRadius: '6px',
-                    padding: '12px 14px',
-                    opacity: '0',
-                    transform: 'translateY(15px)'
+                    padding: '6px 14px', borderRadius: '10px',
+                    textAlign: 'center', flexShrink: '0',
+                    backgroundColor: tab.active ? C.skyBlue : C.cardInner,
+                    border: tab.active ? 'none' : '1px solid ' + C.borderDark,
+                    opacity: '0', transform: 'translateY(8px)'
                 }
             }, [
-                el('div', { style: { display: 'flex', alignItems: 'baseline', gap: '8px' } }, [
-                    el('span', { style: {
-                        fontSize: '11px', fontWeight: '700', color: C.warmGrayLt,
-                        textTransform: 'uppercase', letterSpacing: '0.5px'
-                    }, textContent: 'Day ' + day.day }),
-                    el('span', { style: {
-                        fontSize: '14px', fontWeight: '700', color: day.color
-                    }, textContent: day.city })
-                ]),
-                el('span', { style: {
-                    fontSize: '12px', color: C.warmGray, lineHeight: '1.4', display: 'block', marginTop: '4px'
-                }, textContent: day.acts })
+                el('div', { style: {
+                    fontSize: '10px', fontWeight: '500',
+                    color: tab.active ? C.white : C.textSecond
+                }, textContent: tab.day }),
+                el('div', { style: {
+                    fontSize: '14px', fontWeight: '700',
+                    color: tab.active ? C.white : C.textPrimary
+                }, textContent: tab.date })
+            ]));
+        });
+        panel.appendChild(tabBar);
+
+        // Activity content
+        var content = el('div', { style: { padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minHeight: '0', overflow: 'hidden' } });
+        panel.appendChild(content);
+
+        var ACTIVITIES = [
+            { icon: '\u21C6', iconBg: C.cardInner, iconColor: C.textSecond,
+              name: '機場第二航廈', time: '14:20 - 17:50', dur: '3 小時', note: '華航 CI172 出發' },
+            { icon: '\u21C6', iconBg: C.cardInner, iconColor: C.textSecond,
+              name: '關西機場', time: '17:50 - 20:20', dur: '2 小時', note: '預估通關 60-70 分鐘' },
+            { icon: '\u25CF', iconBg: 'rgba(14,165,233,0.15)', iconColor: C.skyBlue,
+              name: '新大阪', time: '19:00 - 19:50', dur: '50 分鐘', note: 'JR特急 Haruka（約50分鐘）' }
+        ];
+        var TRANSPORTS = [
+            { dist: '195 分鐘', badge: '手動', badgeColor: C.amber },
+            { dist: '57.4 km · 55 分鐘', badge: '精確', badgeColor: C.green }
+        ];
+
+        ACTIVITIES.forEach(function(act, i) {
+            var card = el('div', {
+                className: 'scene-act-card',
+                style: {
+                    display: 'flex', alignItems: 'flex-start', gap: '10px',
+                    padding: '10px 12px', borderRadius: '12px',
+                    backgroundColor: C.cardDark, border: '1px solid ' + C.borderDark,
+                    opacity: '0', transform: 'translateY(12px)'
+                }
+            }, [
+                el('div', { style: {
+                    width: '36px', height: '36px', borderRadius: '50%',
+                    backgroundColor: act.iconBg, display: 'flex',
+                    justifyContent: 'center', alignItems: 'center',
+                    fontSize: '14px', color: act.iconColor, flexShrink: '0'
+                }, textContent: act.icon }),
+                el('div', { style: { flex: '1', minWidth: '0' } }, [
+                    el('div', { style: {
+                        fontSize: '13px', fontWeight: '600', color: C.textPrimary
+                    }, textContent: act.name }),
+                    el('div', { style: {
+                        fontSize: '11px', color: C.textSecond, marginTop: '2px'
+                    }, textContent: act.time + '  ' + act.dur }),
+                    el('div', { style: {
+                        fontSize: '11px', color: C.textMuted, marginTop: '2px'
+                    }, textContent: act.note })
+                ])
             ]);
             content.appendChild(card);
 
-            // Transport connector
-            if (i < DAYS.length - 1) {
+            if (i < ACTIVITIES.length - 1) {
+                var t = TRANSPORTS[i];
                 var transport = el('div', {
                     className: 'scene-transport',
                     style: {
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        padding: '6px 0', gap: '6px', opacity: '0'
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        padding: '4px 0 4px 18px', opacity: '0'
                     }
                 }, [
-                    el('div', { style: { flex: '1', height: '0', borderTop: '1.5px dashed ' + C.warmBorder } }),
                     el('div', { style: {
-                        background: C.cream, border: '1px solid ' + C.warmBorder,
-                        borderRadius: '12px', padding: '3px 10px',
-                        fontSize: '11px', fontWeight: '600', color: C.warmGray, whiteSpace: 'nowrap'
-                    }, textContent: TRANSPORTS[i] }),
-                    el('div', { style: { flex: '1', height: '0', borderTop: '1.5px dashed ' + C.warmBorder } })
+                        width: '2px', height: '16px', backgroundColor: C.borderDark
+                    }}),
+                    el('span', { style: {
+                        fontSize: '11px', color: C.textSecond
+                    }, textContent: t.dist }),
+                    el('span', { style: {
+                        fontSize: '10px', fontWeight: '600', color: t.badgeColor,
+                        backgroundColor: t.badgeColor + '20',
+                        borderRadius: '6px', padding: '1px 6px'
+                    }, textContent: t.badge })
                 ]);
                 content.appendChild(transport);
             }
         });
 
+        buildPillBar(panel, 0);
+
         // Animate
         animateEl(panel, {
             opacity: [0, 1], translateY: [20, 0],
-            duration: 500, delay: 600, ease: 'outQuad'
+            duration: 500, delay: 500, ease: 'outQuad'
         });
-        animateEl('.scene-day-card', {
-            opacity: [0, 1], translateY: [15, 0],
-            duration: 400, delay: anime.stagger(500, { start: 1400 }), ease: 'outQuad'
+        animateEl('.scene-day-tab', {
+            opacity: [0, 1], translateY: [8, 0],
+            duration: 300, delay: stagger(100, { start: 1000 }), ease: 'outQuad'
+        });
+        animateEl('.scene-act-card', {
+            opacity: [0, 1], translateY: [12, 0],
+            duration: 400, delay: stagger(400, { start: 1500 }), ease: 'outQuad'
         });
         animateEl('.scene-transport', {
             opacity: [0, 1],
-            duration: 300, delay: anime.stagger(500, { start: 2200 }), ease: 'outQuad'
+            duration: 300, delay: stagger(400, { start: 2100 }), ease: 'outQuad'
+        });
+        animateEl('.scene-pill-bar', {
+            opacity: [0, 1], translateY: [8, 0],
+            duration: 300, delay: 3200, ease: 'outQuad'
         });
     }
 
-    // ── Scene 2: Expense ──────────────────────────────────────────
+    // ── Scene 2: Expense ────────────────────────────────────────
     function buildExpenseScene(container) {
-        buildNarration(container, 'Split bills instantly. Multiple currencies, zero math.');
+        buildNarration(container, '多幣別分帳，一鍵結算不再算數學');
 
         var mobile = isMobile();
-        var panel = buildPanel({
-            padding: mobile ? '14px' : '20px',
-            display: 'flex',
-            gap: mobile ? '12px' : '20px',
-            flexDirection: mobile ? 'column' : 'row'
-        });
+        var panel = buildPanel();
         container.appendChild(panel);
 
-        // Left: Donut chart
-        var leftCol = el('div', { style: {
-            flex: mobile ? 'none' : '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
+        buildHeaderBar(panel, '分帳', { showAdd: true });
+
+        // Tab switcher
+        var tabContainer = el('div', { style: {
+            display: 'flex', gap: '4px', margin: '12px 16px',
+            padding: '4px', backgroundColor: C.bgDark, borderRadius: '12px'
         }});
-        panel.appendChild(leftCol);
+        tabContainer.appendChild(el('div', {
+            className: 'scene-exp-tab',
+            style: {
+                flex: '1', padding: '8px', borderRadius: '8px',
+                textAlign: 'center', fontSize: '13px', fontWeight: '600',
+                backgroundColor: C.cardInner, color: C.textPrimary,
+                opacity: '0'
+            },
+            textContent: '團隊分帳'
+        }));
+        tabContainer.appendChild(el('div', {
+            className: 'scene-exp-tab',
+            style: {
+                flex: '1', padding: '8px', borderRadius: '8px',
+                textAlign: 'center', fontSize: '13px', fontWeight: '500',
+                color: C.textMuted, opacity: '0'
+            },
+            textContent: '個人記帳'
+        }));
+        panel.appendChild(tabContainer);
+
+        // Overview card
+        var overview = el('div', {
+            className: 'scene-overview',
+            style: {
+                margin: '0 16px 12px', padding: mobile ? '14px' : '16px',
+                backgroundColor: 'rgba(255,255,255,0.04)',
+                border: '1px solid ' + C.borderDark,
+                borderRadius: '14px', opacity: '0', transform: 'translateY(10px)'
+            }
+        });
+
+        // Sub-tabs
+        var subTabs = el('div', { style: {
+            display: 'flex', gap: '16px', marginBottom: '14px',
+            borderBottom: '1px solid ' + C.borderDark, paddingBottom: '10px'
+        }});
+        ['總覽', '統計', '結算'].forEach(function(t, i) {
+            subTabs.appendChild(el('span', { style: {
+                fontSize: '13px', fontWeight: i === 0 ? '700' : '500',
+                color: i === 0 ? C.textPrimary : C.textMuted
+            }, textContent: t }));
+        });
+        overview.appendChild(subTabs);
+
+        // Metrics
+        var metrics = el('div', { style: {
+            display: 'flex', gap: mobile ? '10px' : '16px'
+        }});
+
+        var metricCard = function(label, value, valueColor) {
+            return el('div', { style: {
+                flex: '1', padding: '10px', borderRadius: '10px',
+                backgroundColor: 'rgba(255,255,255,0.04)'
+            }}, [
+                el('div', { style: { fontSize: '11px', color: C.textMuted, marginBottom: '4px' }, textContent: label }),
+                el('div', { style: {
+                    fontSize: mobile ? '16px' : '20px', fontWeight: '700',
+                    color: valueColor || C.textPrimary,
+                    fontFamily: "'JetBrains Mono', monospace"
+                }, textContent: value })
+            ]);
+        };
+        metrics.appendChild(metricCard('總支出', '21,871', null));
+        metrics.appendChild(metricCard('您的餘額', '+6,689', C.green));
+        overview.appendChild(metrics);
+
+        var perPerson = el('div', { style: {
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginTop: '12px', paddingTop: '10px',
+            borderTop: '1px solid ' + C.borderDark
+        }}, [
+            el('span', { style: { fontSize: '12px', color: C.textMuted }, textContent: '人均花費' }),
+            el('span', { style: {
+                fontSize: '14px', fontWeight: '600', color: C.textPrimary,
+                fontFamily: "'JetBrains Mono', monospace"
+            }, textContent: '$4,374' })
+        ]);
+        overview.appendChild(perPerson);
+        panel.appendChild(overview);
+
+        // Donut chart section
+        var chartSection = el('div', {
+            className: 'scene-chart',
+            style: {
+                display: 'flex', flexDirection: mobile ? 'column' : 'row',
+                alignItems: 'center', gap: mobile ? '10px' : '16px',
+                padding: '0 16px 12px', opacity: '0'
+            }
+        });
 
         var CATS = [
-            { name: 'Food', pct: 35, color: C.orange },
-            { name: 'Transport', pct: 25, color: C.skyBlue },
-            { name: 'Tickets', pct: 20, color: C.purple },
-            { name: 'Hotel', pct: 15, color: C.green },
-            { name: 'Other', pct: 5, color: C.amber }
+            { name: '娛樂', pct: 50, color: C.orange },
+            { name: '餐飲', pct: 34, color: C.skyBlue },
+            { name: '交通', pct: 9,  color: C.green },
+            { name: '其他', pct: 7,  color: C.purple }
         ];
 
-        var svgSize = mobile ? 120 : 160;
-        var svg = svgEl('svg', { width: svgSize, height: svgSize, viewBox: '0 0 160 160' });
-        leftCol.appendChild(svg);
-
-        // Build pie sectors as paths
-        var cx = 80, cy = 80, r = 68;
+        var svgSize = mobile ? 100 : 120;
+        var svg = svgEl('svg', { width: svgSize, height: svgSize, viewBox: '0 0 120 120' });
+        var cx = 60, cy = 60, r = 50;
         var cumAngle = -90;
         CATS.forEach(function(cat) {
             var angle = cat.pct * 3.6;
@@ -353,478 +608,416 @@
             var x2 = cx + r * Math.cos(endRad);
             var y2 = cy + r * Math.sin(endRad);
             var largeArc = angle > 180 ? 1 : 0;
-
-            var path = svgEl('path', {
+            svg.appendChild(svgEl('path', {
                 d: 'M ' + cx + ' ' + cy + ' L ' + x1 + ' ' + y1 +
                    ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2 + ' ' + y2 + ' Z',
-                fill: cat.color,
-                opacity: '0',
-                class: 'scene-pie-sector'
-            });
-            svg.appendChild(path);
+                fill: cat.color, opacity: '0', class: 'scene-pie-sector'
+            }));
             cumAngle += angle;
         });
-
-        // Center hole
-        var hole = svgEl('circle', { cx: cx, cy: cy, r: '36', fill: C.white });
-        svg.appendChild(hole);
-        var totalLabel = svgEl('text', {
-            x: cx, y: cy - 4, 'text-anchor': 'middle', fill: C.warmGray,
-            'font-size': '10', 'font-weight': '600'
+        svg.appendChild(svgEl('circle', { cx: cx, cy: cy, r: '26', fill: C.cardDark }));
+        var centerLabel = svgEl('text', {
+            x: cx, y: cy - 2, 'text-anchor': 'middle', fill: C.textMuted, 'font-size': '8'
         });
-        totalLabel.textContent = 'Total';
-        svg.appendChild(totalLabel);
-        var totalAmount = svgEl('text', {
-            x: cx, y: cy + 12, 'text-anchor': 'middle', fill: C.charcoal,
-            'font-size': '12', 'font-weight': '700'
+        centerLabel.textContent = '總計';
+        svg.appendChild(centerLabel);
+        var centerAmount = svgEl('text', {
+            x: cx, y: cy + 10, 'text-anchor': 'middle', fill: C.textPrimary,
+            'font-size': '10', 'font-weight': '700'
         });
-        totalAmount.textContent = '¥128,500';
-        svg.appendChild(totalAmount);
+        centerAmount.textContent = '$21,871';
+        svg.appendChild(centerAmount);
+        chartSection.appendChild(svg);
 
         // Legend
         var legend = el('div', { style: {
-            display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px', justifyContent: 'center'
+            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px'
         }});
         CATS.forEach(function(cat) {
-            var item = el('div', {
+            legend.appendChild(el('div', {
                 className: 'scene-legend-item',
                 style: {
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    fontSize: '10px', color: C.warmGray, opacity: '0'
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    fontSize: '11px', color: C.textSecond, opacity: '0'
                 }
             }, [
                 el('div', { style: {
-                    width: '6px', height: '6px', borderRadius: '50%', backgroundColor: cat.color
+                    width: '8px', height: '8px', borderRadius: '50%', backgroundColor: cat.color
                 }}),
-                document.createTextNode(cat.name + ' ' + cat.pct + '%')
-            ]);
-            legend.appendChild(item);
-        });
-        leftCol.appendChild(legend);
-
-        // Right: Settlements
-        var rightCol = el('div', { style: {
-            flex: '1', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '10px'
-        }});
-        panel.appendChild(rightCol);
-
-        var CURRENCIES = [
-            { label: 'TWD', color: C.skyBlue },
-            { label: 'USD', color: C.green },
-            { label: 'JPY', color: C.orange },
-            { label: 'EUR', color: C.purple }
-        ];
-        var badges = el('div', { style: { display: 'flex', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }});
-        CURRENCIES.forEach(function(c) {
-            badges.appendChild(el('div', {
-                className: 'scene-currency-badge',
-                style: {
-                    background: C.cream, border: '1px solid ' + C.warmBorder,
-                    borderRadius: '10px', padding: '3px 8px',
-                    fontSize: '11px', fontWeight: '600', color: C.charcoal,
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    opacity: '0', transform: 'scale(0.8)'
-                }
-            }, [
-                el('div', { style: { width: '6px', height: '6px', borderRadius: '50%', backgroundColor: c.color }}),
-                document.createTextNode(c.label)
+                el('span', { textContent: cat.name }),
+                el('span', { style: { color: C.textPrimary, fontWeight: '600' }, textContent: cat.pct + '%' })
             ]));
         });
-        rightCol.appendChild(badges);
+        chartSection.appendChild(legend);
+        panel.appendChild(chartSection);
 
-        var simplified = el('div', {
-            className: 'scene-simplified',
-            style: { fontSize: '14px', color: C.charcoal, fontWeight: '600', marginBottom: '4px', opacity: '0' }
-        });
-        simplified.innerHTML = 'Simplified to <span style="color:' + C.green + '">3 transfers</span>';
-        rightCol.appendChild(simplified);
-
-        var SETTLEMENTS = [
-            { from: 'Alice', to: 'Bob', amount: '¥3,200', fc: C.orange, tc: C.skyBlue },
-            { from: 'Carol', to: 'Alice', amount: '$45.00', fc: C.purple, tc: C.orange },
-            { from: 'David', to: 'Carol', amount: '€28.50', fc: C.green, tc: C.purple }
-        ];
-        SETTLEMENTS.forEach(function(s) {
-            var card = el('div', {
-                className: 'scene-settle-card',
-                style: {
-                    backgroundColor: 'rgba(240,234,224,0.5)', borderRadius: '10px',
-                    padding: '10px 12px', border: '1px solid ' + C.warmBorder,
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    opacity: '0', transform: 'translateY(12px)'
-                }
-            }, [
-                el('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, [
-                    el('div', { style: {
-                        width: '26px', height: '26px', borderRadius: '50%',
-                        backgroundColor: s.fc, display: 'flex', justifyContent: 'center',
-                        alignItems: 'center', fontSize: '11px', color: C.white, fontWeight: '700'
-                    }, textContent: s.from[0] }),
-                    el('span', { style: { fontSize: '12px', color: C.charcoal, fontWeight: '500' }, textContent: s.from }),
-                    el('span', { style: { fontSize: '12px', color: C.warmGrayLt }, textContent: '\u2192' }),
-                    el('span', { style: { fontSize: '12px', color: C.charcoal, fontWeight: '500' }, textContent: s.to })
-                ]),
-                el('span', { style: { fontSize: '13px', fontWeight: '700', color: C.charcoal }, textContent: s.amount })
-            ]);
-            rightCol.appendChild(card);
-        });
+        buildPillBar(panel, 1);
 
         // Animate
         animateEl(panel, {
             opacity: [0, 1], translateY: [20, 0],
             duration: 500, delay: 500, ease: 'outQuad'
         });
+        animateEl('.scene-exp-tab', {
+            opacity: [0, 1],
+            duration: 300, delay: stagger(150, { start: 1000 }), ease: 'outQuad'
+        });
+        animateEl('.scene-overview', {
+            opacity: [0, 1], translateY: [10, 0],
+            duration: 400, delay: 1400, ease: 'outQuad'
+        });
+        animateEl('.scene-chart', {
+            opacity: [0, 1], duration: 400, delay: 2200, ease: 'outQuad'
+        });
         animateEl('.scene-pie-sector', {
             opacity: [0, 0.9],
-            duration: 400, delay: anime.stagger(150, { start: 1000 }), ease: 'outQuad'
+            duration: 300, delay: stagger(120, { start: 2400 }), ease: 'outQuad'
         });
         animateEl('.scene-legend-item', {
             opacity: [0, 1],
-            duration: 300, delay: anime.stagger(100, { start: 2000 }), ease: 'outQuad'
+            duration: 200, delay: stagger(100, { start: 3000 }), ease: 'outQuad'
         });
-        animateEl('.scene-currency-badge', {
-            opacity: [0, 1], scale: [0.8, 1],
-            duration: 300, delay: anime.stagger(100, { start: 2200 }), ease: 'outBack'
-        });
-        animateEl('.scene-simplified', {
-            opacity: [0, 1], duration: 300, delay: 2800, ease: 'outQuad'
-        });
-        animateEl('.scene-settle-card', {
-            opacity: [0, 1], translateY: [12, 0],
-            duration: 400, delay: anime.stagger(250, { start: 3000 }), ease: 'outQuad'
+        animateEl('.scene-pill-bar', {
+            opacity: [0, 1], translateY: [8, 0],
+            duration: 300, delay: 3600, ease: 'outQuad'
         });
     }
 
-    // ── Scene 3: AI Chat ──────────────────────────────────────────
+    // ── Scene 3: AI Chat ────────────────────────────────────────
     function buildAIScene(container) {
-        buildNarration(container, 'Ask anything. Your AI knows your trip.');
+        buildNarration(container, 'AI 助手隨問隨答，你的專屬旅遊顧問');
 
         var panel = buildPanel();
         container.appendChild(panel);
 
-        // Header
-        var headerBar = el('div', { style: {
+        // Chat header (primary-500 blue)
+        var chatHeader = el('div', { style: {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '10px 16px', borderBottom: '1px solid ' + C.warmBorder
+            padding: '12px 16px', backgroundColor: C.skyBlue
         }}, [
-            el('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, [
-                el('div', { style: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: C.green }}),
-                el('span', { style: { fontSize: '12px', color: C.warmGray, fontWeight: '500' }, textContent: 'WeGo AI \u2014 Tokyo Trip' })
+            el('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } }, [
+                el('div', { style: {
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center',
+                    fontSize: '14px', color: C.white
+                }, textContent: '\u2728' }),
+                el('div', {}, [
+                    el('div', { style: {
+                        fontSize: '14px', fontWeight: '700', color: C.white
+                    }, textContent: 'WeGo 旅遊助手' }),
+                    el('div', { style: {
+                        fontSize: '11px', color: 'rgba(255,255,255,0.8)'
+                    }, textContent: '旅遊、美食、景點推薦' })
+                ])
             ]),
             el('div', { style: {
-                backgroundColor: C.purple + '18', borderRadius: '8px', padding: '2px 8px',
-                fontSize: '10px', color: C.purple, fontWeight: '600'
-            }, textContent: 'Powered by Gemini' })
+                fontSize: '16px', color: 'rgba(255,255,255,0.7)', cursor: 'pointer'
+            }, textContent: '\u2715' })
         ]);
-        panel.appendChild(headerBar);
+        panel.appendChild(chatHeader);
 
         // Messages area
-        var msgs = el('div', { style: { padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '220px' } });
+        var msgs = el('div', { style: {
+            padding: '14px 16px', display: 'flex', flexDirection: 'column',
+            gap: '12px', flex: '1', minHeight: '0', overflow: 'hidden', backgroundColor: C.bgDark
+        }});
         panel.appendChild(msgs);
 
-        // User message 1
-        var user1 = el('div', {
+        // AI welcome message
+        var aiWelcome = el('div', {
+            className: 'scene-ai-msg',
+            style: { display: 'flex', alignItems: 'flex-start', gap: '8px', opacity: '0' }
+        });
+        var welcomeAvatar = el('div', { style: {
+            width: '28px', height: '28px', borderRadius: '50%',
+            backgroundColor: 'rgba(14,165,233,0.15)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            flexShrink: '0', fontSize: '12px', color: C.skyBlue
+        }, textContent: '\u2728' });
+        var welcomeBubble = el('div', { style: {
+            backgroundColor: C.cardInner, borderRadius: '16px 16px 16px 4px',
+            padding: '10px 14px', maxWidth: '85%', fontSize: '13px',
+            color: C.textPrimary, lineHeight: '1.5'
+        }, textContent: '你好！我是 WeGo 旅遊助手，可以幫你推薦餐廳、景點和行程安排。有什麼想問的嗎？' });
+        aiWelcome.appendChild(welcomeAvatar);
+        aiWelcome.appendChild(welcomeBubble);
+        msgs.appendChild(aiWelcome);
+
+        // User message
+        var userMsg = el('div', {
             className: 'scene-user-msg',
             style: { display: 'flex', justifyContent: 'flex-end', opacity: '0', transform: 'translateY(8px)' }
         }, [
             el('div', { style: {
-                backgroundColor: C.skyBlue, borderRadius: '14px 14px 3px 14px',
-                padding: '8px 14px', maxWidth: '75%', fontSize: '13px',
+                backgroundColor: C.skyBlue, borderRadius: '16px 16px 4px 16px',
+                padding: '10px 14px', maxWidth: '75%', fontSize: '13px',
                 color: C.white, lineHeight: '1.4'
-            }, textContent: 'What should we eat near Senso-ji Temple?' })
+            }, textContent: '大阪有什麼必吃的美食？' })
         ]);
-        msgs.appendChild(user1);
+        msgs.appendChild(userMsg);
 
-        // AI response 1
-        var aiRow1 = el('div', {
-            className: 'scene-ai-msg',
+        // AI response (typed)
+        var aiRow = el('div', {
+            className: 'scene-ai-reply',
             style: { display: 'flex', alignItems: 'flex-start', gap: '8px', opacity: '0' }
         });
-        var aiAvatar = el('div', { style: {
-            width: '24px', height: '24px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, ' + C.purple + ', ' + C.skyBlue + ')',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: '0',
-            fontSize: '10px', color: C.white
+        var replyAvatar = el('div', { style: {
+            width: '28px', height: '28px', borderRadius: '50%',
+            backgroundColor: 'rgba(14,165,233,0.15)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            flexShrink: '0', fontSize: '12px', color: C.skyBlue
         }, textContent: '\u2728' });
-        var aiBubble1 = el('div', { style: {
-            backgroundColor: C.cream, borderRadius: '14px 14px 14px 3px',
-            padding: '8px 14px', maxWidth: '80%', fontSize: '13px',
-            color: C.warmGray, lineHeight: '1.4'
+        var replyBubble = el('div', { style: {
+            backgroundColor: C.cardInner, borderRadius: '16px 16px 16px 4px',
+            padding: '10px 14px', maxWidth: '85%', fontSize: '13px',
+            color: C.textPrimary, lineHeight: '1.5'
         }});
-        aiRow1.appendChild(aiAvatar);
-        aiRow1.appendChild(aiBubble1);
-        msgs.appendChild(aiRow1);
-
-        // User message 2
-        var user2 = el('div', {
-            className: 'scene-user-msg-2',
-            style: { display: 'flex', justifyContent: 'flex-end', opacity: '0', transform: 'translateY(8px)' }
-        }, [
-            el('div', { style: {
-                backgroundColor: C.skyBlue, borderRadius: '14px 14px 3px 14px',
-                padding: '8px 14px', maxWidth: '75%', fontSize: '13px',
-                color: C.white, lineHeight: '1.4'
-            }, textContent: 'How about day passes?' })
-        ]);
-        msgs.appendChild(user2);
-
-        // AI response 2
-        var aiRow2 = el('div', {
-            className: 'scene-ai-msg-2',
-            style: { display: 'flex', alignItems: 'flex-start', gap: '8px', opacity: '0' }
-        });
-        var aiAvatar2 = el('div', { style: {
-            width: '24px', height: '24px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, ' + C.purple + ', ' + C.skyBlue + ')',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: '0',
-            fontSize: '10px', color: C.white
-        }, textContent: '\u2728' });
-        var aiBubble2 = el('div', { style: {
-            backgroundColor: C.cream, borderRadius: '14px 14px 14px 3px',
-            padding: '8px 14px', maxWidth: '80%', fontSize: '13px',
-            color: C.warmGray, lineHeight: '1.4'
-        }});
-        aiRow2.appendChild(aiAvatar2);
-        aiRow2.appendChild(aiBubble2);
-        msgs.appendChild(aiRow2);
+        aiRow.appendChild(replyAvatar);
+        aiRow.appendChild(replyBubble);
+        msgs.appendChild(aiRow);
 
         // Input bar
-        panel.appendChild(el('div', { style: {
-            padding: '10px 16px', borderTop: '1px solid ' + C.warmBorder,
-            display: 'flex', alignItems: 'center', gap: '8px'
+        var inputBar = el('div', { style: {
+            padding: '10px 16px', backgroundColor: C.bgDark,
+            borderTop: '1px solid ' + C.borderDark
+        }});
+        var inputRow = el('div', { style: {
+            display: 'flex', alignItems: 'center', gap: '8px',
+            backgroundColor: C.cardInner, borderRadius: '16px',
+            border: '1px solid ' + C.borderDark, padding: '6px 8px 6px 12px'
         }}, [
             el('div', { style: {
-                flex: '1', backgroundColor: C.cream, borderRadius: '10px',
-                padding: '8px 12px', fontSize: '12px', color: C.warmGrayLt
-            }, textContent: 'Ask about your trip...' }),
-            el('div', { style: {
                 width: '28px', height: '28px', borderRadius: '50%',
-                background: 'linear-gradient(135deg, ' + C.skyBlue + ', ' + C.purple + ')',
-                display: 'flex', justifyContent: 'center', alignItems: 'center'
+                border: '1.5px solid ' + C.textMuted,
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                fontSize: '12px', color: C.textMuted, flexShrink: '0'
+            }, textContent: '\uD83C\uDF10' }),
+            el('span', { style: {
+                flex: '1', fontSize: '13px', color: C.textMuted
+            }, textContent: '輸入你的問題...' }),
+            el('div', { style: {
+                width: '32px', height: '32px', borderRadius: '12px',
+                backgroundColor: C.skyBlue,
+                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                fontSize: '14px', color: C.white
             }, textContent: '\u2191' })
-        ]));
+        ]);
+        inputBar.appendChild(inputRow);
+
+        // Gemini label
+        var geminiRow = el('div', { style: {
+            display: 'flex', justifyContent: 'space-between',
+            marginTop: '6px', padding: '0 4px'
+        }}, [
+            el('span', { style: { fontSize: '11px', color: C.textMuted }, textContent: 'Gemini 2.5 Flash' }),
+            el('span', { style: { fontSize: '11px', color: C.textMuted }, textContent: '0/500' })
+        ]);
+        inputBar.appendChild(geminiRow);
+        panel.appendChild(inputBar);
 
         // Animate
-        var AI_TEXT_1 = 'Try Asakusa Imahan for sukiyaki \u2014 a local favorite since 1895!';
-        var AI_TEXT_2 = 'Get a 72-hour Tokyo Metro pass \u2014 saves ~40%!';
+        var AI_REPLY = '推薦道頓堀的章魚燒和大阪燒！另外黑門市場的海鮮丼也很值得一試 🍣';
 
         animateEl(panel, {
             opacity: [0, 1], translateY: [20, 0],
             duration: 500, delay: 500, ease: 'outQuad'
+        });
+        animateEl('.scene-ai-msg', {
+            opacity: [0, 1], duration: 300, delay: 1100, ease: 'outQuad'
         });
         animateEl('.scene-user-msg', {
             opacity: [0, 1], translateY: [8, 0],
-            duration: 400, delay: 1200, ease: 'outQuad'
+            duration: 400, delay: 2200, ease: 'outQuad'
         });
 
-        // AI typing 1
-        var ai1Timer = setTimeout(function() {
+        var replyTimer = setTimeout(function() {
             if (!isReduced()) {
-                animateEl('.scene-ai-msg', { opacity: [0, 1], duration: 200, ease: 'outQuad' });
+                animateEl('.scene-ai-reply', { opacity: [0, 1], duration: 200, ease: 'outQuad' });
             } else {
-                aiRow1.style.opacity = '1';
+                aiRow.style.opacity = '1';
             }
-            typeWriter(aiBubble1, AI_TEXT_1, { mode: 'char', speed: 35, delay: 200 });
-        }, 1800);
-        _intervals.push(ai1Timer);
-
-        // User message 2
-        var u2Timer = setTimeout(function() {
-            animateEl('.scene-user-msg-2', {
-                opacity: [0, 1], translateY: [8, 0],
-                duration: 400, ease: 'outQuad'
-            });
-        }, 4500);
-        _intervals.push(u2Timer);
-
-        // AI typing 2
-        var ai2Timer = setTimeout(function() {
-            if (!isReduced()) {
-                animateEl('.scene-ai-msg-2', { opacity: [0, 1], duration: 200, ease: 'outQuad' });
-            } else {
-                aiRow2.style.opacity = '1';
-            }
-            typeWriter(aiBubble2, AI_TEXT_2, { mode: 'char', speed: 35, delay: 200 });
-        }, 5200);
-        _intervals.push(ai2Timer);
+            typeWriter(replyBubble, AI_REPLY, { mode: 'char', speed: 50, delay: 200 });
+        }, 3000);
+        _intervals.push(replyTimer);
     }
 
-    // ── Scene 4: Collaboration ────────────────────────────────────
-    function buildCollabScene(container) {
-        buildNarration(container, 'Everyone contributes. No one gets left behind.');
+    // ── Scene 4: Todos ──────────────────────────────────────────
+    function buildTodoScene(container) {
+        buildNarration(container, '待辦追蹤，出發前確保萬事俱備');
 
-        var mobile = isMobile();
-        var panel = buildPanel({
-            padding: mobile ? '14px' : '20px',
-            display: 'flex',
-            gap: mobile ? '12px' : '16px',
-            flexDirection: mobile ? 'column' : 'row'
-        });
+        var panel = buildPanel();
         container.appendChild(panel);
 
-        // Left: Team Members
-        var leftCol = el('div', { style: { flex: mobile ? 'none' : '1', display: 'flex', flexDirection: 'column', gap: '8px' } });
-        panel.appendChild(leftCol);
+        // Header with progress badge
+        var header = el('div', { style: {
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', borderBottom: '1px solid ' + C.borderDark
+        }}, [
+            el('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } }, [
+                el('span', { style: { fontSize: '16px', color: C.textSecond }, textContent: '\u2039' }),
+                el('span', { style: {
+                    fontSize: '15px', fontWeight: '700', color: C.textPrimary,
+                    fontFamily: "'Plus Jakarta Sans', 'Noto Sans TC', sans-serif"
+                }, textContent: '待辦事項' }),
+                el('div', { style: {
+                    backgroundColor: 'rgba(14,165,233,0.15)', borderRadius: '10px',
+                    padding: '2px 8px', fontSize: '11px', fontWeight: '600', color: C.skyBlue
+                }, textContent: '1/3' })
+            ]),
+            el('div', { style: {
+                width: '32px', height: '32px', borderRadius: '10px',
+                backgroundColor: C.orange, display: 'flex',
+                justifyContent: 'center', alignItems: 'center',
+                fontSize: '18px', color: C.white, fontWeight: '300'
+            }, textContent: '+' })
+        ]);
+        panel.appendChild(header);
 
-        leftCol.appendChild(el('div', { style: {
-            fontSize: '14px', fontWeight: '700', color: C.charcoal, marginBottom: '4px'
-        }, textContent: 'Team Members' }));
-
-        var MEMBERS = [
-            { name: 'Alice', i: 'A', color: C.orange, role: 'Owner', online: true },
-            { name: 'Bob',   i: 'B', color: C.skyBlue, role: 'Editor', online: true },
-            { name: 'Carol', i: 'C', color: C.purple, role: 'Editor', online: true },
-            { name: 'David', i: 'D', color: C.green, role: 'Viewer', online: false }
+        // Filter tabs
+        var filterBar = el('div', { style: {
+            display: 'flex', gap: '8px', padding: '12px 16px',
+            overflowX: 'auto'
+        }});
+        var FILTERS = [
+            { label: '全部', count: 3, active: true },
+            { label: '待處理', count: 0, active: false },
+            { label: '進行中', count: 2, active: false },
+            { label: '已完成', count: 1, active: false }
         ];
-
-        MEMBERS.forEach(function(m) {
-            var memberRow = el('div', {
-                className: 'scene-member',
+        FILTERS.forEach(function(f) {
+            filterBar.appendChild(el('div', {
+                className: 'scene-filter-tab',
                 style: {
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '8px 10px', borderRadius: '10px',
-                    backgroundColor: 'rgba(240,234,224,0.4)',
-                    opacity: '0', transform: 'translateX(-20px)'
+                    padding: '6px 14px', borderRadius: '20px',
+                    fontSize: '12px', fontWeight: '600', whiteSpace: 'nowrap',
+                    backgroundColor: f.active ? C.skyBlue : C.cardInner,
+                    color: f.active ? C.white : C.textMuted,
+                    opacity: '0', transform: 'scale(0.9)'
                 }
             }, [
-                el('div', { style: { position: 'relative' } }, [
-                    el('div', { style: {
-                        width: '28px', height: '28px', borderRadius: '50%',
-                        backgroundColor: m.color, display: 'flex', justifyContent: 'center',
-                        alignItems: 'center', fontSize: '12px', color: C.white, fontWeight: '700'
-                    }, textContent: m.i }),
-                    el('div', { style: {
-                        position: 'absolute', bottom: '0', right: '0',
-                        width: '8px', height: '8px', borderRadius: '50%',
-                        backgroundColor: m.online ? C.green : C.warmGrayLt,
-                        border: '1.5px solid ' + C.white
-                    }})
-                ]),
-                el('span', { style: { flex: '1', fontSize: '12px', fontWeight: '600', color: C.charcoal }, textContent: m.name }),
-                el('div', { style: {
-                    fontSize: '10px', fontWeight: '600',
-                    color: m.role === 'Owner' ? C.orange : C.warmGray,
-                    backgroundColor: m.role === 'Owner' ? C.orange + '15' : C.warmGrayLt + '20',
-                    borderRadius: '6px', padding: '2px 8px'
-                }, textContent: m.role })
-            ]);
-            leftCol.appendChild(memberRow);
+                document.createTextNode(f.label),
+                el('span', { style: {
+                    marginLeft: '4px', opacity: '0.7', fontSize: '11px'
+                }, textContent: '(' + f.count + ')' })
+            ]));
         });
+        panel.appendChild(filterBar);
 
-        // Typing indicator
-        var typingEl = el('div', {
-            className: 'scene-typing',
-            style: {
-                fontSize: '11px', color: C.warmGrayLt, fontStyle: 'italic',
-                paddingLeft: '10px', marginTop: '4px', opacity: '0'
-            },
-            textContent: 'Bob is typing'
-        });
-        leftCol.appendChild(typingEl);
-
-        // Divider (hidden on mobile, vertical line on desktop)
-        if (!mobile) {
-            panel.appendChild(el('div', { style: {
-                width: '1px', backgroundColor: C.warmBorder, alignSelf: 'stretch'
-            }}));
-        } else {
-            panel.appendChild(el('div', { style: {
-                height: '1px', backgroundColor: C.warmBorder, width: '100%'
-            }}));
-        }
-
-        // Right: Todo list
-        var rightCol = el('div', { style: { flex: mobile ? 'none' : '1', display: 'flex', flexDirection: 'column', gap: '8px' } });
-        panel.appendChild(rightCol);
-
-        rightCol.appendChild(el('div', { style: {
-            fontSize: '14px', fontWeight: '700', color: C.charcoal, marginBottom: '4px'
-        }, textContent: 'Trip Checklist' }));
+        // Todo cards
+        var todoList = el('div', { style: {
+            padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: '10px',
+            flex: '1', minHeight: '0', overflow: 'hidden'
+        }});
 
         var TODOS = [
-            { text: 'Book flights', done: true, who: 'Alice' },
-            { text: 'Reserve hotel', done: true, who: 'Bob' },
-            { text: 'Buy pocket WiFi', done: false, who: 'Carol' },
-            { text: 'Plan Day 3 activities', done: false, who: 'David' }
+            { title: '預訂飯店', desc: '確認入住日期', who: '小明', whoColor: C.orange,
+              date: '02/11', status: 'done', overdue: false },
+            { title: '購買機票', desc: '比價後下單', who: '小華', whoColor: C.skyBlue,
+              date: '02/12', status: 'progress', overdue: true },
+            { title: '規劃第三天行程', desc: '大阪環球影城', who: '小美', whoColor: C.purple,
+              date: '02/13', status: 'progress', overdue: true }
         ];
 
         TODOS.forEach(function(t) {
-            var checkboxStyle = {
-                width: '16px', height: '16px', borderRadius: '4px',
-                border: t.done ? '2px solid ' + C.green : '2px solid ' + C.warmBorder,
-                backgroundColor: t.done ? C.green : 'transparent',
-                display: 'flex', justifyContent: 'center', alignItems: 'center',
-                flexShrink: '0', fontSize: '10px', color: C.white
-            };
-            var todoRow = el('div', {
-                className: 'scene-todo',
+            var statusIcon;
+            if (t.status === 'done') {
+                statusIcon = el('div', { style: {
+                    width: '24px', height: '24px', borderRadius: '50%',
+                    backgroundColor: C.green, display: 'flex',
+                    justifyContent: 'center', alignItems: 'center',
+                    fontSize: '12px', color: C.white, flexShrink: '0'
+                }, textContent: '\u2713' });
+            } else {
+                statusIcon = el('div', { style: {
+                    width: '24px', height: '24px', borderRadius: '50%',
+                    backgroundColor: C.skyBlue, display: 'flex',
+                    justifyContent: 'center', alignItems: 'center', flexShrink: '0'
+                }}, [
+                    el('div', { style: {
+                        width: '8px', height: '8px', borderRadius: '50%',
+                        backgroundColor: C.white
+                    }})
+                ]);
+            }
+
+            var metaChildren = [
+                el('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
+                    el('div', { style: {
+                        width: '18px', height: '18px', borderRadius: '50%',
+                        backgroundColor: t.whoColor, display: 'flex',
+                        justifyContent: 'center', alignItems: 'center',
+                        fontSize: '9px', color: C.white, fontWeight: '700'
+                    }, textContent: t.who[0] }),
+                    el('span', { style: { fontSize: '11px', color: C.textMuted }, textContent: t.who })
+                ]),
+                el('span', { style: {
+                    fontSize: '11px', color: t.overdue ? C.red : C.textMuted
+                }, textContent: '\uD83D\uDCC5 ' + t.date + (t.overdue ? ' 逾期' : '') })
+            ];
+
+            var statusBadge = el('span', { style: {
+                fontSize: '10px', fontWeight: '600',
+                padding: '2px 8px', borderRadius: '6px',
+                backgroundColor: t.status === 'done' ? 'rgba(34,197,94,0.15)' : 'rgba(14,165,233,0.15)',
+                color: t.status === 'done' ? C.green : C.skyBlue
+            }, textContent: t.status === 'done' ? '已完成' : '進行中' });
+
+            var card = el('div', {
+                className: 'scene-todo-card',
                 style: {
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '8px 10px', borderRadius: '10px',
-                    backgroundColor: 'rgba(240,234,224,0.4)',
-                    opacity: '0', transform: 'translateX(20px)'
+                    display: 'flex', alignItems: 'flex-start', gap: '12px',
+                    padding: '12px', borderRadius: '14px',
+                    backgroundColor: 'rgba(255,255,255,0.04)',
+                    border: '1px solid ' + C.borderDark,
+                    opacity: '0', transform: 'translateY(12px)'
                 }
             }, [
-                el('div', { style: checkboxStyle }, t.done ? [document.createTextNode('\u2713')] : []),
-                el('span', { style: {
-                    flex: '1', fontSize: '12px', fontWeight: '500',
-                    color: t.done ? C.warmGrayLt : C.charcoal,
-                    textDecoration: t.done ? 'line-through' : 'none'
-                }, textContent: t.text }),
-                el('span', { style: { fontSize: '10px', color: C.warmGray }, textContent: t.who })
+                statusIcon,
+                el('div', { style: { flex: '1', minWidth: '0' } }, [
+                    el('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } }, [
+                        el('span', { style: {
+                            fontSize: '13px', fontWeight: '600',
+                            color: t.status === 'done' ? C.textMuted : C.textPrimary,
+                            textDecoration: t.status === 'done' ? 'line-through' : 'none'
+                        }, textContent: t.title }),
+                        statusBadge
+                    ]),
+                    el('div', { style: {
+                        fontSize: '12px', color: C.textMuted, marginTop: '3px'
+                    }, textContent: t.desc }),
+                    el('div', { style: {
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        marginTop: '8px'
+                    }}, metaChildren)
+                ])
             ]);
-            rightCol.appendChild(todoRow);
+            todoList.appendChild(card);
         });
+        panel.appendChild(todoList);
 
-        // Progress badge
-        var progressBadge = el('div', {
-            className: 'scene-progress',
-            style: {
-                display: 'flex', justifyContent: 'flex-end', marginTop: '4px', opacity: '0'
-            }
-        }, [
-            el('div', { style: {
-                backgroundColor: C.skyBlue + '15', border: '1px solid ' + C.skyBlue + '33',
-                borderRadius: '8px', padding: '3px 10px',
-                fontSize: '11px', fontWeight: '600', color: C.skyBlue
-            }, textContent: '2/4 done' })
-        ]);
-        rightCol.appendChild(progressBadge);
+        buildPillBar(panel, 3);
 
         // Animate
         animateEl(panel, {
             opacity: [0, 1], translateY: [20, 0],
             duration: 500, delay: 500, ease: 'outQuad'
         });
-        animateEl('.scene-member', {
-            opacity: [0, 1], translateX: [-20, 0],
-            duration: 400, delay: anime.stagger(200, { start: 1200 }), ease: 'outQuad'
-        });
-        animateEl('.scene-todo', {
-            opacity: [0, 1], translateX: [20, 0],
-            duration: 400, delay: anime.stagger(200, { start: 1400 }), ease: 'outQuad'
-        });
-
-        // Typing indicator
-        var typingTimer = setTimeout(function() {
-            animateEl('.scene-typing', { opacity: [0, 1], duration: 300, ease: 'outQuad' });
-            // Animate dots
-            var dotCount = 0;
-            var dotInterval = setInterval(function() {
-                dotCount = (dotCount + 1) % 4;
-                typingEl.textContent = 'Bob is typing' + '.'.repeat(dotCount);
-            }, 500);
-            _intervals.push(dotInterval);
-        }, 3500);
-        _intervals.push(typingTimer);
-
-        animateEl('.scene-progress', {
+        animateEl('.scene-filter-tab', {
             opacity: [0, 1], scale: [0.9, 1],
-            duration: 300, delay: 3000, ease: 'outBack'
+            duration: 300, delay: stagger(100, { start: 1000 }), ease: 'outBack'
+        });
+        animateEl('.scene-todo-card', {
+            opacity: [0, 1], translateY: [12, 0],
+            duration: 400, delay: stagger(350, { start: 1500 }), ease: 'outQuad'
+        });
+        animateEl('.scene-pill-bar', {
+            opacity: [0, 1], translateY: [8, 0],
+            duration: 300, delay: 3200, ease: 'outQuad'
         });
     }
 
-    // ── Export ─────────────────────────────────────────────────────
+    // ── Export ───────────────────────────────────────────────────
     window.LandingAnimation = {
         init: init,
         destroy: destroy
