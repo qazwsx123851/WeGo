@@ -194,7 +194,7 @@
                 color: C.textPrimary,
                 textAlign: 'center',
                 minHeight: '26px',
-                marginBottom: mobile ? '12px' : '18px',
+                marginBottom: mobile ? '10px' : '14px',
                 lineHeight: '1.5',
                 fontFamily: "'Plus Jakarta Sans', 'Noto Sans TC', sans-serif"
             }
@@ -211,7 +211,6 @@
             borderRadius: '20px',
             border: '1px solid ' + C.borderDark,
             boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            overflow: 'hidden',
             width: '100%',
             flex: '1',
             minHeight: '0',
@@ -386,7 +385,7 @@
         panel.appendChild(tabBar);
 
         // Activity content
-        var content = el('div', { style: { padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minHeight: '0', overflow: 'hidden' } });
+        var content = el('div', { style: { padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '4px', flex: '1', minHeight: '0' } });
         panel.appendChild(content);
 
         var ACTIVITIES = [
@@ -522,7 +521,7 @@
         var overview = el('div', {
             className: 'scene-overview',
             style: {
-                margin: '0 16px 12px', padding: mobile ? '14px' : '16px',
+                margin: '0 16px 8px', padding: mobile ? '14px' : '16px',
                 backgroundColor: 'rgba(255,255,255,0.04)',
                 border: '1px solid ' + C.borderDark,
                 borderRadius: '14px', opacity: '0', transform: 'translateY(10px)'
@@ -584,7 +583,7 @@
             style: {
                 display: 'flex', flexDirection: mobile ? 'column' : 'row',
                 alignItems: 'center', gap: mobile ? '10px' : '16px',
-                padding: '0 16px 12px', opacity: '0'
+                padding: '0 16px 8px', opacity: '0'
             }
         });
 
@@ -720,7 +719,7 @@
         // Messages area
         var msgs = el('div', { style: {
             padding: '14px 16px', display: 'flex', flexDirection: 'column',
-            gap: '12px', flex: '1', minHeight: '0', overflow: 'hidden', backgroundColor: C.bgDark
+            gap: '12px', flex: '1', minHeight: '0', backgroundColor: C.bgDark
         }});
         panel.appendChild(msgs);
 
@@ -906,8 +905,8 @@
 
         // Todo cards
         var todoList = el('div', { style: {
-            padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: '10px',
-            flex: '1', minHeight: '0', overflow: 'hidden'
+            padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: '8px',
+            flex: '1', minHeight: '0'
         }});
 
         var TODOS = [
