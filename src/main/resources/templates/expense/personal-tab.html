@@ -88,7 +88,7 @@
     </div>
 
     <!-- 2. Charts card — only show when data exists -->
-    <div class="mb-3 glass-card p-4"
+    <div id="charts-card" class="mb-3 glass-card p-4 opacity-0 transition-opacity duration-500"
          th:if="${personalExpenses != null and not #lists.isEmpty(personalExpenses) and personalSummary != null}">
         <!-- Chart tab switcher (H1: dark mode fix) -->
         <div class="relative flex gap-1 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg mb-4">
@@ -109,7 +109,7 @@
         </div>
 
         <!-- Category: stacked donut + 2-col legend grid -->
-        <div id="chart-category" class="transition-opacity duration-200">
+        <div id="chart-category" class="min-h-[280px] transition-opacity duration-200">
             <div class="relative h-48">
                 <canvas id="personal-category-chart"></canvas>
             </div>
@@ -117,8 +117,8 @@
         </div>
 
         <!-- Daily bar -->
-        <div id="chart-daily" class="hidden transition-opacity duration-200">
-            <div id="daily-chart-wrapper" style="-webkit-overflow-scrolling: touch">
+        <div id="chart-daily" class="hidden min-h-[200px] transition-opacity duration-200">
+            <div id="daily-chart-wrapper" class="min-h-[200px]" style="-webkit-overflow-scrolling: touch">
                 <canvas id="personal-daily-chart" style="height: 200px"></canvas>
             </div>
         </div>

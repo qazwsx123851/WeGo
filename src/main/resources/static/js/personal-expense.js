@@ -18,6 +18,7 @@ const PersonalExpense = (() => {
     let budgetTriggerEl = null;
     let categoryChart = null;
     let dailyChart = null;
+    let cachedDailyData = null;
     const prefersReducedMotion = WeGo._reducedMotion;
 
     // =====================
@@ -302,19 +303,28 @@ const PersonalExpense = (() => {
             dailyTab.classList.toggle('dark:text-gray-400', type !== 'daily');
         }
 
-        if (type === 'daily' && dailyChart) {
-            setTimeout(function() { dailyChart.resize(); }, 20);
-            const wrapper = document.getElementById('daily-chart-wrapper');
+        if (type === 'daily') {
+            if (!dailyChart) {
+                setTimeout(function() { initDailyChart(); }, 20);
+            } else {
+                setTimeout(function() { dailyChart.resize(); }, 20);
+            }
+            var wrapper = document.getElementById('daily-chart-wrapper');
             if (wrapper && wrapper.dataset.needsScroll === 'true') {
                 wrapper.classList.add('overflow-x-auto', 'overscroll-x-contain');
             }
         }
     }
 
+    function showChartsCard() {
+        var card = document.getElementById('charts-card');
+        if (card) { card.classList.remove('opacity-0'); card.classList.add('opacity-100'); }
+    }
+
     function initCharts() {
         const dataEl = document.getElementById('personal-chart-data');
-        if (!dataEl) return;
-        if (typeof Chart === 'undefined') return;
+        if (!dataEl) { showChartsCard(); return; }
+        if (typeof Chart === 'undefined') { showChartsCard(); return; }
 
         try {
             const categoryData = JSON.parse(dataEl.dataset.categoryBreakdown || '{}');
@@ -411,178 +421,11 @@ const PersonalExpense = (() => {
                 renderCategoryLegend(categoryData, total);
             }
 
-            // Daily bar chart
-            const dailyCanvas = document.getElementById('personal-daily-chart');
-            if (dailyCanvas && Object.keys(dailyData).length > 0) {
-                const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-                const textColor = isDark ? '#9CA3AF' : '#6B7280';
-                const tooltipBg = isDark ? 'rgba(31,41,55,0.95)' : 'rgba(255,255,255,0.95)';
-                const tooltipTitle = isDark ? '#F3F4F6' : '#1F2937';
-                const tooltipBody = isDark ? '#D1D5DB' : '#4B5563';
-                const tooltipBorder = isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB';
-
-                const rawLabels = Object.keys(dailyData);
-                const rawData = Object.values(dailyData).map(function(v) { return parseFloat(v); });
-
-                // Trim future zero-value dates
-                const now = new Date();
-                const today = now.getFullYear() + '-'
-                    + String(now.getMonth() + 1).padStart(2, '0') + '-'
-                    + String(now.getDate()).padStart(2, '0');
-                let dLabels = [];
-                let dData = [];
-                rawLabels.forEach(function(label, i) {
-                    if (label <= today || rawData[i] > 0) {
-                        dLabels.push(label);
-                        dData.push(rawData[i]);
-                    }
-                });
-                if (dLabels.length === 0) {
-                    dLabels = rawLabels;
-                    dData = rawData;
-                }
-
-                const needsScroll = dLabels.length > 14;
-                const wrapper = document.getElementById('daily-chart-wrapper');
-                if (needsScroll && wrapper) {
-                    wrapper.dataset.needsScroll = 'true';
-                    wrapper.classList.add('overflow-x-auto', 'overscroll-x-contain');
-                    dailyCanvas.style.minWidth = (dLabels.length * 48) + 'px';
-                }
-
-                const zeroBarColor = isDark ? 'rgba(75,85,99,0.3)' : 'rgba(209,213,219,0.5)';
-                const zeroBarHover = isDark ? 'rgba(75,85,99,0.5)' : 'rgba(209,213,219,0.7)';
-
-                let barGradientCache = null;
-                let barGradientHeight = 0;
-
-                dailyChart = new Chart(dailyCanvas, {
-                    type: 'bar',
-                    data: {
-                        labels: dLabels,
-                        datasets: [{
-                            label: '花費',
-                            data: dData,
-                            backgroundColor: function(context) {
-                                const chart = context.chart;
-                                const value = context.raw;
-                                if (value === 0 || value === undefined) return zeroBarColor;
-                                const chartArea = chart.chartArea;
-                                if (!chartArea) return '#F97316';
-                                const h = chartArea.bottom - chartArea.top;
-                                if (barGradientCache && h === barGradientHeight) return barGradientCache;
-                                barGradientHeight = h;
-                                barGradientCache = chart.ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-                                barGradientCache.addColorStop(0, 'rgba(249, 115, 22, 0.6)');
-                                barGradientCache.addColorStop(1, 'rgba(249, 115, 22, 1)');
-                                return barGradientCache;
-                            },
-                            hoverBackgroundColor: function(context) {
-                                const value = context.raw;
-                                if (value === 0 || value === undefined) return zeroBarHover;
-                                return '#EA580C';
-                            },
-                            borderRadius: 8,
-                            maxBarThickness: 40,
-                            borderSkipped: false,
-                            minBarLength: 2
-                        }]
-                    },
-                    options: {
-                        responsive: !needsScroll,
-                        maintainAspectRatio: false,
-                        interaction: {
-                            mode: 'index',
-                            intersect: false
-                        },
-                        animation: prefersReducedMotion ? false : {
-                            delay: function(context) {
-                                if (context.type === 'data' && context.mode === 'default') {
-                                    return Math.min(context.dataIndex * 50, 500);
-                                }
-                                return 0;
-                            },
-                            duration: 600,
-                            easing: 'easeOutQuart'
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: tooltipBg,
-                                titleColor: tooltipTitle,
-                                bodyColor: tooltipBody,
-                                borderColor: tooltipBorder,
-                                borderWidth: 1,
-                                cornerRadius: 8,
-                                padding: 12,
-                                usePointStyle: true,
-                                titleFont: { weight: '600' },
-                                displayColors: false,
-                                callbacks: {
-                                    title: function(items) {
-                                        const label = items[0].label || '';
-                                        const parts = label.split('-');
-                                        if (parts.length === 3) {
-                                            return parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
-                                        }
-                                        return label;
-                                    },
-                                    label: function(item) {
-                                        if (item.raw === 0) return '無花費';
-                                        return '花費 $' + item.raw.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                grid: { display: false },
-                                ticks: {
-                                    color: textColor,
-                                    maxRotation: 0,
-                                    autoSkip: true,
-                                    maxTicksLimit: 8,
-                                    font: { size: 11 },
-                                    callback: function(val) {
-                                        const label = this.getLabelForValue(val);
-                                        const parts = label.split('-');
-                                        if (parts.length === 3) {
-                                            return parseInt(parts[1]) + '/' + parseInt(parts[2]);
-                                        }
-                                        return label;
-                                    }
-                                }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                grid: {
-                                    color: gridColor,
-                                    drawTicks: false,
-                                    borderDash: [4, 4]
-                                },
-                                border: {
-                                    display: false
-                                },
-                                ticks: {
-                                    color: textColor,
-                                    font: { size: 11 },
-                                    padding: 8,
-                                    maxTicksLimit: 5,
-                                    callback: function(value) {
-                                        if (value >= 10000) return '$' + (value / 1000) + 'K';
-                                        if (value >= 1000) {
-                                            const k = value / 1000;
-                                            return '$' + (k % 1 === 0 ? k : k.toFixed(1)) + 'K';
-                                        }
-                                        return '$' + value;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
+            // Cache daily data for lazy init on first tab switch
+            cachedDailyData = dailyData;
+            showChartsCard();
         } catch (e) {
+            showChartsCard();
             if (typeof Toast !== 'undefined') Toast.error('圖表載入失敗');
         }
     }
@@ -617,6 +460,177 @@ const PersonalExpense = (() => {
             div.appendChild(labelSpan);
             div.appendChild(pctSpan);
             legendEl.appendChild(div);
+        });
+    }
+
+    function initDailyChart() {
+        if (dailyChart) return;
+        if (!cachedDailyData || Object.keys(cachedDailyData).length === 0) return;
+        if (typeof Chart === 'undefined') return;
+
+        var isDark = document.documentElement.classList.contains('dark');
+        var dailyCanvas = document.getElementById('personal-daily-chart');
+        if (!dailyCanvas) return;
+
+        var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+        var textColor = isDark ? '#9CA3AF' : '#6B7280';
+        var tooltipBg = isDark ? 'rgba(31,41,55,0.95)' : 'rgba(255,255,255,0.95)';
+        var tooltipTitle = isDark ? '#F3F4F6' : '#1F2937';
+        var tooltipBody = isDark ? '#D1D5DB' : '#4B5563';
+        var tooltipBorder = isDark ? 'rgba(255,255,255,0.1)' : '#E5E7EB';
+
+        var rawLabels = Object.keys(cachedDailyData);
+        var rawData = Object.values(cachedDailyData).map(function(v) { return parseFloat(v); });
+
+        var now = new Date();
+        var today = now.getFullYear() + '-'
+            + String(now.getMonth() + 1).padStart(2, '0') + '-'
+            + String(now.getDate()).padStart(2, '0');
+        var dLabels = [];
+        var dData = [];
+        rawLabels.forEach(function(label, i) {
+            if (label <= today || rawData[i] > 0) {
+                dLabels.push(label);
+                dData.push(rawData[i]);
+            }
+        });
+        if (dLabels.length === 0) {
+            dLabels = rawLabels;
+            dData = rawData;
+        }
+
+        var needsScroll = dLabels.length > 14;
+        var wrapper = document.getElementById('daily-chart-wrapper');
+        if (needsScroll && wrapper) {
+            wrapper.dataset.needsScroll = 'true';
+            wrapper.classList.add('overflow-x-auto', 'overscroll-x-contain');
+            dailyCanvas.style.minWidth = (dLabels.length * 48) + 'px';
+        }
+
+        var zeroBarColor = isDark ? 'rgba(75,85,99,0.3)' : 'rgba(209,213,219,0.5)';
+        var zeroBarHover = isDark ? 'rgba(75,85,99,0.5)' : 'rgba(209,213,219,0.7)';
+        var barGradientCache = null;
+        var barGradientHeight = 0;
+
+        dailyChart = new Chart(dailyCanvas, {
+            type: 'bar',
+            data: {
+                labels: dLabels,
+                datasets: [{
+                    label: '花費',
+                    data: dData,
+                    backgroundColor: function(context) {
+                        var chart = context.chart;
+                        var value = context.raw;
+                        if (value === 0 || value === undefined) return zeroBarColor;
+                        var chartArea = chart.chartArea;
+                        if (!chartArea) return '#F97316';
+                        var h = chartArea.bottom - chartArea.top;
+                        if (barGradientCache && h === barGradientHeight) return barGradientCache;
+                        barGradientHeight = h;
+                        barGradientCache = chart.ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                        barGradientCache.addColorStop(0, 'rgba(249, 115, 22, 0.6)');
+                        barGradientCache.addColorStop(1, 'rgba(249, 115, 22, 1)');
+                        return barGradientCache;
+                    },
+                    hoverBackgroundColor: function(context) {
+                        var value = context.raw;
+                        if (value === 0 || value === undefined) return zeroBarHover;
+                        return '#EA580C';
+                    },
+                    borderRadius: 8,
+                    maxBarThickness: 40,
+                    borderSkipped: false,
+                    minBarLength: 2
+                }]
+            },
+            options: {
+                responsive: !needsScroll,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                animation: prefersReducedMotion ? false : {
+                    delay: function(context) {
+                        if (context.type === 'data' && context.mode === 'default') {
+                            return Math.min(context.dataIndex * 50, 500);
+                        }
+                        return 0;
+                    },
+                    duration: 600,
+                    easing: 'easeOutQuart'
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: tooltipBg,
+                        titleColor: tooltipTitle,
+                        bodyColor: tooltipBody,
+                        borderColor: tooltipBorder,
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        usePointStyle: true,
+                        titleFont: { weight: '600' },
+                        displayColors: false,
+                        callbacks: {
+                            title: function(items) {
+                                var label = items[0].label || '';
+                                var parts = label.split('-');
+                                if (parts.length === 3) {
+                                    return parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+                                }
+                                return label;
+                            },
+                            label: function(item) {
+                                if (item.raw === 0) return '無花費';
+                                return '花費 $' + item.raw.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: textColor,
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 8,
+                            font: { size: 11 },
+                            callback: function(val) {
+                                var label = this.getLabelForValue(val);
+                                var parts = label.split('-');
+                                if (parts.length === 3) {
+                                    return parseInt(parts[1]) + '/' + parseInt(parts[2]);
+                                }
+                                return label;
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: gridColor,
+                            drawTicks: false,
+                            borderDash: [4, 4]
+                        },
+                        border: { display: false },
+                        ticks: {
+                            color: textColor,
+                            font: { size: 11 },
+                            padding: 8,
+                            maxTicksLimit: 5,
+                            callback: function(value) {
+                                if (value >= 10000) return '$' + (value / 1000) + 'K';
+                                if (value >= 1000) {
+                                    var k = value / 1000;
+                                    return '$' + (k % 1 === 0 ? k : k.toFixed(1)) + 'K';
+                                }
+                                return '$' + value;
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -791,8 +805,14 @@ const PersonalExpense = (() => {
             }
         });
 
-        // Initialize
-        initCharts();
+        // Initialize — defer chart rendering until card is visible (like statistics page)
+        if (typeof WeGo !== 'undefined' && WeGo.anime && WeGo.anime.onVisible) {
+            WeGo.anime.onVisible('#charts-card', function() {
+                initCharts();
+            }, { threshold: 0.1 });
+        } else {
+            initCharts();
+        }
         injectDateHeaders();
         initExchangeRate();
 
