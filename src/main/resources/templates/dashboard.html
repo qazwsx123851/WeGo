@@ -157,17 +157,17 @@
     <!-- Onboarding Tooltip (first-time users only) -->
     <div id="onboarding-overlay" class="hidden fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm" aria-hidden="true">
     </div>
-    <div id="onboarding-tooltip" class="hidden fixed z-[61] glass-card p-5 max-w-xs shadow-lg animate-scale-in"
+    <div id="onboarding-tooltip" class="hidden fixed z-[61] glass-card p-4 sm:p-5 max-w-[calc(100vw-2rem)] sm:max-w-xs shadow-lg animate-scale-in"
         role="dialog" aria-label="歡迎導覽">
         <div id="onboarding-content">
             <h3 id="onboarding-title" class="text-body font-semibold text-gray-800 dark:text-gray-100 mb-2"></h3>
-            <p id="onboarding-desc" class="text-body-sm text-gray-500 dark:text-gray-400 mb-4"></p>
+            <p id="onboarding-desc" class="text-body-sm text-gray-500 dark:text-gray-400 mb-3 sm:mb-4"></p>
         </div>
-        <div class="flex items-center justify-between">
-            <span id="onboarding-step" class="text-caption text-gray-400"></span>
+        <div class="flex items-center justify-between gap-2">
+            <span id="onboarding-step" class="text-caption text-gray-400 shrink-0"></span>
             <div class="flex gap-2">
-                <button id="onboarding-skip" class="btn-text text-body-sm py-1 px-3">跳過</button>
-                <button id="onboarding-next" class="btn-primary text-body-sm py-1.5 px-4">下一步</button>
+                <button id="onboarding-skip" class="btn-text text-body-sm py-1 px-2 sm:px-3">跳過</button>
+                <button id="onboarding-next" class="btn-primary text-body-sm py-1.5 px-3 sm:px-4">下一步</button>
             </div>
         </div>
     </div>
@@ -208,7 +208,8 @@
                         var tooltipRect = tooltip.getBoundingClientRect();
                         var top = rect.top - tooltipRect.height - 12;
                         if (top < 8) top = rect.bottom + 12;
-                        var left = Math.max(8, Math.min(rect.left, window.innerWidth - 320));
+                        var tooltipWidth = Math.min(320, window.innerWidth - 32);
+                        var left = Math.max(16, Math.min(rect.left, window.innerWidth - tooltipWidth - 16));
                         tooltip.style.top = top + 'px';
                         tooltip.style.left = left + 'px';
                         return;
