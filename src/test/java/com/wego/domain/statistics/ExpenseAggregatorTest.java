@@ -2,7 +2,7 @@ package com.wego.domain.statistics;
 
 import com.wego.entity.Expense;
 import com.wego.entity.ExpenseSplit;
-import com.wego.entity.User;
+import com.wego.service.ParticipantResolver.ParticipantInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -170,13 +170,13 @@ class ExpenseAggregatorTest {
         @Test
         @DisplayName("should calculate paid amounts correctly")
         void singlePayer_shouldCalculatePaidAmount() {
-            User user = createUser(user1Id, "Alice");
+            ParticipantInfo info = createParticipantInfo(user1Id, "Alice", false);
             Expense expense = createExpenseWithPayer("餐飲", new BigDecimal("300"), user1Id);
 
             List<MemberStatistics> result = aggregator.aggregateByMember(
                 List.of(expense),
                 List.of(),
-                Map.of(user1Id, user)
+                Map.of(user1Id, info)
             );
 
             assertThat(result).hasSize(1);
@@ -184,13 +184,14 @@ class ExpenseAggregatorTest {
             assertThat(stats.getUserId()).isEqualTo(user1Id);
             assertThat(stats.getNickname()).isEqualTo("Alice");
             assertThat(stats.getTotalPaid()).isEqualByComparingTo(new BigDecimal("300"));
+            assertThat(stats.isGhost()).isFalse();
         }
 
         @Test
         @DisplayName("should calculate owed amounts from splits")
         void withSplits_shouldCalculateOwedAmounts() {
-            User user1 = createUser(user1Id, "Alice");
-            User user2 = createUser(user2Id, "Bob");
+            ParticipantInfo info1 = createParticipantInfo(user1Id, "Alice", false);
+            ParticipantInfo info2 = createParticipantInfo(user2Id, "Bob", false);
 
             Expense expense = createExpenseWithPayer("餐飲", new BigDecimal("300"), user1Id);
             UUID expenseId = expense.getId();
@@ -201,7 +202,7 @@ class ExpenseAggregatorTest {
             List<MemberStatistics> result = aggregator.aggregateByMember(
                 List.of(expense),
                 List.of(split1, split2),
-                Map.of(user1Id, user1, user2Id, user2)
+                Map.of(user1Id, info1, user2Id, info2)
             );
 
             assertThat(result).hasSize(2);
@@ -226,9 +227,9 @@ class ExpenseAggregatorTest {
         @Test
         @DisplayName("should sort by balance descending")
         void multipleMembers_shouldSortByBalanceDescending() {
-            User user1 = createUser(user1Id, "Alice");
-            User user2 = createUser(user2Id, "Bob");
-            User user3 = createUser(user3Id, "Charlie");
+            ParticipantInfo info1 = createParticipantInfo(user1Id, "Alice", false);
+            ParticipantInfo info2 = createParticipantInfo(user2Id, "Bob", false);
+            ParticipantInfo info3 = createParticipantInfo(user3Id, "Charlie", false);
 
             Expense expense1 = createExpenseWithPayer("餐飲", new BigDecimal("300"), user1Id);
             Expense expense2 = createExpenseWithPayer("交通", new BigDecimal("600"), user2Id);
@@ -243,7 +244,7 @@ class ExpenseAggregatorTest {
             List<MemberStatistics> result = aggregator.aggregateByMember(
                 List.of(expense1, expense2),
                 List.of(split1, split2, split3, split4, split5, split6),
-                Map.of(user1Id, user1, user2Id, user2, user3Id, user3)
+                Map.of(user1Id, info1, user2Id, info2, user3Id, info3)
             );
 
             assertThat(result).hasSize(3);
@@ -253,6 +254,40 @@ class ExpenseAggregatorTest {
             assertThat(result.get(1).getNickname()).isEqualTo("Alice");
             // Charlie: paid 0, owes 300, balance = -300 (lowest)
             assertThat(result.get(2).getNickname()).isEqualTo("Charlie");
+        }
+
+        @Test
+        @DisplayName("should include ghost members in statistics")
+        void ghostMember_shouldBeIncludedWithGhostFlag() {
+            UUID ghostId = UUID.randomUUID();
+            ParticipantInfo realUser = createParticipantInfo(user1Id, "Alice", false);
+            ParticipantInfo ghost = createParticipantInfo(ghostId, "Ghost Bob", true);
+
+            Expense expense = createExpenseWithPayer("餐飲", new BigDecimal("300"), user1Id);
+            UUID expenseId = expense.getId();
+
+            ExpenseSplit split1 = createSplit(expenseId, user1Id, new BigDecimal("150"));
+            ExpenseSplit split2 = createSplit(expenseId, ghostId, new BigDecimal("150"));
+
+            List<MemberStatistics> result = aggregator.aggregateByMember(
+                List.of(expense),
+                List.of(split1, split2),
+                Map.of(user1Id, realUser, ghostId, ghost)
+            );
+
+            assertThat(result).hasSize(2);
+
+            MemberStatistics ghostStats = result.stream()
+                .filter(s -> s.getUserId().equals(ghostId))
+                .findFirst().orElseThrow();
+            assertThat(ghostStats.getNickname()).isEqualTo("Ghost Bob");
+            assertThat(ghostStats.isGhost()).isTrue();
+            assertThat(ghostStats.getTotalOwed()).isEqualByComparingTo(new BigDecimal("150"));
+
+            MemberStatistics aliceStats = result.stream()
+                .filter(s -> s.getUserId().equals(user1Id))
+                .findFirst().orElseThrow();
+            assertThat(aliceStats.isGhost()).isFalse();
         }
     }
 
@@ -293,11 +328,7 @@ class ExpenseAggregatorTest {
         return split;
     }
 
-    private User createUser(UUID userId, String nickname) {
-        User user = new User();
-        user.setId(userId);
-        user.setNickname(nickname);
-        user.setEmail(nickname.toLowerCase() + "@test.com");
-        return user;
+    private ParticipantInfo createParticipantInfo(UUID userId, String nickname, boolean isGhost) {
+        return new ParticipantInfo(userId, nickname, isGhost ? null : "https://avatar.test/" + nickname, isGhost);
     }
 }

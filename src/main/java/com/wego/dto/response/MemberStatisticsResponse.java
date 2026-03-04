@@ -36,6 +36,7 @@ public class MemberStatisticsResponse {
         private BigDecimal unsettledBalance;
         private int expenseCount;
         private double paidPercentage;
+        private boolean isGhost;
 
         public static MemberItem from(MemberStatistics stats, BigDecimal totalExpenses) {
             double paidPct = totalExpenses.compareTo(BigDecimal.ZERO) > 0
@@ -55,6 +56,7 @@ public class MemberStatisticsResponse {
                     .unsettledBalance(stats.getUnsettledBalance())
                     .expenseCount(stats.getExpenseCount())
                     .paidPercentage(paidPct)
+                    .isGhost(stats.isGhost())
                     .build();
         }
     }

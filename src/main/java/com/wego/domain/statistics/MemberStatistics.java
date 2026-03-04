@@ -22,6 +22,7 @@ public final class MemberStatistics {
     private final BigDecimal balance;
     private final BigDecimal unsettledBalance;
     private final int expenseCount;
+    private final boolean isGhost;
 
     /**
      * Creates a new MemberStatistics.
@@ -36,7 +37,8 @@ public final class MemberStatistics {
      */
     public MemberStatistics(UUID userId, String nickname, String avatarUrl,
                             BigDecimal totalPaid, BigDecimal totalOwed,
-                            BigDecimal unsettledBalance, int expenseCount) {
+                            BigDecimal unsettledBalance, int expenseCount,
+                            boolean isGhost) {
         this.userId = Objects.requireNonNull(userId, "userId must not be null");
         this.nickname = Objects.requireNonNull(nickname, "nickname must not be null");
         this.avatarUrl = avatarUrl;
@@ -51,6 +53,7 @@ public final class MemberStatistics {
         this.balance = totalPaid.subtract(totalOwed);
         this.unsettledBalance = Objects.requireNonNull(unsettledBalance, "unsettledBalance must not be null");
         this.expenseCount = expenseCount;
+        this.isGhost = isGhost;
     }
 
     public UUID getUserId() {
@@ -95,12 +98,17 @@ public final class MemberStatistics {
         return expenseCount;
     }
 
+    public boolean isGhost() {
+        return isGhost;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MemberStatistics that = (MemberStatistics) o;
         return expenseCount == that.expenseCount &&
+               isGhost == that.isGhost &&
                Objects.equals(userId, that.userId) &&
                Objects.equals(nickname, that.nickname) &&
                Objects.equals(avatarUrl, that.avatarUrl) &&
@@ -112,7 +120,7 @@ public final class MemberStatistics {
 
     @Override
     public int hashCode() {
-        return Objects.hash(userId, nickname, avatarUrl, totalPaid, totalOwed, balance, unsettledBalance, expenseCount);
+        return Objects.hash(userId, nickname, avatarUrl, totalPaid, totalOwed, balance, unsettledBalance, expenseCount, isGhost);
     }
 
     @Override
@@ -125,6 +133,7 @@ public final class MemberStatistics {
                ", balance=" + balance +
                ", unsettledBalance=" + unsettledBalance +
                ", expenseCount=" + expenseCount +
+               ", isGhost=" + isGhost +
                '}';
     }
 }

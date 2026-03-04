@@ -585,18 +585,28 @@ const ExpenseStatistics = {
             const safeAvatarUrl = this.escapeHtml(member.avatarUrl);
             const firstChar = safeNickname.charAt(0) || '?';
 
-            const avatarHtml = member.avatarUrl
-                ? `<img src="${safeAvatarUrl}" alt="${safeNickname}" class="w-10 h-10 rounded-full object-cover" referrerpolicy="no-referrer">`
-                : `<div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                       <span class="text-sm font-semibold text-primary-600 dark:text-primary-400">${firstChar}</span>
-                   </div>`;
+            const isGhost = member.ghost || false;
+
+            const avatarHtml = isGhost
+                ? `<div class="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                       <span class="text-sm font-semibold text-gray-400 dark:text-gray-500">${firstChar}</span>
+                   </div>`
+                : (member.avatarUrl
+                    ? `<img src="${safeAvatarUrl}" alt="${safeNickname}" class="w-10 h-10 rounded-full object-cover" referrerpolicy="no-referrer">`
+                    : `<div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                           <span class="text-sm font-semibold text-primary-600 dark:text-primary-400">${firstChar}</span>
+                       </div>`);
+
+            const ghostBadge = isGhost
+                ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400 border border-dashed border-gray-300 dark:border-gray-600">虛擬</span>`
+                : '';
 
             return `
                 <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-card"${staggerStyle}>
                     <div class="flex items-center gap-3">
                         ${avatarHtml}
                         <div class="flex-1 min-w-0">
-                            <p class="font-medium text-gray-800 dark:text-gray-100 truncate">${safeNickname}</p>
+                            <p class="font-medium text-gray-800 dark:text-gray-100 truncate">${safeNickname} ${ghostBadge}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400">${Number(member.expenseCount)} 筆支出</p>
                         </div>
                         <div class="text-right">

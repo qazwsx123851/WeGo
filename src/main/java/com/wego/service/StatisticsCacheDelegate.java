@@ -9,14 +9,15 @@ import com.wego.dto.response.MemberStatisticsResponse;
 import com.wego.dto.response.TrendResponse;
 import com.wego.entity.Expense;
 import com.wego.entity.ExpenseSplit;
+import com.wego.entity.GhostMember;
 import com.wego.entity.Trip;
-import com.wego.entity.User;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
+import com.wego.repository.GhostMemberRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
-import com.wego.repository.UserRepository;
+import com.wego.service.ParticipantResolver.ParticipantInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -24,10 +25,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -44,7 +46,8 @@ class StatisticsCacheDelegate {
     private final ExpenseSplitRepository expenseSplitRepository;
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
-    private final UserRepository userRepository;
+    private final GhostMemberRepository ghostMemberRepository;
+    private final ParticipantResolver participantResolver;
     private final ExpenseAggregator expenseAggregator;
     private final ExchangeRateService exchangeRateService;
 
@@ -92,13 +95,19 @@ class StatisticsCacheDelegate {
         List<Expense> convertedExpenses = convertExpensesToBaseCurrency(expenses, baseCurrency);
         List<ExpenseSplit> convertedSplits = convertSplitsToBaseCurrency(splits, expenses, baseCurrency);
 
-        List<UUID> userIds = tripMemberRepository.findByTripId(tripId).stream()
-                .map(m -> m.getUserId())
-                .collect(Collectors.toList());
-        Map<UUID, User> userMap = getUserMap(userIds);
+        // Collect all participant UUIDs: from expenses, splits, trip members, and active ghost members
+        Set<UUID> participantIds = new HashSet<>();
+        convertedExpenses.forEach(e -> participantIds.add(e.getPaidBy()));
+        convertedSplits.forEach(s -> participantIds.add(s.getUserId()));
+        tripMemberRepository.findByTripId(tripId).forEach(m -> participantIds.add(m.getUserId()));
+        ghostMemberRepository.findByTripIdAndMergedToUserIdIsNull(tripId)
+                .forEach(g -> participantIds.add(g.getId()));
+
+        // Resolve all participants (real users + ghost members) via dual-source lookup
+        Map<UUID, ParticipantInfo> participantMap = participantResolver.resolveAll(participantIds);
 
         List<MemberStatistics> statistics = expenseAggregator.aggregateByMember(
-                convertedExpenses, convertedSplits, userMap);
+                convertedExpenses, convertedSplits, participantMap);
 
         log.debug("Found {} member statistics for trip {}", statistics.size(), tripId);
         return MemberStatisticsResponse.from(statistics, baseCurrency);
@@ -175,11 +184,4 @@ class StatisticsCacheDelegate {
         }
     }
 
-    private Map<UUID, User> getUserMap(List<UUID> userIds) {
-        if (userIds.isEmpty()) {
-            return Map.of();
-        }
-        return userRepository.findAllById(userIds).stream()
-                .collect(Collectors.toMap(User::getId, Function.identity()));
-    }
 }
