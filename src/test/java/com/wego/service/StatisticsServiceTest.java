@@ -166,9 +166,9 @@ class StatisticsServiceTest {
             UUID user2Id = UUID.randomUUID();
             List<MemberStatistics> stats = List.of(
                     new MemberStatistics(userId, "Alice", null,
-                            new BigDecimal("2000"), new BigDecimal("1000"), new BigDecimal("1000"), 5),
+                            new BigDecimal("2000"), new BigDecimal("1000"), new BigDecimal("1000"), 5, false),
                     new MemberStatistics(user2Id, "Bob", null,
-                            new BigDecimal("1000"), new BigDecimal("2000"), new BigDecimal("-1000"), 3)
+                            new BigDecimal("1000"), new BigDecimal("2000"), new BigDecimal("-1000"), 3, false)
             );
             MemberStatisticsResponse expected = MemberStatisticsResponse.from(stats, "TWD");
             when(cacheDelegate.getMemberStatistics(tripId)).thenReturn(expected);

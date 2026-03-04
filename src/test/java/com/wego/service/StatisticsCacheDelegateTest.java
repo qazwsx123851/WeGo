@@ -9,15 +9,16 @@ import com.wego.dto.response.MemberStatisticsResponse;
 import com.wego.dto.response.TrendResponse;
 import com.wego.entity.Expense;
 import com.wego.entity.ExpenseSplit;
+import com.wego.entity.GhostMember;
 import com.wego.entity.Trip;
 import com.wego.entity.TripMember;
-import com.wego.entity.User;
 import com.wego.exception.ResourceNotFoundException;
 import com.wego.repository.ExpenseRepository;
 import com.wego.repository.ExpenseSplitRepository;
+import com.wego.repository.GhostMemberRepository;
 import com.wego.repository.TripMemberRepository;
 import com.wego.repository.TripRepository;
-import com.wego.repository.UserRepository;
+import com.wego.service.ParticipantResolver.ParticipantInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,7 +32,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,7 +66,10 @@ class StatisticsCacheDelegateTest {
     private TripMemberRepository tripMemberRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private GhostMemberRepository ghostMemberRepository;
+
+    @Mock
+    private ParticipantResolver participantResolver;
 
     @Mock
     private ExpenseAggregator expenseAggregator;
@@ -223,17 +229,16 @@ class StatisticsCacheDelegateTest {
                     .tripId(tripId)
                     .userId(userId)
                     .build();
-            User user = User.builder()
-                    .id(userId)
-                    .nickname("Alice")
-                    .build();
 
             when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
             when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId))
                     .thenReturn(List.of());
             when(expenseSplitRepository.findByTripId(tripId)).thenReturn(List.of());
             when(tripMemberRepository.findByTripId(tripId)).thenReturn(List.of(member));
-            when(userRepository.findAllById(List.of(userId))).thenReturn(List.of(user));
+            when(ghostMemberRepository.findByTripIdAndMergedToUserIdIsNull(tripId))
+                    .thenReturn(List.of());
+            when(participantResolver.resolveAll(Set.of(userId)))
+                    .thenReturn(Map.of(userId, new ParticipantInfo(userId, "Alice", null, false)));
             when(expenseAggregator.aggregateByMember(anyList(), anyList(), anyMap()))
                     .thenReturn(List.of());
 
@@ -251,6 +256,9 @@ class StatisticsCacheDelegateTest {
                     .thenReturn(List.of());
             when(expenseSplitRepository.findByTripId(tripId)).thenReturn(List.of());
             when(tripMemberRepository.findByTripId(tripId)).thenReturn(List.of());
+            when(ghostMemberRepository.findByTripIdAndMergedToUserIdIsNull(tripId))
+                    .thenReturn(List.of());
+            when(participantResolver.resolveAll(Set.of())).thenReturn(Map.of());
             when(expenseAggregator.aggregateByMember(anyList(), anyList(), anyMap()))
                     .thenReturn(List.of());
 
@@ -268,6 +276,7 @@ class StatisticsCacheDelegateTest {
             foreignExpense.setTripId(tripId);
             foreignExpense.setAmount(new BigDecimal("100"));
             foreignExpense.setCurrency("JPY");
+            foreignExpense.setPaidBy(UUID.randomUUID());
 
             ExpenseSplit split = new ExpenseSplit();
             split.setId(UUID.randomUUID());
@@ -280,6 +289,9 @@ class StatisticsCacheDelegateTest {
                     .thenReturn(List.of(foreignExpense));
             when(expenseSplitRepository.findByTripId(tripId)).thenReturn(List.of(split));
             when(tripMemberRepository.findByTripId(tripId)).thenReturn(List.of());
+            when(ghostMemberRepository.findByTripIdAndMergedToUserIdIsNull(tripId))
+                    .thenReturn(List.of());
+            when(participantResolver.resolveAll(any())).thenReturn(Map.of());
             when(exchangeRateService.convert(new BigDecimal("100"), "JPY", "TWD"))
                     .thenReturn(new BigDecimal("22"));
             when(exchangeRateService.convert(new BigDecimal("50"), "JPY", "TWD"))
@@ -301,12 +313,16 @@ class StatisticsCacheDelegateTest {
             foreignExpense.setTripId(tripId);
             foreignExpense.setAmount(new BigDecimal("100"));
             foreignExpense.setCurrency("USD");
+            foreignExpense.setPaidBy(UUID.randomUUID());
 
             when(tripRepository.findById(tripId)).thenReturn(Optional.of(trip));
             when(expenseRepository.findByTripIdOrderByCreatedAtDesc(tripId))
                     .thenReturn(List.of(foreignExpense));
             when(expenseSplitRepository.findByTripId(tripId)).thenReturn(List.of());
             when(tripMemberRepository.findByTripId(tripId)).thenReturn(List.of());
+            when(ghostMemberRepository.findByTripIdAndMergedToUserIdIsNull(tripId))
+                    .thenReturn(List.of());
+            when(participantResolver.resolveAll(any())).thenReturn(Map.of());
             when(exchangeRateService.convert(any(), any(), any()))
                     .thenThrow(new RuntimeException("API error"));
             when(expenseAggregator.aggregateByMember(anyList(), anyList(), anyMap()))

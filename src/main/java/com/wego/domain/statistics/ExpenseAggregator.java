@@ -2,7 +2,7 @@ package com.wego.domain.statistics;
 
 import com.wego.entity.Expense;
 import com.wego.entity.ExpenseSplit;
-import com.wego.entity.User;
+import com.wego.service.ParticipantResolver.ParticipantInfo;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -125,17 +125,17 @@ public class ExpenseAggregator {
      *
      * @param expenses List of expenses
      * @param splits List of expense splits
-     * @param userMap Map of user ID to User entity
+     * @param participantMap Map of participant ID to ParticipantInfo (real users + ghost members)
      * @return List of MemberStatistics sorted by balance descending
      */
     public List<MemberStatistics> aggregateByMember(
             List<Expense> expenses,
             List<ExpenseSplit> splits,
-            Map<UUID, User> userMap) {
+            Map<UUID, ParticipantInfo> participantMap) {
 
         Objects.requireNonNull(expenses, "expenses must not be null");
         Objects.requireNonNull(splits, "splits must not be null");
-        Objects.requireNonNull(userMap, "userMap must not be null");
+        Objects.requireNonNull(participantMap, "participantMap must not be null");
 
         if (expenses.isEmpty() && splits.isEmpty()) {
             return List.of();
@@ -184,11 +184,14 @@ public class ExpenseAggregator {
         allUserIds.addAll(paidByUser.keySet());
         allUserIds.addAll(owedByUser.keySet());
 
+        // Also include participants from the map (e.g. members with 0 expenses)
+        allUserIds.addAll(participantMap.keySet());
+
         // Create member statistics
         List<MemberStatistics> statistics = allUserIds.stream()
-                .filter(userMap::containsKey)
+                .filter(participantMap::containsKey)
                 .map(userId -> {
-                    User user = userMap.get(userId);
+                    ParticipantInfo info = participantMap.get(userId);
                     BigDecimal totalPaid = paidByUser.getOrDefault(userId, BigDecimal.ZERO);
                     BigDecimal totalOwed = owedByUser.getOrDefault(userId, BigDecimal.ZERO);
                     BigDecimal unsettledBalance = unsettledBalances.getOrDefault(userId, BigDecimal.ZERO);
@@ -196,12 +199,13 @@ public class ExpenseAggregator {
 
                     return new MemberStatistics(
                             userId,
-                            user.getNickname(),
-                            user.getAvatarUrl(),
+                            info.nickname(),
+                            info.avatarUrl(),
                             totalPaid,
                             totalOwed,
                             unsettledBalance,
-                            expenseCount
+                            expenseCount,
+                            info.isGhost()
                     );
                 })
                 .sorted(Comparator.comparing(MemberStatistics::getBalance).reversed())
