@@ -258,6 +258,47 @@
                                    class="text-[10px] text-gray-400 dark:text-gray-500"
                                    th:text="${expense.currency}">USD</p>
                             </div>
+
+                            <!-- Split detail chevron -->
+                            <button th:if="${expense.splits != null and #lists.size(expense.splits) > 0}"
+                                    data-action="toggle-split-detail"
+                                    th:data-expense-id="${expense.id}"
+                                    class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0 cursor-pointer"
+                                    aria-label="展開分攤明細">
+                                <svg th:id="|split-chevron-${expense.id}|"
+                                     class="w-4 h-4 text-gray-300 dark:text-gray-600 transition-transform duration-200"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Expandable split details -->
+                        <div th:if="${expense.splits != null and #lists.size(expense.splits) > 0}"
+                             th:id="|split-detail-${expense.id}|"
+                             class="overflow-hidden transition-all duration-200 ease-out max-h-0">
+                            <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">分攤明細</p>
+                                <div class="space-y-1.5">
+                                    <div th:each="split : ${expense.splits}"
+                                         class="flex items-center justify-between py-1">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                                <span class="text-[10px] font-medium text-primary-600 dark:text-primary-400"
+                                                      th:text="${split.userNickname != null ? #strings.substring(split.userNickname, 0, 1) : '?'}">?</span>
+                                            </div>
+                                            <span class="text-xs text-gray-700 dark:text-gray-300"
+                                                  th:text="${split.userNickname ?: '未知'}">User</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-xs font-medium text-gray-800 dark:text-gray-100 font-mono"
+                                                  th:text="'$' + ${#numbers.formatDecimal(split.amount, 0, 'COMMA', 0, 'POINT')}">$0</span>
+                                            <span th:if="${split.settled}"
+                                                  class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">已結清</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

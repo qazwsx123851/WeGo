@@ -66,6 +66,24 @@ const ExpenseList = (() => {
     }
 
     // =====================
+    // Split Detail Toggle
+    // =====================
+    function toggleSplitDetail(expenseId) {
+        const detail = document.getElementById('split-detail-' + expenseId);
+        const chevron = document.getElementById('split-chevron-' + expenseId);
+        if (!detail) return;
+
+        const isOpen = detail.style.maxHeight && detail.style.maxHeight !== '0px';
+        if (isOpen) {
+            detail.style.maxHeight = '0px';
+            if (chevron) chevron.classList.remove('rotate-180');
+        } else {
+            detail.style.maxHeight = detail.scrollHeight + 'px';
+            if (chevron) chevron.classList.add('rotate-180');
+        }
+    }
+
+    // =====================
     // Expense Detail Modal
     // =====================
     function openExpenseModal(cardElement) {
@@ -413,6 +431,9 @@ const ExpenseList = (() => {
         switch (action) {
             case 'toggle-date-group':
                 toggleDateGroup(target.closest('[data-action="toggle-date-group"]'));
+                break;
+            case 'toggle-split-detail':
+                toggleSplitDetail(target.closest('[data-action="toggle-split-detail"]').dataset.expenseId);
                 break;
             case 'close-expense-modal':
                 closeExpenseModal();
