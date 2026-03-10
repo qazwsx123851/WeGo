@@ -237,16 +237,13 @@
                                               th:text="${expense.paidByName != null ? #strings.substring(expense.paidByName, 0, 1) : '?'}">A</span>
                                     </div>
                                     <span class="text-xs text-gray-500 dark:text-gray-400"
-                                          th:text="${expense.paidByName != null ? expense.paidByName : '未知'}">付款人</span>
+                                          th:text="${expense.paidByName != null ? expense.paidByName + ' 付款' : '未知'}">付款人</span>
                                     <span class="text-gray-300 dark:text-gray-600 text-xs">·</span>
                                     <span class="text-xs text-gray-500 dark:text-gray-400"
                                           th:text="${expense.splitType?.name() == 'EQUAL' ? '均分' :
                                                      expense.splitType?.name() == 'PERCENTAGE' ? '百分比' :
                                                      expense.splitType?.name() == 'CUSTOM' ? '自訂' :
                                                      expense.splitType?.name() == 'SHARES' ? '比例' : '均分'}">均分</span>
-                                    <span class="text-gray-300 dark:text-gray-600 text-xs">·</span>
-                                    <span class="text-xs text-gray-400 dark:text-gray-500"
-                                          th:text="${expense.splits != null ? #lists.size(expense.splits) : 0} + '人'">2人</span>
                                 </div>
                             </div>
 
@@ -258,43 +255,84 @@
                                    class="text-[10px] text-gray-400 dark:text-gray-500"
                                    th:text="${expense.currency}">USD</p>
                             </div>
+                        </div>
 
-                            <!-- Split detail chevron -->
-                            <button th:if="${expense.splits != null and #lists.size(expense.splits) > 0}"
-                                    data-action="toggle-split-detail"
-                                    th:data-expense-id="${expense.id}"
-                                    class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0 cursor-pointer"
-                                    aria-label="展開分攤明細">
+                        <!-- Split summary row (always visible) -->
+                        <div th:if="${expense.splits != null and #lists.size(expense.splits) > 0}"
+                             class="mt-2 flex items-center justify-between min-h-[44px] px-2 -mx-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 active:bg-gray-100 dark:active:bg-gray-700 transition-colors cursor-pointer"
+                             data-action="toggle-split-detail"
+                             th:data-expense-id="${expense.id}"
+                             role="button"
+                             aria-expanded="false"
+                             th:aria-controls="|split-detail-${expense.id}|"
+                             aria-label="展開分攤明細">
+                            <!-- Left: Avatar stack + per-person summary -->
+                            <div class="flex items-center gap-2.5">
+                                <!-- Avatar stack -->
+                                <div class="flex -space-x-1.5">
+                                    <th:block th:each="split, iterStat : ${expense.splits}">
+                                        <div th:if="${iterStat.index < 3}"
+                                             class="w-6 h-6 rounded-full ring-2 ring-white dark:ring-gray-800 flex items-center justify-center"
+                                             th:classappend="${split.settled} ? 'bg-green-100 dark:bg-green-900/30' : 'bg-primary-100 dark:bg-primary-900/30'">
+                                            <span class="text-[10px] font-medium"
+                                                  th:classappend="${split.settled} ? 'text-green-600 dark:text-green-400' : 'text-primary-600 dark:text-primary-400'"
+                                                  th:text="${split.userNickname != null ? #strings.substring(split.userNickname, 0, 1) : '?'}">?</span>
+                                        </div>
+                                    </th:block>
+                                    <div th:if="${#lists.size(expense.splits) > 3}"
+                                         class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 ring-2 ring-white dark:ring-gray-800 flex items-center justify-center">
+                                        <span class="text-[9px] font-medium text-gray-600 dark:text-gray-300"
+                                              th:text="'+' + (${#lists.size(expense.splits) - 3})">+1</span>
+                                    </div>
+                                </div>
+                                <!-- Per-person summary -->
+                                <span class="text-xs text-gray-500 dark:text-gray-400"
+                                      th:text="${expense.splitType?.name() == 'EQUAL' and #lists.size(expense.splits) > 0
+                                        ? '每人 $' + #numbers.formatDecimal(expense.splits[0].amount, 0, 'COMMA', 0, 'POINT')
+                                        : #lists.size(expense.splits) + ' 人分攤'}">每人 $150</span>
+                            </div>
+                            <!-- Right: Toggle text + chevron -->
+                            <div class="flex items-center gap-1 text-primary-500 dark:text-primary-400">
+                                <span class="text-xs font-medium"
+                                      th:id="|split-toggle-text-${expense.id}|">查看明細</span>
                                 <svg th:id="|split-chevron-${expense.id}|"
-                                     class="w-4 h-4 text-gray-300 dark:text-gray-600 transition-transform duration-200"
+                                     class="w-3.5 h-3.5 transition-transform duration-200"
                                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                 </svg>
-                            </button>
+                            </div>
                         </div>
 
                         <!-- Expandable split details -->
                         <div th:if="${expense.splits != null and #lists.size(expense.splits) > 0}"
                              th:id="|split-detail-${expense.id}|"
                              class="overflow-hidden transition-all duration-200 ease-out max-h-0">
-                            <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">分攤明細</p>
+                            <div class="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                                 <div class="space-y-1.5">
                                     <div th:each="split : ${expense.splits}"
-                                         class="flex items-center justify-between py-1">
+                                         class="flex items-center justify-between py-1.5">
                                         <div class="flex items-center gap-2">
-                                            <div class="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                                                <span class="text-[10px] font-medium text-primary-600 dark:text-primary-400"
+                                            <div class="w-6 h-6 rounded-full flex items-center justify-center"
+                                                 th:classappend="${split.settled} ? 'bg-green-100 dark:bg-green-900/30' : 'bg-primary-100 dark:bg-primary-900/30'">
+                                                <span class="text-[10px] font-medium"
+                                                      th:classappend="${split.settled} ? 'text-green-600 dark:text-green-400' : 'text-primary-600 dark:text-primary-400'"
                                                       th:text="${split.userNickname != null ? #strings.substring(split.userNickname, 0, 1) : '?'}">?</span>
                                             </div>
                                             <span class="text-xs text-gray-700 dark:text-gray-300"
                                                   th:text="${split.userNickname ?: '未知'}">User</span>
                                         </div>
                                         <div class="flex items-center gap-1.5">
-                                            <span class="text-xs font-medium text-gray-800 dark:text-gray-100 font-mono"
+                                            <span class="text-xs font-medium font-mono"
+                                                  th:classappend="${split.settled} ? 'text-green-600 dark:text-green-400' : 'text-gray-800 dark:text-gray-100'"
                                                   th:text="'$' + ${#numbers.formatDecimal(split.amount, 0, 'COMMA', 0, 'POINT')}">$0</span>
                                             <span th:if="${split.settled}"
-                                                  class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">已結清</span>
+                                                  class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 flex items-center gap-0.5">
+                                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                                已結清</span>
+                                            <span th:unless="${split.settled}"
+                                                  class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">未結清</span>
                                         </div>
                                     </div>
                                 </div>

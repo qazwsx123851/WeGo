@@ -71,15 +71,21 @@ const ExpenseList = (() => {
     function toggleSplitDetail(expenseId) {
         const detail = document.getElementById('split-detail-' + expenseId);
         const chevron = document.getElementById('split-chevron-' + expenseId);
+        const toggleText = document.getElementById('split-toggle-text-' + expenseId);
+        const summaryRow = detail ? detail.previousElementSibling : null;
         if (!detail) return;
 
         const isOpen = detail.style.maxHeight && detail.style.maxHeight !== '0px';
         if (isOpen) {
             detail.style.maxHeight = '0px';
             if (chevron) chevron.classList.remove('rotate-180');
+            if (toggleText) toggleText.textContent = '查看明細';
+            if (summaryRow) summaryRow.setAttribute('aria-expanded', 'false');
         } else {
             detail.style.maxHeight = detail.scrollHeight + 'px';
             if (chevron) chevron.classList.add('rotate-180');
+            if (toggleText) toggleText.textContent = '收起';
+            if (summaryRow) summaryRow.setAttribute('aria-expanded', 'true');
         }
     }
 
