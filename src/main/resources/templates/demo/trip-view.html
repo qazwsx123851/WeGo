@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="zh-TW" xmlns:th="http://www.thymeleaf.org">
+<!--
+    Demo Trip View - Single Page with All Tabs
+    Combines: trip overview, activities timeline, expenses, personal expenses, todos, members.
+    All write actions intercepted by data-demo-cta for CTA modal.
+    No authentication required.
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <meta name="description" content="WeGo - 協作旅遊規劃平台 Demo">
+    <meta name="theme-color" content="#0EA5E9">
+    <meta name="view-transition" content="same-origin">
+
+    <!-- Dark Mode FOUC Prevention -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (theme === 'dark' || (!theme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+
+    <title th:text="${trip.title} + ' - WeGo Demo'">WeGo Demo</title>
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js for personal expense charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" defer></script>
+
+    <script src="/js/common.js" defer></script>
+</head>
+
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-36">
+
+    <!-- Hero Header with Cover Image -->
+    <header class="relative">
+        <!-- Cover Image -->
+        <div class="aspect-[16/9] sm:aspect-[21/9] w-full bg-gray-100 dark:bg-gray-800 overflow-hidden"
+            style="transform-style: preserve-3d;">
+            <img th:if="${trip.coverImageUrl}" th:src="${trip.coverImageUrl}" th:alt="${trip.title} + ' 封面'"
+                id="hero-cover-img"
+                class="w-full h-full object-cover transform translate-z-0 will-change-transform origin-bottom" />
+            <div th:unless="${trip.coverImageUrl}" class="w-full h-full flex items-center justify-center
+                        bg-gradient-to-br from-primary-100 to-sky-100 dark:from-primary-900/30 dark:to-sky-900/30">
+                <svg class="w-24 h-24 text-primary-300 dark:text-primary-700" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                        d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Overlay Navigation -->
+        <div class="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/50 to-transparent">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+                <!-- Back Button (links to landing page) -->
+                <a href="/" class="flex items-center justify-center w-10 h-10 rounded-full
+                          bg-white/20 backdrop-blur-sm hover:bg-white/30
+                          text-white transition-all duration-200 cursor-pointer" aria-label="返回首頁">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </a>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-2">
+                    <!-- Edit Button -->
+                    <button type="button" data-demo-cta="edit-trip" aria-label="編輯行程" class="flex items-center justify-center w-10 h-10 rounded-full
+                              bg-white/20 backdrop-blur-sm hover:bg-white/30
+                              text-white transition-all duration-200 cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
+        <!-- Trip Info Card -->
+        <div class="glass-card p-6 mb-6">
+            <div class="mb-4">
+                <h1 class="text-h2 text-gray-800 dark:text-gray-100 font-heading mb-2" th:text="${trip.title}">東京四日遊</h1>
+                <p th:if="${trip.description}" class="text-body text-gray-600 dark:text-gray-400"
+                    th:text="${trip.description}">探索日本首都的美食與文化</p>
+            </div>
+
+            <!-- Trip Meta Info -->
+            <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>
+                        <span th:text="${#temporals.format(trip.startDate, 'yyyy/MM/dd')}">2024/03/15</span>
+                        -
+                        <span th:text="${#temporals.format(trip.endDate, 'yyyy/MM/dd')}">2024/03/18</span>
+                    </span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span th:text="${tripDays} + ' 天 ' + ${tripNights} + ' 夜'">4 天 3 夜</span>
+                </div>
+                <button type="button" data-tab="members" class="flex items-center gap-2 hover:text-primary-600 dark:hover:text-primary-400
+                          transition-colors duration-200 cursor-pointer demo-tab-link">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span th:text="${memberCount} + ' 位成員'">3 位成員</span>
+                </button>
+            </div>
+
+            <!-- Member Avatars -->
+            <div class="flex items-center mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div class="flex -space-x-2">
+                    <th:block th:each="member, iterStat : ${members}" th:if="${iterStat.index < 5}">
+                        <img th:if="${member.avatarUrl}" th:src="${member.avatarUrl}" th:alt="${member.nickname}"
+                            class="w-8 h-8 rounded-full ring-2 ring-white dark:ring-gray-800 object-cover" />
+                        <span th:unless="${member.avatarUrl}" class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                     flex items-center justify-center text-xs font-medium
+                                     text-primary-600 dark:text-primary-400
+                                     ring-2 ring-white dark:ring-gray-800"
+                            th:text="${member.nickname != null ? #strings.substring(member.nickname, 0, 1) : 'U'}">M</span>
+                    </th:block>
+                </div>
+                <button type="button" data-tab="members" class="ml-3 text-sm text-primary-600 dark:text-primary-400
+                          hover:text-primary-700 dark:hover:text-primary-300
+                          font-medium transition-colors duration-200 cursor-pointer demo-tab-link">
+                    管理成員
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================
+             DEMO PILL BAR (inline, tab switching)
+             ============================================ -->
+        <div id="demo-pill-bar" class="fixed left-1/2 -translate-x-1/2 bottom-6 z-[51]
+                                      glass-card-2026 rounded-full px-1.5 py-1.5
+                                      flex items-center gap-1 shadow-glass-ambient
+                                      transition-all duration-500 ease-out hover:scale-[1.02]">
+            <button type="button" data-tab="overview"
+                class="demo-tab-link flex items-center gap-1.5 px-3 py-2 rounded-full transition-colors
+                       text-primary-600 dark:text-primary-400 bg-primary-100/60 dark:bg-primary-900/40 group">
+                <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span class="text-sm font-medium pill-text whitespace-nowrap overflow-hidden">總覽</span>
+            </button>
+            <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
+            <button type="button" data-tab="activities"
+                class="demo-tab-link flex items-center gap-1.5 px-3 py-2 rounded-full transition-colors
+                       hover:bg-gray-100/50 dark:hover:bg-gray-800/50 text-primary-600 dark:text-primary-400 group">
+                <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span class="text-sm font-medium pill-text whitespace-nowrap overflow-hidden">景點</span>
+            </button>
+            <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
+            <button type="button" data-tab="expenses"
+                class="demo-tab-link flex items-center gap-1.5 px-3 py-2 rounded-full transition-colors
+                       hover:bg-gray-100/50 dark:hover:bg-gray-800/50 text-adventure-600 dark:text-adventure-400 group">
+                <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span class="text-sm font-medium pill-text whitespace-nowrap overflow-hidden">分帳</span>
+            </button>
+            <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
+            <button type="button" data-tab="todos"
+                class="demo-tab-link flex items-center gap-1.5 px-3 py-2 rounded-full transition-colors
+                       hover:bg-gray-100/50 dark:hover:bg-gray-800/50 text-orange-600 dark:text-orange-400 group">
+                <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <span class="text-sm font-medium pill-text whitespace-nowrap overflow-hidden">待辦</span>
+            </button>
+            <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
+            <button type="button" data-tab="members"
+                class="demo-tab-link flex items-center gap-1.5 px-3 py-2 rounded-full transition-colors
+                       hover:bg-gray-100/50 dark:hover:bg-gray-800/50 text-purple-600 dark:text-purple-400 group">
+                <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span class="text-sm font-medium pill-text whitespace-nowrap overflow-hidden">成員</span>
+            </button>
+        </div>
+
+        <!-- ============================================
+             TAB: OVERVIEW
+             ============================================ -->
+        <div id="tab-overview" class="tab-content">
+            <!-- Daily Schedule Preview -->
+            <section class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">行程概覽</h2>
+                    <button type="button" data-tab="activities" class="text-sm text-primary-600 dark:text-primary-400
+                              hover:text-primary-700 dark:hover:text-primary-300
+                              font-medium transition-colors duration-200 cursor-pointer demo-tab-link">
+                        查看全部
+                    </button>
+                </div>
+
+                <div th:if="${#lists.isEmpty(upcomingActivities)}" class="glass-card p-8 text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-semibold text-gray-700 dark:text-gray-200 mb-2">還沒有景點</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">開始新增想去的景點吧！</p>
+                    <button type="button" data-demo-cta="add-activity" class="btn-primary inline-flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        新增景點
+                    </button>
+                </div>
+
+                <div th:unless="${#lists.isEmpty(upcomingActivities)}" class="space-y-3">
+                    <div th:each="activity, iterStat : ${upcomingActivities}"
+                        class="glass-card p-4 flex items-center gap-4 group
+                              hover:shadow-md transition-all duration-200 cursor-pointer"
+                        data-demo-cta="view-activity">
+                        <div class="w-10 h-10 flex-shrink-0 rounded-full
+                                    bg-primary-100 dark:bg-primary-900/30
+                                    flex items-center justify-center
+                                    text-primary-600 dark:text-primary-400 font-semibold text-sm"
+                            th:text="${iterStat.count}">1</div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-medium text-gray-800 dark:text-gray-100 truncate"
+                                th:text="${activity.place != null ? activity.place.name : '未命名景點'}">淺草寺</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"
+                                th:text="${activity.startTime != null ? (#temporals.format(activity.startTime, 'HH:mm') + (activity.endTime != null ? ' - ' + #temporals.format(activity.endTime, 'HH:mm') : '')) : '時間未定'}">
+                                10:00 - 12:00</p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Todo Preview -->
+            <section class="mb-6" th:if="${todoCount != null && todoCount > 0}">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading flex items-center gap-2">
+                        <svg class="w-5 h-5 text-warning-dark dark:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        待辦事項
+                    </h2>
+                    <button type="button" data-tab="todos" class="text-sm text-primary-600 dark:text-primary-400
+                              hover:text-primary-700 dark:hover:text-primary-300
+                              font-medium transition-colors duration-200 cursor-pointer demo-tab-link">
+                        查看全部
+                    </button>
+                </div>
+
+                <div class="glass-card p-4 mb-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">完成進度</span>
+                        <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                            th:text="${todoCompletedCount} + ' / ' + ${todoCount}">3 / 10</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-success rounded-full transition-all duration-500"
+                            th:style="'width: ' + ${todoCount > 0 ? (todoCompletedCount * 100 / todoCount) : 0} + '%'"></div>
+                    </div>
+                </div>
+
+                <div th:if="${upcomingTodos != null and !#lists.isEmpty(upcomingTodos)}" class="space-y-2">
+                    <div th:each="todo : ${upcomingTodos}"
+                        class="glass-card p-3 flex items-center gap-3 hover:shadow-md transition-all duration-200">
+                        <div th:switch="${todo.status.name()}" class="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center">
+                            <span th:case="'PENDING'" class="w-full h-full rounded-full border-gray-300 dark:border-gray-600"></span>
+                            <span th:case="'IN_PROGRESS'" class="w-full h-full rounded-full bg-primary-500 border-primary-500 flex items-center justify-center">
+                                <span class="w-1.5 h-1.5 bg-white rounded-full"></span>
+                            </span>
+                            <span th:case="'COMPLETED'" class="w-full h-full rounded-full bg-success border-success flex items-center justify-center text-white">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 th:class="'text-sm font-medium truncate ' + (${todo.status.name() == 'COMPLETED'} ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')"
+                                th:text="${todo.title}">待辦事項標題</h4>
+                        </div>
+                        <div th:if="${todo.assigneeName}" class="flex-shrink-0">
+                            <span class="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                         flex items-center justify-center text-[10px] font-medium
+                                         text-primary-600 dark:text-primary-400"
+                                th:text="${todo.assigneeName?.length() > 0 ? #strings.substring(todo.assigneeName, 0, 1) : '?'}"
+                                th:title="${todo.assigneeName}">M</span>
+                        </div>
+                        <div th:if="${todo.dueDate}"
+                            th:class="'flex-shrink-0 text-xs px-2 py-0.5 rounded-full ' + (${todo.isOverdue} ? 'bg-error-light text-error-dark' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300')"
+                            th:text="${#temporals.format(todo.dueDate, 'MM/dd')}">01/15</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Expense Summary -->
+            <section class="mb-6" th:if="${totalExpense != null && totalExpense > 0}">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading">支出摘要</h2>
+                    <button type="button" data-tab="expenses" class="text-sm text-primary-600 dark:text-primary-400
+                              hover:text-primary-700 dark:hover:text-primary-300
+                              font-medium transition-colors duration-200 cursor-pointer demo-tab-link">
+                        查看明細
+                    </button>
+                </div>
+                <div class="glass-card p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-gray-600 dark:text-gray-400">總支出</span>
+                        <span class="text-2xl font-bold text-gray-800 dark:text-gray-100 font-mono"
+                            th:text="'$' + ${#numbers.formatDecimal(totalExpense, 0, 'COMMA', 0, 'POINT')}">$12,500</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-gray-500 dark:text-gray-400">人均支出</span>
+                        <span class="text-gray-700 dark:text-gray-200 font-medium font-mono"
+                            th:text="'$' + ${#numbers.formatDecimal(averageExpense, 0, 'COMMA', 0, 'POINT')}">$2,500</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================================
+             TAB: ACTIVITIES
+             ============================================ -->
+        <div id="tab-activities" class="tab-content hidden">
+            <!-- Date Navigation -->
+            <div class="mb-6 -mx-4 px-4 overflow-x-auto">
+                <div class="flex gap-2 min-w-max pb-2">
+                    <th:block th:each="date, dateStat : ${dates}">
+                        <button type="button"
+                                th:classappend="${dateStat.first} ? 'bg-primary-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200'"
+                                th:data-date="${#temporals.format(date, 'yyyy-MM-dd')}"
+                                class="demo-date-btn flex-shrink-0 px-4 py-2 rounded-xl font-medium text-sm
+                                       border border-gray-200 dark:border-gray-700
+                                       hover:border-primary-300 dark:hover:border-primary-600
+                                       transition-all duration-200 cursor-pointer min-h-[44px]">
+                            <span class="block text-xs opacity-75" th:text="${#temporals.format(date, 'E')}">Mon</span>
+                            <span class="block" th:text="${#temporals.format(date, 'M/d')}">3/15</span>
+                        </button>
+                    </th:block>
+                </div>
+            </div>
+
+            <!-- Activities Timeline -->
+            <div class="space-y-6">
+                <th:block th:each="dayGroup, groupStat : ${activitiesByDate}">
+                    <section th:id="'day-' + ${#temporals.format(dayGroup.key, 'yyyy-MM-dd')}" style="scroll-margin-top: 80px;">
+                        <!-- Day Header -->
+                        <div class="sticky top-0 z-10 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm
+                                    py-2 -mx-4 px-4 cursor-pointer select-none"
+                             role="button" tabindex="0"
+                             th:aria-expanded="${groupStat.first} ? 'true' : 'false'"
+                             data-action="toggle-group">
+                            <div class="flex items-center gap-3">
+                                <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex flex-col items-center justify-center">
+                                    <span class="text-xs text-primary-600 dark:text-primary-400 font-medium"
+                                          th:text="${#temporals.format(dayGroup.key, 'E')}">Mon</span>
+                                    <span class="text-lg font-bold text-primary-700 dark:text-primary-300"
+                                          th:text="${#temporals.day(dayGroup.key)}">15</span>
+                                </div>
+                                <div class="flex-1">
+                                    <h2 class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                                        th:text="${#temporals.format(dayGroup.key, 'M月d日')}">3月15日</h2>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        <span th:text="${#lists.size(dayGroup.value)}">0</span> 個景點
+                                    </p>
+                                </div>
+                                <svg class="w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform duration-200 chevron-icon flex-shrink-0"
+                                     th:classappend="${groupStat.first} ? 'rotate-180' : ''"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Activity Cards -->
+                        <div class="activity-group-content overflow-hidden transition-all duration-200 ease-out"
+                             th:classappend="${groupStat.first} ? '' : 'max-h-0'"
+                             th:style="${groupStat.first} ? '' : 'max-height: 0px'">
+                            <div th:if="${!#lists.isEmpty(dayGroup.value)}" class="space-y-0">
+                                <th:block th:each="activity, activityStat : ${dayGroup.value}">
+                                    <div class="activity-card relative bg-white dark:bg-gray-800 rounded-xl
+                                              border border-gray-100 dark:border-gray-700
+                                              p-3 flex gap-3
+                                              hover:bg-gray-50 dark:hover:bg-gray-750
+                                              transition-colors duration-200 cursor-pointer"
+                                         data-demo-cta="view-activity">
+                                        <!-- Activity Type Icon -->
+                                        <div th:switch="${activity.place?.category}">
+                                            <div th:case="'restaurant'" class="w-10 h-10 rounded-full bg-adventure-100 dark:bg-adventure-900/30 text-adventure-600 dark:text-adventure-400 flex items-center justify-center flex-shrink-0">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                                            </div>
+                                            <div th:case="'lodging'" class="w-10 h-10 rounded-full bg-success-light dark:bg-green-900/30 text-success-dark dark:text-green-400 flex items-center justify-center flex-shrink-0">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                                            </div>
+                                            <div th:case="*" class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center flex-shrink-0">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                            </div>
+                                        </div>
+
+                                        <!-- Content -->
+                                        <div class="flex-1 min-w-0">
+                                            <h4 class="font-medium text-gray-800 dark:text-gray-100 truncate"
+                                                th:text="${activity.place?.name ?: '未命名景點'}">淺草寺</h4>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                <span th:if="${activity.startTime}" th:text="${#temporals.format(activity.startTime, 'HH:mm')}">10:00</span>
+                                                <span th:if="${activity.startTime != null and activity.endTime != null}"> - </span>
+                                                <span th:if="${activity.endTime}" th:text="${#temporals.format(activity.endTime, 'HH:mm')}">12:00</span>
+                                                <span th:if="${activity.durationMinutes}" class="ml-2 text-gray-400"
+                                                      th:text="${activity.durationMinutes >= 60 ? (activity.durationMinutes / 60) + ' 小時' : activity.durationMinutes + ' 分鐘'}">2 小時</span>
+                                            </p>
+                                            <p th:if="${activity.note}" class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate"
+                                               th:text="${activity.note}">記得買御守</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Transit Connector -->
+                                    <th:block th:if="${!activityStat.last}">
+                                        <th:block th:with="nextActivity=${dayGroup.value[activityStat.index + 1]}">
+                                            <div th:if="${nextActivity != null and nextActivity.transportDurationMinutes != null}"
+                                                 class="flex items-center gap-2 py-2 pl-5 ml-5">
+                                                <div class="w-0.5 h-8 bg-gray-200 dark:bg-gray-700"></div>
+                                                <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                                    </svg>
+                                                    <span th:if="${nextActivity.transportDistanceMeters != null}"
+                                                          th:text="${nextActivity.transportDistanceMeters >= 1000
+                                                              ? #numbers.formatDecimal(nextActivity.transportDistanceMeters / 1000.0, 1, 1) + ' km'
+                                                              : nextActivity.transportDistanceMeters + ' m'}">1.2 km</span>
+                                                    <span th:if="${nextActivity.transportDistanceMeters != null}" class="text-gray-300 dark:text-gray-600">·</span>
+                                                    <span th:text="${nextActivity.transportDurationMinutes} + ' 分鐘'">25 分鐘</span>
+                                                </div>
+                                            </div>
+                                            <div th:if="${nextActivity == null or nextActivity.transportDurationMinutes == null}" class="h-2"></div>
+                                        </th:block>
+                                    </th:block>
+                                </th:block>
+                            </div>
+                        </div>
+                    </section>
+                </th:block>
+            </div>
+
+            <!-- Empty State -->
+            <div th:if="${#maps.isEmpty(activitiesByDate)}" class="glass-card p-8 text-center">
+                <div class="w-24 h-24 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                    <svg class="w-12 h-12 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-h4 text-gray-700 dark:text-gray-200 mb-2">還沒有任何景點</h3>
+                <p class="text-body-sm text-gray-500 dark:text-gray-400 mb-6">開始新增景點，規劃您的完美行程！</p>
+                <button type="button" data-demo-cta="add-activity" class="btn-cta inline-flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    新增景點
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================
+             TAB: EXPENSES
+             ============================================ -->
+        <div id="tab-expenses" class="tab-content hidden">
+            <!-- Team/Personal Sub-tab Switcher -->
+            <div class="mb-4">
+                <div class="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+                    <button data-expense-tab="team"
+                            class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer bg-primary-600 text-white">
+                        團隊分帳
+                    </button>
+                    <button data-expense-tab="personal"
+                            class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-colors duration-200 cursor-pointer bg-gray-200 dark:bg-gray-700 text-gray-600">
+                        個人記帳
+                    </button>
+                </div>
+            </div>
+
+            <!-- Team Expense Content -->
+            <div id="expense-team" class="expense-sub-tab">
+                <!-- Summary Card -->
+                <section class="glass-card p-6 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">總覽</h2>
+                        <div class="flex items-center gap-2">
+                            <button type="button" data-demo-cta="view-statistics" class="btn-text text-sm flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                統計
+                            </button>
+                            <button type="button" data-demo-cta="view-settlement" class="btn-text text-sm flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                </svg>
+                                結算
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white/50 dark:bg-gray-800/50 rounded-xl p-4">
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">總支出</p>
+                            <p class="text-xl font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                               th:text="${#numbers.formatDecimal(totalExpense, 0, 'COMMA', 0, 'POINT')}">0</p>
+                            <p class="text-xs text-gray-400 dark:text-gray-500" th:text="${defaultCurrency}">JPY</p>
+                        </div>
+                        <div class="bg-white/50 dark:bg-gray-800/50 rounded-xl p-4">
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">您的餘額</p>
+                            <p class="text-xl font-semibold font-mono"
+                               th:classappend="${userBalance >= 0 ? 'text-success dark:text-green-400' : 'text-error dark:text-red-400'}"
+                               th:text="${(userBalance >= 0 ? '+' : '') + #numbers.formatDecimal(userBalance, 0, 'COMMA', 0, 'POINT')}">+0</p>
+                            <p class="text-xs"
+                               th:classappend="${userBalance >= 0 ? 'text-success/70 dark:text-green-400/70' : 'text-error/70 dark:text-red-400/70'}"
+                               th:text="${userBalance >= 0 ? '可收回' : '需支付'}">狀態</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">人均花費</span>
+                            <span class="font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                                  th:text="'$' + ${#numbers.formatDecimal(perPersonAverage, 0, 'COMMA', 0, 'POINT')}">$0</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Expense List -->
+                <section>
+                    <div th:each="dateGroup, groupStat : ${expensesByDate}" class="mb-4">
+                        <div class="sticky top-0 z-10 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm py-2 -mx-4 px-4 cursor-pointer select-none"
+                             data-action="toggle-date-group">
+                            <div class="flex items-center gap-3">
+                                <div class="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex flex-col items-center justify-center">
+                                    <span class="text-xs text-primary-600 dark:text-primary-400 font-medium"
+                                          th:text="${#temporals.format(dateGroup.key, 'EEE')}">Mon</span>
+                                    <span class="text-lg font-bold text-primary-700 dark:text-primary-300"
+                                          th:text="${#temporals.format(dateGroup.key, 'd')}">1</span>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                                       th:text="${#temporals.format(dateGroup.key, 'MM月dd日')}">01月01日</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        <span th:text="${#lists.size(dateGroup.value)}">0</span> 筆支出
+                                    </p>
+                                </div>
+                                <div class="text-right mr-1">
+                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                                       th:text="'$' + ${#numbers.formatDecimal(#aggregates.sum(dateGroup.value.![amount]), 0, 'COMMA', 0, 'POINT')}">$0</p>
+                                </div>
+                                <svg class="w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform duration-200 chevron-icon flex-shrink-0"
+                                     th:classappend="${groupStat.first} ? 'rotate-180' : ''"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div class="expense-group-content space-y-2 mt-2 overflow-hidden transition-all duration-200 ease-out"
+                             th:classappend="${groupStat.first} ? '' : 'max-h-0'"
+                             th:style="${groupStat.first} ? '' : 'max-height: 0px'">
+                            <div th:each="expense : ${dateGroup.value}"
+                                 class="bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-card hover:shadow-card-hover transition-all duration-200 cursor-pointer"
+                                 data-demo-cta="view-expense">
+                                <div class="flex items-center gap-3">
+                                    <!-- Category Icon -->
+                                    <div class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+                                         th:classappend="${expense.category == 'FOOD' ? 'bg-orange-100 dark:bg-orange-900/30' :
+                                                          expense.category == 'TRANSPORT' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                                                          expense.category == 'ACCOMMODATION' ? 'bg-purple-100 dark:bg-purple-900/30' :
+                                                          expense.category == 'ENTERTAINMENT' ? 'bg-pink-100 dark:bg-pink-900/30' :
+                                                          'bg-gray-100 dark:bg-gray-700'}">
+                                        <svg th:if="${expense.category == 'FOOD'}" class="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                        <svg th:if="${expense.category == 'TRANSPORT'}" class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                        <svg th:if="${expense.category == 'ACCOMMODATION'}" class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                        <svg th:if="${expense.category == 'ENTERTAINMENT'}" class="w-4 h-4 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <svg th:if="${expense.category == 'OTHER' or expense.category == null}" class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate"
+                                           th:text="${expense.description}">支出描述</p>
+                                        <div class="flex items-center gap-1.5 mt-0.5">
+                                            <div class="w-4 h-4 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                                <span class="text-[10px] font-medium text-primary-600 dark:text-primary-400"
+                                                      th:text="${expense.paidByName != null ? #strings.substring(expense.paidByName, 0, 1) : '?'}">A</span>
+                                            </div>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400"
+                                                  th:text="${expense.paidByName != null ? expense.paidByName : '未知'}">付款人</span>
+                                            <span class="text-gray-300 dark:text-gray-600 text-xs">·</span>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400"
+                                                  th:text="${expense.splitType?.name() == 'EQUAL' ? '均分' : '自訂'}">均分</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 font-mono"
+                                           th:text="'$' + ${#numbers.formatDecimal(expense.amount, 0, 'COMMA', 0, 'POINT')}">$0</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Personal Expense Content -->
+            <div id="expense-personal" class="expense-sub-tab hidden"
+                 th:with="currSymbol=${(defaultCurrency ?: 'TWD') == 'TWD' ? 'NT$' : '$'}">
+                <!-- Summary card -->
+                <div class="mb-3 glass-card overflow-hidden"
+                     th:if="${personalExpenses != null and not #lists.isEmpty(personalExpenses)}">
+                    <div class="px-5 pt-4 pb-3">
+                        <p class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">個人總覽</p>
+                        <p class="text-3xl font-bold text-gray-900 dark:text-white tabular-nums"
+                           th:text="${personalSummary != null ? currSymbol + #numbers.formatDecimal(personalSummary.totalAmount, 0, 'COMMA', 0, 'POINT') : currSymbol + '0'}">$0</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5" th:text="${defaultCurrency ?: 'TWD'}">JPY</p>
+                    </div>
+                    <div class="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
+                        <div class="px-5 py-3">
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mb-0.5">日均花費</p>
+                            <p class="text-lg font-semibold text-gray-800 dark:text-gray-200 tabular-nums"
+                               th:text="${personalSummary?.dailyAverage != null ? currSymbol + #numbers.formatDecimal(personalSummary.dailyAverage, 0, 'COMMA', 0, 'POINT') : '-'}">-</p>
+                        </div>
+                        <div class="px-5 py-3">
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mb-0.5">記帳筆數</p>
+                            <p class="text-lg font-semibold text-gray-800 dark:text-gray-200"
+                               th:text="${personalExpenses != null ? #lists.size(personalExpenses) : 0} + ' 筆'">0 筆</p>
+                        </div>
+                    </div>
+                    <!-- Budget (set) -->
+                    <div class="px-5 py-3 border-t border-gray-100 dark:border-gray-700"
+                         th:if="${hasBudget and personalSummary != null}">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">預算追蹤</span>
+                            <span class="text-xs tabular-nums text-gray-600 dark:text-gray-300">
+                                <th:block th:text="${currSymbol + #numbers.formatDecimal(personalSummary.totalAmount, 0, 'COMMA', 0, 'POINT')}"/>
+                                <span class="text-gray-300 dark:text-gray-600">/</span>
+                                <th:block th:text="${currSymbol + #numbers.formatDecimal(personalSummary.budget, 0, 'COMMA', 0, 'POINT')}"/>
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5 mb-1.5 overflow-hidden"
+                             role="progressbar"
+                             th:attr="aria-valuenow=${budgetPercentageCapped}, aria-valuemin=0, aria-valuemax=100">
+                            <div class="h-2.5 rounded-full transition-all duration-700 ease-out"
+                                 th:classappend="${personalSummary.budgetStatus?.name() == 'RED'} ? 'bg-red-500' : (${personalSummary.budgetStatus?.name() == 'YELLOW'} ? 'bg-yellow-400' : 'bg-emerald-500')"
+                                 th:style="'width: ' + ${budgetPercentageCapped} + '%'"></div>
+                        </div>
+                        <p class="text-[11px] font-medium"
+                           th:classappend="${personalSummary.budgetStatus?.name() == 'RED'} ? 'text-red-500' : (${personalSummary.budgetStatus?.name() == 'YELLOW'} ? 'text-yellow-500 dark:text-yellow-400' : 'text-emerald-600 dark:text-emerald-400')"
+                           th:text="${personalSummary.budgetStatus?.name() == 'RED'} ? '已超出預算 ' + ${budgetPercentageCapped} + '%' : (${personalSummary.budgetStatus?.name() == 'YELLOW'} ? '即將到達預算上限 · ' + ${budgetPercentageCapped} + '%' : '預算使用 ' + ${budgetPercentageCapped} + '%')">預算充裕</p>
+                    </div>
+                </div>
+
+                <!-- Chart card -->
+                <div class="mb-3 glass-card p-4"
+                     th:if="${personalExpenses != null and not #lists.isEmpty(personalExpenses) and personalSummary != null}">
+                    <div class="relative flex gap-1 p-1 bg-gray-100 dark:bg-gray-900 rounded-lg mb-4">
+                        <button data-chart-tab="category"
+                                class="relative z-10 flex-1 py-1.5 rounded-md text-xs font-medium transition-colors duration-200 cursor-pointer bg-primary-600 text-white">
+                            類別分布
+                        </button>
+                        <button data-chart-tab="daily"
+                                class="relative z-10 flex-1 py-1.5 rounded-md text-xs font-medium transition-colors duration-200 cursor-pointer bg-gray-200 text-gray-600">
+                            每日趨勢
+                        </button>
+                    </div>
+                    <div id="chart-category" class="chart-panel min-h-[280px]">
+                        <div class="relative h-48">
+                            <canvas id="demo-category-chart"></canvas>
+                        </div>
+                    </div>
+                    <div id="chart-daily" class="chart-panel hidden min-h-[200px]">
+                        <div class="min-h-[200px]">
+                            <canvas id="demo-daily-chart" style="height: 200px"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personal expense list -->
+                <div class="pb-6 space-y-2"
+                     th:if="${personalExpenses != null and not #lists.isEmpty(personalExpenses)}">
+                    <th:block th:each="expense : ${personalExpenses}">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-card px-4 py-3 hover:shadow-card-hover transition-all duration-200 cursor-pointer"
+                             data-demo-cta="view-personal-expense">
+                            <div class="flex items-center gap-3">
+                                <div class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+                                     th:classappend="${expense.category == 'FOOD'} ? 'bg-orange-100 dark:bg-orange-900/30' : (${expense.category == 'TRANSPORT'} ? 'bg-blue-100 dark:bg-blue-900/30' : (${expense.category == 'ACCOMMODATION'} ? 'bg-purple-100 dark:bg-purple-900/30' : (${expense.category == 'SHOPPING'} ? 'bg-pink-100 dark:bg-pink-900/30' : (${expense.category == 'ENTERTAINMENT'} ? 'bg-rose-100 dark:bg-rose-900/30' : (${expense.category == 'HEALTH'} ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-100 dark:bg-gray-700')))))">
+                                    <svg th:if="${expense.category == 'FOOD'}" class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                    <svg th:if="${expense.category == 'TRANSPORT'}" class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                    <svg th:if="${expense.category == 'ACCOMMODATION'}" class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                    <svg th:if="${expense.category == 'SHOPPING'}" class="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                                    <svg th:if="${expense.category == 'ENTERTAINMENT'}" class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <svg th:if="${expense.category == 'HEALTH'}" class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                                    <svg th:if="${expense.category == 'OTHER' or expense.category == null}" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate"
+                                       th:text="${expense.description}">描述</p>
+                                    <div class="flex items-center gap-1.5 mt-0.5">
+                                        <span th:if="${expense.source?.name() == 'AUTO'}" class="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">自動同步</span>
+                                        <span th:if="${expense.source?.name() == 'MANUAL'}" class="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                              th:classappend="${expense.category == 'FOOD'} ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : (${expense.category == 'TRANSPORT'} ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400')"
+                                              th:text="${expense.category == 'FOOD'} ? '餐飲' : (${expense.category == 'TRANSPORT'} ? '交通' : (${expense.category == 'ACCOMMODATION'} ? '住宿' : (${expense.category == 'SHOPPING'} ? '購物' : (${expense.category == 'ENTERTAINMENT'} ? '娛樂' : (${expense.category == 'HEALTH'} ? '健康' : '其他')))))">其他</span>
+                                        <span class="text-xs text-gray-400 dark:text-gray-500"
+                                              th:if="${expense.expenseDate != null}"
+                                              th:text="${#temporals.format(expense.expenseDate, 'MM/dd')}"></span>
+                                    </div>
+                                </div>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white tabular-nums flex-shrink-0"
+                                   th:text="${currSymbol + #numbers.formatDecimal(expense.amount, 0, 'COMMA', 2, 'POINT')}">$0</p>
+                            </div>
+                        </div>
+                    </th:block>
+                </div>
+
+                <!-- Chart data (consumed by demo.js via textContent) -->
+                <div th:if="${personalSummary != null}" style="display:none">
+                    <div id="demo-category-data" th:text="${personalCategoryBreakdownJson}"></div>
+                    <div id="demo-daily-data" th:text="${personalDailyAmountsJson}"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             TAB: TODOS
+             ============================================ -->
+        <div id="tab-todos" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading flex items-center gap-2">
+                    <svg class="w-5 h-5 text-warning-dark dark:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    待辦事項
+                </h2>
+                <button type="button" data-demo-cta="add-todo" class="btn-cta flex items-center gap-2 text-sm" aria-label="新增待辦">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span class="hidden sm:inline">新增</span>
+                </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="glass-card p-4 mb-4" th:if="${todoCount != null && todoCount > 0}">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">完成進度</span>
+                    <span class="text-sm font-medium text-gray-800 dark:text-gray-100"
+                        th:text="${todoCompletedCount} + ' / ' + ${todoCount}">3 / 10</span>
+                </div>
+                <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-success rounded-full transition-all duration-500"
+                        th:style="'width: ' + ${todoCount > 0 ? (todoCompletedCount * 100 / todoCount) : 0} + '%'"></div>
+                </div>
+            </div>
+
+            <!-- Full Todo List -->
+            <div th:if="${upcomingTodos != null and !#lists.isEmpty(upcomingTodos)}" class="space-y-2">
+                <div th:each="todo : ${upcomingTodos}"
+                    class="glass-card p-4 flex items-center gap-3 hover:shadow-md transition-all duration-200">
+                    <!-- Checkbox (non-functional, CTA) -->
+                    <button type="button" data-demo-cta="toggle-todo"
+                        th:class="'flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer ' + (${todo.status.name() == 'COMPLETED'} ? 'bg-success border-success text-white' : (${todo.status.name() == 'IN_PROGRESS'} ? 'bg-primary-500 border-primary-500' : 'border-gray-300 dark:border-gray-600'))">
+                        <svg th:if="${todo.status.name() == 'COMPLETED'}" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                        <span th:if="${todo.status.name() == 'IN_PROGRESS'}" class="w-2 h-2 bg-white rounded-full"></span>
+                    </button>
+                    <div class="flex-1 min-w-0">
+                        <h4 th:class="'text-sm font-medium truncate ' + (${todo.status.name() == 'COMPLETED'} ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100')"
+                            th:text="${todo.title}">待辦事項標題</h4>
+                    </div>
+                    <div th:if="${todo.assigneeName}" class="flex-shrink-0">
+                        <span class="w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                     flex items-center justify-center text-xs font-medium
+                                     text-primary-600 dark:text-primary-400"
+                            th:text="${todo.assigneeName?.length() > 0 ? #strings.substring(todo.assigneeName, 0, 1) : '?'}"
+                            th:title="${todo.assigneeName}">M</span>
+                    </div>
+                    <div th:if="${todo.dueDate}"
+                        th:class="'flex-shrink-0 text-xs px-2 py-0.5 rounded-full ' + (${todo.isOverdue} ? 'bg-error-light text-error-dark' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300')"
+                        th:text="${#temporals.format(todo.dueDate, 'MM/dd')}">01/15</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             TAB: MEMBERS
+             ============================================ -->
+        <div id="tab-members" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-h4 text-gray-800 dark:text-gray-100 font-heading flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    成員 (<span th:text="${memberCount}">3</span>)
+                </h2>
+                <button type="button" data-demo-cta="invite-member" class="btn-cta flex items-center gap-2 text-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                    </svg>
+                    <span class="hidden sm:inline">邀請</span>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <th:block th:each="member, iterStat : ${members}">
+                    <div class="glass-card p-4 flex items-center gap-4">
+                        <!-- Avatar -->
+                        <div class="flex-shrink-0">
+                            <img th:if="${member.avatarUrl}" th:src="${member.avatarUrl}" th:alt="${member.nickname}"
+                                class="w-12 h-12 rounded-full object-cover" />
+                            <span th:unless="${member.avatarUrl}" class="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30
+                                         flex items-center justify-center text-lg font-semibold
+                                         text-primary-600 dark:text-primary-400"
+                                th:text="${member.nickname != null ? #strings.substring(member.nickname, 0, 1) : 'U'}">M</span>
+                        </div>
+                        <!-- Info -->
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-medium text-gray-800 dark:text-gray-100 truncate"
+                                th:text="${member.nickname}">成員名稱</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"
+                               th:text="${iterStat.first ? '擁有者' : '編輯者'}">角色</p>
+                        </div>
+                        <!-- Role Badge -->
+                        <span th:if="${iterStat.first}"
+                              class="flex-shrink-0 text-xs px-2.5 py-1 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium">
+                            擁有者
+                        </span>
+                        <span th:unless="${iterStat.first}"
+                              class="flex-shrink-0 text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium">
+                            編輯者
+                        </span>
+                    </div>
+                </th:block>
+            </div>
+        </div>
+    </main>
+
+    <!-- FAB: Add Activity (visible on overview & activities tab) -->
+    <button type="button" id="demo-fab" data-demo-cta="add-activity" aria-label="新增景點"
+        class="fixed right-6 bottom-24 z-[52]
+              w-14 h-14 rounded-full
+              bg-adventure-500 hover:bg-adventure-600 active:bg-adventure-700
+              text-white shadow-lg shadow-adventure-500/30
+              flex items-center justify-center
+              transition-all duration-200 active:scale-95 cursor-pointer">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+    </button>
+
+    <!-- CTA Modal -->
+    <div th:replace="~{demo/fragments/cta-modal :: cta-modal}"></div>
+
+    <!-- Demo Chat Widget -->
+    <div id="demo-chat-backdrop" class="fixed inset-0 bg-black/30 z-[51] hidden transition-opacity duration-300"></div>
+
+    <button id="demo-chat-toggle-btn" aria-label="開啟 AI 旅遊助手" class="fixed right-6 bottom-40 z-[52]
+                   w-14 h-14 rounded-full
+                   bg-primary-500 hover:bg-primary-600 active:bg-primary-700
+                   text-white shadow-lg shadow-primary-500/30
+                   flex items-center justify-center
+                   transition-all duration-200 active:scale-95 cursor-pointer">
+        <svg id="demo-chat-icon-open" class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" />
+        </svg>
+        <svg id="demo-chat-icon-close" class="w-7 h-7 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </button>
+
+    <div id="demo-chat-window" class="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:right-6 sm:bottom-[13rem] z-[52]
+                w-full sm:w-[26rem] h-[85dvh] sm:h-[32rem] sm:max-h-[calc(100dvh-10rem)]
+                bg-white dark:bg-gray-800
+                rounded-t-2xl sm:rounded-2xl shadow-2xl
+                border border-gray-200 dark:border-gray-700
+                flex flex-col overflow-hidden
+                transition-all duration-300 ease-out
+                translate-y-full sm:translate-y-0
+                sm:origin-bottom-right sm:scale-0
+                opacity-0 pointer-events-none">
+        <!-- Header -->
+        <div class="flex items-center gap-3 px-4 py-2 bg-primary-500 text-white">
+            <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" />
+                </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-sm">WeGo 旅遊助手</h3>
+                <p class="text-xs text-white/80">旅遊、美食、景點推薦</p>
+            </div>
+            <button id="demo-chat-close-header" aria-label="關閉聊天" class="w-8 h-8 rounded-full bg-white/20
+                           flex items-center justify-center
+                           hover:bg-white/30 transition-colors cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Messages -->
+        <div id="demo-chat-messages" class="flex-1 overflow-y-auto overscroll-y-contain px-4 py-3 space-y-3">
+            <div class="flex gap-2">
+                <div class="w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg class="w-4 h-4 text-primary-600 dark:text-primary-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" />
+                    </svg>
+                </div>
+                <div class="bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-tl-sm px-3 py-2 max-w-[88%]">
+                    <p class="text-sm text-gray-800 dark:text-gray-200">
+                        你好！我是 WeGo 旅遊助手，可以幫你推薦餐廳、景點和行程安排。有什麼想問的嗎？
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exhausted Overlay -->
+        <div id="demo-chat-overlay" class="absolute inset-0 z-10 hidden flex-col items-center justify-center
+             bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl transition-opacity duration-300 opacity-0">
+            <div class="text-center px-6">
+                <div class="mx-auto w-14 h-14 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mb-4">
+                    <svg class="w-7 h-7 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Demo 對話次數已達上限</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-5">免費註冊即可無限暢聊 AI 旅遊助手</p>
+                <a th:href="@{/oauth2/authorization/google}"
+                   class="inline-flex items-center justify-center gap-3 w-full px-6 py-3
+                          bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-xl shadow-sm
+                          hover:shadow-md hover:border-primary-300 dark:hover:border-primary-500 transition-all duration-200
+                          font-medium text-gray-700 dark:text-gray-200 mb-3">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Google 帳號登入
+                </a>
+                <button id="demo-chat-overlay-dismiss"
+                    class="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer">
+                    繼續瀏覽聊天紀錄
+                </button>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div id="demo-chat-input-area" class="px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <div class="flex items-center bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600
+                        focus-within:ring-2 focus-within:ring-primary-500/50 transition-all duration-200 pl-3 pr-1.5 py-1.5">
+                <textarea id="demo-chat-input" rows="1" maxlength="500" aria-label="輸入訊息" placeholder="輸入你的問題..."
+                    class="flex-1 resize-none bg-transparent border-0 py-1.5 text-base
+                           text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500
+                           focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 max-h-20 overflow-y-auto"></textarea>
+                <button id="demo-chat-send-btn" disabled aria-label="發送訊息"
+                    class="w-10 h-10 rounded-xl bg-primary-500 hover:bg-primary-600
+                           disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed
+                           text-white flex items-center justify-center transition-colors duration-200 cursor-pointer flex-shrink-0 ml-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19V5m0 0l-7 7m7-7l7 7" />
+                    </svg>
+                </button>
+            </div>
+            <div class="flex justify-between items-center mt-1 px-1">
+                <span class="text-[11px] text-gray-400 dark:text-gray-500">Gemini 2.5 Flash</span>
+                <span id="demo-chat-remaining" class="text-[11px] text-gray-400 dark:text-gray-500">剩餘 3 次對話</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/theme-engine.js" defer></script>
+    <script src="/js/demo.js" defer></script>
+    <script src="/js/demo-chat.js" defer></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Parallax Header
+            var heroImg = document.getElementById('hero-cover-img');
+            if (heroImg) {
+                window.addEventListener('scroll', function() {
+                    var y = window.scrollY;
+                    if (y < 400) {
+                        heroImg.style.transform = 'translateY(' + (y * 0.3) + 'px) scale(' + (1 + y * 0.0005) + ')';
+                    }
+                }, { passive: true });
+            }
+
+            // Activity date nav buttons
+            document.querySelectorAll('.demo-date-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var date = btn.getAttribute('data-date');
+                    document.querySelectorAll('.demo-date-btn').forEach(function(b) {
+                        b.classList.remove('bg-primary-500', 'text-white');
+                        b.classList.add('bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-200');
+                    });
+                    btn.classList.remove('bg-white', 'dark:bg-gray-800', 'text-gray-700', 'dark:text-gray-200');
+                    btn.classList.add('bg-primary-500', 'text-white');
+                    var target = document.getElementById('day-' + date);
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        var header = target.querySelector('[data-action="toggle-group"]');
+                        if (header && header.getAttribute('aria-expanded') === 'false') {
+                            header.click();
+                        }
+                    }
+                });
+            });
+
+            // Activity/expense group expand/collapse (direct DOM, not via demo.js data-day-group)
+            document.querySelectorAll('[data-action="toggle-group"], [data-action="toggle-date-group"]').forEach(function(header) {
+                header.addEventListener('click', function() {
+                    var content = header.nextElementSibling;
+                    if (!content) return;
+                    var chevron = header.querySelector('.chevron-icon');
+                    var isExpanded = header.getAttribute('aria-expanded') === 'true';
+                    if (content.classList.contains('activity-group-content') || content.classList.contains('expense-group-content')) {
+                        if (isExpanded || !content.classList.contains('max-h-0')) {
+                            content.style.maxHeight = '0px';
+                            content.classList.add('max-h-0');
+                            header.setAttribute('aria-expanded', 'false');
+                            if (chevron) chevron.classList.remove('rotate-180');
+                        } else {
+                            content.classList.remove('max-h-0');
+                            content.style.maxHeight = content.scrollHeight + 'px';
+                            header.setAttribute('aria-expanded', 'true');
+                            if (chevron) chevron.classList.add('rotate-180');
+                        }
+                    }
+                });
+            });
+
+            // Chat toggle/send/close handled by demo-chat.js
+        });
+    </script>
+</body>
+</html>
