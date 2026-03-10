@@ -28,6 +28,15 @@ public class RateLimitService {
             .build();
 
     /**
+     * Separate cache for absolute (non-windowed) counters.
+     * Used for demo chat session limits where we need a total count, not per-minute.
+     */
+    private final Cache<String, AtomicInteger> absoluteCounters = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofHours(24))
+            .maximumSize(50_000)
+            .build();
+
+    /**
      * Check if a request is allowed for the given key.
      *
      * @param key The rate limit key (e.g., "places:search:userId")
@@ -48,6 +57,20 @@ public class RateLimitService {
         RateLimitBucket bucket = buckets.get(key,
             k -> new RateLimitBucket(maxRequestsPerMinute));
         return bucket.tryAcquire();
+    }
+
+    /**
+     * Check if allowed against an absolute counter (no time window reset).
+     * Used for demo chat session limits where the total count matters,
+     * not requests-per-minute.
+     *
+     * @param key The rate limit key (e.g., "demo:chat:sessionId")
+     * @param maxRequests Maximum total requests allowed
+     * @return true if allowed, false if limit exceeded
+     */
+    public boolean isAbsoluteAllowed(String key, int maxRequests) {
+        AtomicInteger counter = absoluteCounters.get(key, k -> new AtomicInteger(0));
+        return counter.incrementAndGet() <= maxRequests;
     }
 
     /**
