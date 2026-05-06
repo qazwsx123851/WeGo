@@ -761,6 +761,14 @@ const WeatherUI = {
      *   - post: Sets lat/lng and calls loadWeather
      */
     tryGeolocation() {
+        // Skip browser geolocation when the page opts out (e.g. demo trip view —
+        // demo always shows weather at the fixed fallback location, never the
+        // visitor's real location).
+        if (this.container && this.container.dataset.skipGeolocation === 'true') {
+            this.useFallbackLocation();
+            return;
+        }
+
         // Check if geolocation is supported
         if (!navigator.geolocation) {
             this.useFallbackLocation();

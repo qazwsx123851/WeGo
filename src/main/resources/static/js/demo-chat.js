@@ -21,6 +21,9 @@
     // DOM elements (populated on init)
     var chatToggle, chatWindow, chatMessages, chatInput, chatSendBtn;
     var chatClose, chatBackdrop, messagesContainer;
+    var chatExpandBtn, chatExpandIcon, chatCollapseIcon;
+    var isExpanded = false;
+    var desktopQuery = window.matchMedia('(min-width: 640px)');
 
     function init() {
         chatToggle = document.getElementById('demo-chat-toggle-btn');
@@ -31,6 +34,9 @@
         chatClose = document.getElementById('demo-chat-close-header');
         chatBackdrop = document.getElementById('demo-chat-backdrop');
         messagesContainer = document.getElementById('demo-chat-messages');
+        chatExpandBtn = document.getElementById('demo-chat-expand-btn');
+        chatExpandIcon = document.getElementById('demo-chat-expand-icon');
+        chatCollapseIcon = document.getElementById('demo-chat-collapse-icon');
 
         if (!chatToggle || !chatWindow) return;
 
@@ -56,6 +62,11 @@
             chatSendBtn.addEventListener('click', sendMessage);
         }
 
+        // Expand / collapse (desktop only)
+        if (chatExpandBtn) {
+            chatExpandBtn.addEventListener('click', toggleExpand);
+        }
+
         // Input handling
         if (chatInput) {
             chatInput.addEventListener('keydown', function(e) {
@@ -69,11 +80,6 @@
                 // Auto-resize
                 chatInput.style.height = 'auto';
                 chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
-                // Character count
-                var counter = document.getElementById('demo-chat-counter');
-                if (counter) {
-                    counter.textContent = chatInput.value.length + '/500';
-                }
             });
         }
 
@@ -106,6 +112,16 @@
     function closeChat() {
         chatOpen = false;
         var isMobile = window.innerWidth < 640;
+        // Reset expand state on close (desktop only)
+        if (isExpanded) {
+            isExpanded = false;
+            chatWindow.style.width = '';
+            chatWindow.style.height = '';
+            chatWindow.style.bottom = '';
+            if (chatExpandIcon) chatExpandIcon.classList.remove('hidden');
+            if (chatCollapseIcon) chatCollapseIcon.classList.add('hidden');
+            if (chatExpandBtn) chatExpandBtn.setAttribute('aria-label', '展開聊天視窗');
+        }
         if (isMobile) {
             chatWindow.classList.add('translate-y-full');
             if (chatBackdrop) chatBackdrop.classList.add('hidden');
@@ -121,6 +137,31 @@
             chatWindow.classList.remove('pointer-events-auto', 'opacity-100');
             chatWindow.classList.add('pointer-events-none', 'opacity-0');
         }, 300);
+    }
+
+    // Expand / collapse (desktop only) — mirrors chat.js:toggleExpand
+    function toggleExpand() {
+        if (!desktopQuery.matches) return;
+        isExpanded = !isExpanded;
+        if (isExpanded) {
+            var vh = window.innerHeight;
+            var vw = window.innerWidth;
+            var expandH = Math.round(vh * 0.85);
+            var expandW = Math.round(Math.min(Math.max(vw * 0.4, 416), 576));
+            chatWindow.style.width = expandW + 'px';
+            chatWindow.style.height = expandH + 'px';
+            var bottomOffset = Math.round((vh - expandH) / 2);
+            chatWindow.style.bottom = Math.max(bottomOffset, 24) + 'px';
+        } else {
+            chatWindow.style.width = '';
+            chatWindow.style.height = '';
+            chatWindow.style.bottom = '';
+        }
+        if (chatExpandIcon) chatExpandIcon.classList.toggle('hidden', isExpanded);
+        if (chatCollapseIcon) chatCollapseIcon.classList.toggle('hidden', !isExpanded);
+        if (chatExpandBtn) chatExpandBtn.setAttribute('aria-label', isExpanded ? '收合聊天視窗' : '展開聊天視窗');
+        // Scroll messages to bottom after resize
+        if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
     function sendMessage() {
@@ -140,8 +181,6 @@
         chatInput.value = '';
         chatInput.style.height = 'auto';
         chatSendBtn.disabled = true;
-        var counter = document.getElementById('demo-chat-counter');
-        if (counter) counter.textContent = '0/500';
 
         // Show typing indicator
         var typingId = showTypingIndicator();

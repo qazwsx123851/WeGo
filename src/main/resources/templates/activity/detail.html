@@ -406,7 +406,7 @@
     </main>
 
     <!-- Dynamic Pill Bar -->
-    <div th:replace="~{fragments/components :: trip-pill-bar(tripId=${trip.id})}"></div>
+    <div th:replace="~{fragments/components :: trip-pill-bar(tripId=${trip.id}, isDemo=false)}"></div>
 
     <!-- More Options Dropdown (hidden by default) -->
     <div id="more-options-menu"

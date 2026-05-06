@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -70,7 +71,7 @@ public class DemoDataProvider {
                 .endDate(END_DATE)
                 .durationDays(4)
                 .baseCurrency("JPY")
-                .coverImageUrl(null)
+                .coverImageUrl("https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=1920&q=80")
                 .ownerId(MEMBER_XIAOMING)
                 .memberCount(3)
                 .currentUserRole(Role.OWNER)
@@ -133,6 +134,35 @@ public class DemoDataProvider {
 
     public String getDemoTripContextForChat() {
         return buildChatContext();
+    }
+
+    // ========== Detail Accessors (by ID) ==========
+
+    public Optional<ActivityResponse> getActivity(UUID id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        return getAllDemoActivities().stream()
+                .filter(a -> id.equals(a.getId()))
+                .findFirst();
+    }
+
+    public Optional<ExpenseResponse> getExpense(UUID id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        return getDemoExpenses().stream()
+                .filter(e -> id.equals(e.getId()))
+                .findFirst();
+    }
+
+    public Optional<TripResponse.MemberSummary> getMember(UUID id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        return getDemoTrip().getMembers().stream()
+                .filter(m -> id.equals(m.getUserId()))
+                .findFirst();
     }
 
     // ========== Members ==========

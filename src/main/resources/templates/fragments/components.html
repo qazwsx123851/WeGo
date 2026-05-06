@@ -428,11 +428,11 @@
 </div>
 
 <!-- Trip Dynamic Pill Bar (Trip sub-page navigation) -->
-<div th:fragment="trip-pill-bar(tripId)" id="dynamic-pill-bar" class="fixed left-1/2 -translate-x-1/2 bottom-6 z-[51]
+<div th:fragment="trip-pill-bar(tripId, isDemo)" id="dynamic-pill-bar" class="fixed left-1/2 -translate-x-1/2 bottom-6 z-[51]
                                       glass-card-2026 rounded-full px-1.5 py-1.5
                                       flex items-center gap-1 shadow-glass-ambient
                                       transition-all duration-500 ease-out hover:scale-[1.02]">
-    <a th:href="@{/trips/{id}/activities(id=${tripId})}"
+    <a th:href="${isDemo} ? '/demo/trip/activities' : @{/trips/{id}/activities(id=${tripId})}"
         class="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors text-primary-600 dark:text-primary-400 group">
         <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -443,7 +443,7 @@
         <span class="text-sm font-medium transition-all duration-300 max-w-[4rem] pill-text whitespace-nowrap overflow-hidden">景點</span>
     </a>
     <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
-    <a th:href="@{/trips/{id}/expenses(id=${tripId})}"
+    <a th:href="${isDemo} ? '/demo/trip/expenses' : @{/trips/{id}/expenses(id=${tripId})}"
         class="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors text-adventure-600 dark:text-adventure-400 group">
         <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -452,7 +452,8 @@
         <span class="text-sm font-medium transition-all duration-300 max-w-[4rem] pill-text whitespace-nowrap overflow-hidden">分帳</span>
     </a>
     <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
-    <a th:href="@{/trips/{id}/documents(id=${tripId})}"
+    <a th:href="${isDemo} ? '#' : @{/trips/{id}/documents(id=${tripId})}"
+        th:attr="data-demo-cta=${isDemo} ? 'upload-document' : null"
         class="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors text-success dark:text-success-400 group">
         <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -461,7 +462,7 @@
         <span class="text-sm font-medium transition-all duration-300 max-w-[4rem] pill-text whitespace-nowrap overflow-hidden">檔案</span>
     </a>
     <div class="w-px h-5 bg-gray-200 dark:bg-gray-700/50"></div>
-    <a th:href="@{/trips/{id}/todos(id=${tripId})}"
+    <a th:href="${isDemo} ? '/demo/trip/todos' : @{/trips/{id}/todos(id=${tripId})}"
         class="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors text-orange-600 dark:text-orange-400 group">
         <svg class="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

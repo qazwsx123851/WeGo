@@ -408,7 +408,7 @@
     </a>
 
     <!-- Dynamic Pill Bar -->
-    <div th:replace="~{fragments/components :: trip-pill-bar(tripId=${trip.id})}"></div>
+    <div th:replace="~{fragments/components :: trip-pill-bar(tripId=${trip.id}, isDemo=false)}"></div>
 
     <!-- Route Optimization Modal -->
     <div id="optimization-modal"
