@@ -2,6 +2,9 @@
 
 > 旅遊規劃協作平台 | Spring Boot 3.x + Thymeleaf + Tailwind CSS + Supabase
 
+## 回覆規則
+**永遠使用繁體中文回覆使用者。** 程式碼、檔名、技術術語可保留英文,但所有對話、說明、註解、commit message 描述等面向使用者的文字皆須使用繁體中文。
+
 ## Context7 MCP 使用規則
 Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
 
